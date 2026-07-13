@@ -13,6 +13,11 @@
   "dependencies": {
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "hono": "^4.8.3",
+    "@neondatabase/serverless": "^1.0.1",
+    "bcryptjs": "^3.0.2",
+    "jose": "^6.0.11",
+    "@hono/node-server": "^1.14.4",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@mui/icons-material": "7.3.5",
@@ -71,6 +76,8 @@
     "vaul": "1.1.2"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.15.32",
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
     "tailwindcss": "4.1.12",

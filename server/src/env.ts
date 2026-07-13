@@ -39,9 +39,18 @@ export const env = {
   databaseUrl: () => required('DATABASE_URL'),
   jwtSecret: () => required('JWT_SECRET'),
   port: () => Number(process.env.PORT || 8787),
-  uploadDir: () => resolve(root, process.env.UPLOAD_DIR?.trim() || 'uploads'),
-  publicBaseUrl: () =>
-    (process.env.PUBLIC_BASE_URL?.trim() || 'http://localhost:5173').replace(/\/$/, ''),
+  uploadDir: () => {
+    if (process.env.VERCEL) {
+      return resolve('/tmp', process.env.UPLOAD_DIR?.trim() || 'hamel-uploads');
+    }
+    return resolve(root, process.env.UPLOAD_DIR?.trim() || 'uploads');
+  },
+  publicBaseUrl: () => {
+    const fromEnv = process.env.PUBLIC_BASE_URL?.trim();
+    if (fromEnv) return fromEnv.replace(/\/$/, '');
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, '')}`;
+    return 'http://localhost:5173';
+  },
   exposeResetToken: () => process.env.DEV_EXPOSE_RESET_TOKEN === 'true',
 
   /** Comma-separated browser origins allowed to call the API (Vercel + local). */

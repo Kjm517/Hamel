@@ -96,10 +96,19 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
   }
 
   if (!res.ok) {
-    const message =
+    let message =
       data && typeof data === 'object' && data !== null && 'error' in data
         ? String((data as { error: unknown }).error)
         : `Request failed (${res.status})`;
+    if (
+      (res.status === 404 || res.status === 405) &&
+      !getApiBase() &&
+      typeof window !== 'undefined' &&
+      /\.vercel\.app$/i.test(window.location.hostname)
+    ) {
+      message =
+        'API is not reachable on this deployment. Set DATABASE_URL and JWT_SECRET in Vercel, redeploy, then try again.';
+    }
     if (res.status === 401 && options.auth !== false) {
       clearAccessToken();
     }
