@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Build
+dist/
+server/dist/
+*.tsbuildinfo
+
+# Env / secrets — never commit
+.env
+.env.*
+!.env.example
+server/.env
+server/.env.*
+!server/.env.example
+
+# Uploads / local data
+server/uploads/
+uploads/
+
+# Logs & caches
+*.log
+npm-debug.log*
+.pnpm-store/
+.cache/
+.turbo/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test / coverage
+coverage/
+
+# Temp
+tmp/
+*.tmp
+server/tmp-webhook.json
