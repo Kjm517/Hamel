@@ -8,7 +8,7 @@
     "api/index.ts": {
       "memory": 1024,
       "maxDuration": 60,
-      "includeFiles": "api/_app.mjs"
+      "includeFiles": "_app.mjs"
     },
     "api/health.ts": {
       "memory": 256,
@@ -17,7 +17,7 @@
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/((?!health(?:/|$)).*)",
       "destination": "/api"
     },
     {
