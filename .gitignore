@@ -5,6 +5,8 @@ server/node_modules/
 # Build
 dist/
 server/dist/
+api/_app.mjs
+api/_app.mjs.map
 *.tsbuildinfo
 
 # Env / secrets — never commit

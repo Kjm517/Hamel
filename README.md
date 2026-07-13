@@ -43,13 +43,13 @@ Open http://localhost:5173 — admin at `/admin/login`.
 
 ## Deploy storefront to Vercel (partial / UI fixes)
 
-The Vite app deploys cleanly to Vercel. The Hono API stays on a Node host (Render/Railway/VPS) for now — Messenger webhooks and uploads need a long-running server.
+Vite + Hono API deploy together: `npm run build` builds the SPA and bundles the API into `api/_app.mjs` for the serverless function.
 
 ### 1. Push this repo, then import in Vercel
 
 - Root directory: **`.`** (this `Main` folder is the git root)
 - Framework preset: **Vite** (or leave as detected)
-- Build command: `npm run build`
+- Build command: `npm run build` (Vite + API bundle)
 - Output: `dist`
 
 `vercel.json` already sets SPA rewrites so `/admin`, `/products`, etc. work on refresh.
@@ -62,13 +62,13 @@ Leave `VITE_API_URL` **empty** so the browser calls same-origin `/api` (serverle
 |------|--------|
 | `DATABASE_URL` | Neon connection string |
 | `JWT_SECRET` | Long random secret |
-| `PUBLIC_BASE_URL` | Your Vercel URL, e.g. `https://hamel.vercel.app` |
-| `NODEJS_HELPERS` | `0` (**required** — login POST fails without this) |
+| `PUBLIC_BASE_URL` | Site origin only, e.g. `https://hamel-seven.vercel.app` (**not** `/admin/login`) |
+| `NODEJS_HELPERS` | `0` (**exactly** `0` — not `.` or empty; login POST fails without this) |
 | `CORS_ORIGINS` | Same Vercel URL (optional; `.vercel.app` is allowed automatically) |
 
 Optional AI/Messenger vars: `AI_PROVIDER`, `GEMINI_API_KEY`, `MESSENGER_*`, etc.
 
-Redeploy after saving env vars. Check `https://your-app.vercel.app/api/health`, then `/admin/login` with `manager` / `HamelAdmin1!`.
+Redeploy after saving env vars. Check `https://your-app.vercel.app/api/health` (should return JSON, not a Vercel crash page), then `/admin/login` with `manager` / `HamelAdmin1!`.
 
 ### 3. API CORS (only if API is on a separate host)
 
