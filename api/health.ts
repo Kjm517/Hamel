@@ -1,7 +1,5 @@
-/** Lightweight probe — does not load the Hono app bundle. */
-export default function handler(
-  _req: { method?: string },
-  res: { status: (code: number) => { json: (body: unknown) => void } }
-) {
-  res.status(200).json({ ok: true, service: 'hamel-api', vercel: true });
+export const config = { runtime: 'edge' };
+
+export default function handler() {
+  return Response.json({ ok: true, service: 'hamel-api', vercel: true });
 }
