@@ -44,6 +44,16 @@ export const env = {
     (process.env.PUBLIC_BASE_URL?.trim() || 'http://localhost:5173').replace(/\/$/, ''),
   exposeResetToken: () => process.env.DEV_EXPOSE_RESET_TOKEN === 'true',
 
+  /** Comma-separated browser origins allowed to call the API (Vercel + local). */
+  corsOrigins: (): string[] => {
+    const defaults = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+    const extra = (process.env.CORS_ORIGINS || '')
+      .split(',')
+      .map((s) => s.trim().replace(/\/$/, ''))
+      .filter(Boolean);
+    return [...new Set([...defaults, ...extra])];
+  },
+
   /** claude (default sample) | gemini (client later) */
   aiProvider: (): 'claude' | 'gemini' => {
     const v = (process.env.AI_PROVIDER || 'claude').trim().toLowerCase();

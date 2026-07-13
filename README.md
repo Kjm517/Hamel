@@ -41,6 +41,42 @@ Vite proxies `/api` and `/uploads` to `http://localhost:8787`.
 
 Open http://localhost:5173 — admin at `/admin/login`.
 
+## Deploy storefront to Vercel (partial / UI fixes)
+
+The Vite app deploys cleanly to Vercel. The Hono API stays on a Node host (Render/Railway/VPS) for now — Messenger webhooks and uploads need a long-running server.
+
+### 1. Push this repo, then import in Vercel
+
+- Root directory: **`.`** (this `Main` folder is the git root)
+- Framework preset: **Vite** (or leave as detected)
+- Build command: `npm run build`
+- Output: `dist`
+
+`vercel.json` already sets SPA rewrites so `/admin`, `/products`, etc. work on refresh.
+
+### 2. Vercel environment variable
+
+| Name | Value |
+|------|--------|
+| `VITE_API_URL` | Your public API origin, e.g. `https://your-api.onrender.com` (no trailing slash) |
+
+If `VITE_API_URL` is empty, the site calls same-origin `/api` (only works with a local Vite proxy).
+
+### 3. API CORS
+
+On the API host `.env`:
+
+```env
+CORS_ORIGINS=https://your-app.vercel.app,https://your-app-git-main-xxx.vercel.app
+PUBLIC_BASE_URL=https://your-app.vercel.app
+```
+
+Restart the API after changing CORS.
+
+### 4. What works without a public API
+
+Static UI and client-side flows still load. Catalog, admin, chat, and inquiries need `VITE_API_URL` pointing at a running API.
+
 ## What is dynamic (Neon)
 
 - Products, tags, employees, auth
