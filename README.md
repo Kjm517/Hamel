@@ -63,11 +63,12 @@ Leave `VITE_API_URL` **empty** so the browser calls same-origin `/api` (serverle
 | `DATABASE_URL` | Neon connection string |
 | `JWT_SECRET` | Long random secret |
 | `PUBLIC_BASE_URL` | Your Vercel URL, e.g. `https://hamel.vercel.app` |
+| `NODEJS_HELPERS` | `0` (**required** — login POST fails without this) |
 | `CORS_ORIGINS` | Same Vercel URL (optional; `.vercel.app` is allowed automatically) |
 
 Optional AI/Messenger vars: `AI_PROVIDER`, `GEMINI_API_KEY`, `MESSENGER_*`, etc.
 
-Redeploy after saving env vars. Then `/admin/login` with `manager` / `HamelAdmin1!` (or your seeded admin).
+Redeploy after saving env vars. Check `https://your-app.vercel.app/api/health`, then `/admin/login` with `manager` / `HamelAdmin1!`.
 
 ### 3. API CORS (only if API is on a separate host)
 

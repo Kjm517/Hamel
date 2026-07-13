@@ -4,13 +4,24 @@
   "installCommand": "npm install && npm install --prefix server",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 60,
+      "includeFiles": "server/src/**"
+    }
+  },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/[[...route]]"
+      "source": "/api",
+      "destination": "/api"
     },
     {
-      "source": "/((?!api/|assets/).*)",
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/((?!api(?:/|$)|assets/).*)",
       "destination": "/index.html"
     }
   ],
