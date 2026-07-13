@@ -4,8 +4,10 @@ import { handle } from 'hono/vercel';
 import { createApp } from './_app.mjs';
 
 /**
- * Set NODEJS_HELPERS=0 in Vercel Project → Environment Variables
- * so POST /api/auth/login is not blocked by the Node.js Helpers middleware.
+ * Catch-all so /api/health, /api/auth/login, etc. hit this function
+ * without vercel.json rewrites (those caused an infinite reload loop).
+ *
+ * Set NODEJS_HELPERS=0 in Vercel env so POST /api/auth/login works.
  */
 export const config = {
   maxDuration: 60,

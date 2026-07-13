@@ -5,21 +5,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/index.ts": {
+    "api/[[...route]].ts": {
       "memory": 1024,
       "maxDuration": 60,
       "includeFiles": "api/_app.mjs"
     }
   },
   "rewrites": [
-    {
-      "source": "/api",
-      "destination": "/api"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api"
-    },
     {
       "source": "/((?!api(?:/|$)|assets/).*)",
       "destination": "/index.html"
