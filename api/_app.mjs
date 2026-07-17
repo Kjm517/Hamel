@@ -12787,24 +12787,19 @@ function resourceTypeFor(contentType) {
   if (contentType.startsWith("image/")) return "image";
   return "raw";
 }
-async function uploadBufferToCloudinary(opts) {
-  const cloudName = env.cloudinaryCloudName();
-  const apiKey = env.cloudinaryApiKey();
-  const apiSecret = env.cloudinaryApiSecret();
-  if (!cloudName || !apiKey || !apiSecret) {
-    throw new Error("Cloudinary is not configured");
-  }
-  const folder = env.cloudinaryFolder();
-  const normalized = opts.objectPath.replace(/\\/g, "/").replace(/^\/+/, "");
-  const publicId = normalized.replace(/\.[^.]+$/, "") || `upload-${Date.now()}`;
+function signParams(params, apiSecret, algo) {
+  const toSign = Object.keys(params).sort().map((k) => `${k}=${params[k]}`).join("&");
+  return createHash2(algo).update(`${toSign}${apiSecret}`).digest("hex");
+}
+async function postSignedUpload(opts) {
   const timestamp = Math.floor(Date.now() / 1e3);
   const paramsToSign = {
-    folder,
-    public_id: publicId,
+    public_id: opts.publicId,
     timestamp: String(timestamp)
   };
-  const toSign = Object.keys(paramsToSign).sort().map((k) => `${k}=${paramsToSign[k]}`).join("&");
-  const signature = createHash2("sha1").update(`${toSign}${apiSecret}`).digest("hex");
+  if (opts.algo === "sha256") {
+  }
+  const signature = signParams(paramsToSign, opts.apiSecret, opts.algo);
   const resourceType = resourceTypeFor(opts.contentType);
   const form = new FormData();
   form.append(
@@ -12812,25 +12807,59 @@ async function uploadBufferToCloudinary(opts) {
     new Blob([new Uint8Array(opts.buffer)], {
       type: opts.contentType || "application/octet-stream"
     }),
-    opts.fileName || normalized
+    opts.fileName
   );
-  form.append("api_key", apiKey);
+  form.append("api_key", opts.apiKey);
   form.append("timestamp", String(timestamp));
   form.append("signature", signature);
-  form.append("folder", folder);
-  form.append("public_id", publicId);
+  form.append("public_id", opts.publicId);
+  if (opts.algo === "sha256") {
+    form.append("signature_algorithm", "sha256");
+  }
   const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/${resourceType}/upload`,
+    `https://api.cloudinary.com/v1_1/${encodeURIComponent(opts.cloudName)}/${resourceType}/upload`,
     { method: "POST", body: form }
   );
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.secure_url && !data.url) {
-    throw new Error(data.error?.message || `Cloudinary upload failed (${res.status})`);
+    return { ok: false, error: data.error?.message || `Cloudinary upload failed (${res.status})` };
   }
   return {
+    ok: true,
     url: data.secure_url || data.url,
-    path: data.public_id || `${folder}/${publicId}`
+    path: data.public_id || opts.publicId
   };
+}
+async function uploadBufferToCloudinary(opts) {
+  const cloudName = env.cloudinaryCloudName();
+  const apiKey = env.cloudinaryApiKey();
+  const apiSecret = env.cloudinaryApiSecret();
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error("Cloudinary is not configured");
+  }
+  const folder = env.cloudinaryFolder().replace(/^\/+|\/+$/g, "") || "hamel";
+  const normalized = opts.objectPath.replace(/\\/g, "/").replace(/^\/+/, "");
+  const withoutExt = normalized.replace(/\.[^.]+$/, "") || `upload-${Date.now()}`;
+  const publicId = withoutExt.startsWith(`${folder}/`) ? withoutExt : `${folder}/${withoutExt}`;
+  const preferred = (process.env.CLOUDINARY_SIGN_ALGORITHM || "sha256").trim().toLowerCase();
+  const order = preferred === "sha1" ? ["sha1", "sha256"] : ["sha256", "sha1"];
+  let lastError = "Cloudinary upload failed";
+  for (const algo of order) {
+    const result = await postSignedUpload({
+      cloudName,
+      apiKey,
+      apiSecret,
+      buffer: opts.buffer,
+      contentType: opts.contentType,
+      fileName: opts.fileName || normalized,
+      publicId,
+      algo
+    });
+    if (result.ok) return { url: result.url, path: result.path };
+    lastError = result.error;
+    if (!/invalid signature/i.test(result.error)) break;
+  }
+  throw new Error(lastError);
 }
 
 // server/src/routes/uploads.ts
