@@ -612,8 +612,10 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
       return;
     }
 
-    // Faith Hugs–style: Page sends grey bubble. No "Hi" required —
-    // we deliver via recent conversation after Messenger opens.
+    // Clipboard + text= prefill always — Page auto-send needs a Meta webhook
+    // and often fails for first-time empty chats even with a valid token.
+    await copyTextToClipboard(message);
+
     if (messengerAutoSend && id) {
       try {
         await fetch('/api/messenger/expect', {
@@ -624,12 +626,14 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
       } catch {
         // still open Messenger
       }
+
+      // Faith Hugs–style: open with ref only so the Page (not the customer) sends.
+      // Clipboard is backup if Meta webhook is not connected yet.
       openUrlBlank(messengerUrl({ ref: `inquiry_${id}` }));
 
-      // Poll a few times: once the FCM thread is open/active, Page sends details.
       const inquiryForDeliver = id;
       void (async () => {
-        for (const delayMs of [2500, 5000, 8000, 12000]) {
+        for (const delayMs of [1500, 3000, 5000, 8000, 12000, 18000, 25000]) {
           await new Promise((r) => setTimeout(r, delayMs));
           try {
             const res = await fetch('/api/messenger/deliver', {
@@ -637,8 +641,17 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ inquiryId: inquiryForDeliver }),
             });
-            const data = (await res.json().catch(() => null)) as { sent?: boolean } | null;
-            if (data?.sent) return;
+            const payload = (await res.json().catch(() => null)) as {
+              sent?: boolean;
+              reason?: string;
+            } | null;
+            if (payload?.sent || payload?.reason === 'Already sent') {
+              console.info('[messenger] inquiry details delivered');
+              return;
+            }
+            if (payload?.reason) {
+              console.warn('[messenger] deliver pending:', payload.reason);
+            }
           } catch {
             // retry
           }
@@ -648,8 +661,6 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
       return;
     }
 
-    // Messenger may not preserve a prefilled message on every platform; copy it as a safe fallback.
-    await copyTextToClipboard(message);
     openUrlBlank(messengerUrl({ message, ref: id ? `inquiry_${id}` : undefined }));
     onClose();
   };
@@ -892,9 +903,10 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
               <AlertDialogDescription>
                 Hamel Trading will save your inquiry and open Messenger with your selected product,
                 name, phone number, address, schedule, and payment preference ready for the team.
+                {' '}
                 {messengerAutoSend
-                  ? ' Once your Messenger conversation opens, the Hamel page can send your inquiry confirmation there.'
-                  : ' Messenger will open with your details ready to review and send.'}
+                  ? 'Hamel Trading will send your inquiry details into the chat automatically (you do not need to type or tap Send).'
+                  : 'Messenger will open with your details ready to review and send.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

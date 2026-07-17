@@ -54,17 +54,24 @@ API: `http://localhost:8787` — Vite proxies `/api` and `/uploads` here.
 
 ## Messenger (Faith Hugs–style Page confirmations)
 
-When configured, **Continue on Messenger** opens `m.me/…?ref=inquiry_<id>`. Meta hits your webhook with the customer’s PSID; the **Page** then sends the inquiry summary (customer does not tap Send).
+When configured, **Continue on Messenger** opens `m.me/…?ref=inquiry_<id>`. The **Page** then sends the inquiry summary into the customer’s Messenger thread (grey bubble — customer does not tap Send).
 
-1. Create a Meta app → add **Messenger** → generate a **Page access token** for Hamel Trading.
+1. Create a Meta app → add **Messenger** → generate a **Page access token** for **Hamel Trading** (not FCM).
 2. Set in `.env`:
    - `MESSENGER_PAGE_ACCESS_TOKEN`
-   - `MESSENGER_VERIFY_TOKEN` (any secret string)
-3. Expose the API with HTTPS (production domain or ngrok for local).
-4. In Meta webhook settings:
+   - `MESSENGER_VERIFY_TOKEN` (any secret string, e.g. `hamel_messenger_verify`)
+   - `MESSENGER_PAGE_USERNAME=hameltrading`
+3. Run `sql/003_messenger.sql` and `sql/009_messenger_handoff.sql` in Neon.
+4. Expose the API with HTTPS (production domain or Cloudflare tunnel / ngrok for local).
+5. In Meta webhook settings:
    - Callback URL: `https://YOUR_PUBLIC_API/api/messenger/webhook`
    - Verify token: same as `MESSENGER_VERIFY_TOKEN`
-   - Subscribe: `messages`, `messaging_referrals`, `messaging_postbacks`
-5. Restart the API. `/api/messenger/status` should return `{ "configured": true }`.
+   - Subscribe the **Hamel Trading** page to: `messages`, `messaging_referrals`, `messaging_postbacks`
+6. Restart the API. `/api/messenger/status` should return `{ "configured": true, "pageName": "Hamel Trading", ... }`.
 
-Until the token is set, the storefront falls back to prefilling the customer’s draft message.
+**How it works**
+1. Customer finishes inquiry → site calls `/api/messenger/expect`.
+2. Site opens `https://m.me/hameltrading?ref=inquiry_<uuid>`.
+3. Meta webhook (preferred) OR `/api/messenger/deliver` polling finds the PSID and the Page sends the details.
+
+Until the token is set, the storefront falls back to clipboard + prefilled draft.

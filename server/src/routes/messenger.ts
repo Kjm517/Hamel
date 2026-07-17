@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { env } from '../env';
-import { messengerConfigured } from '../messenger/send';
+import { getMessengerPageIdentity, messengerConfigured } from '../messenger/send';
 import {
   deliverViaRecentConversation,
   expectMessengerHandoff,
@@ -46,12 +46,22 @@ function extractRef(event: MessagingEvent): string | undefined {
 export const messengerRoutes = new Hono();
 
 /** Public status for storefront (ref flow vs text-prefill fallback). */
-messengerRoutes.get('/status', (c) =>
-  c.json({
-    configured: messengerConfigured(),
+messengerRoutes.get('/status', async (c) => {
+  const configured = messengerConfigured();
+  let pageName: string | null = null;
+  let pageId: string | null = null;
+  if (configured) {
+    const page = await getMessengerPageIdentity();
+    pageName = page?.name ?? null;
+    pageId = page?.id ?? null;
+  }
+  return c.json({
+    configured,
     pageUsername: env.messengerPageUsername() || null,
-  })
-);
+    pageName,
+    pageId,
+  });
+});
 
 /**
  * Storefront calls this right before opening m.me so the next inbound
@@ -61,7 +71,7 @@ messengerRoutes.post('/expect', async (c) => {
   const body = (await c.req.json().catch(() => null)) as { inquiryId?: string } | null;
   const inquiryId = body?.inquiryId?.trim();
   if (!inquiryId) return c.json({ error: 'inquiryId is required' }, 400);
-  expectMessengerHandoff(inquiryId);
+  await expectMessengerHandoff(inquiryId);
   return c.json({ ok: true });
 });
 
@@ -73,7 +83,7 @@ messengerRoutes.post('/deliver', async (c) => {
   const body = (await c.req.json().catch(() => null)) as { inquiryId?: string } | null;
   const inquiryId = body?.inquiryId?.trim();
   if (!inquiryId) return c.json({ error: 'inquiryId is required' }, 400);
-  expectMessengerHandoff(inquiryId);
+  await expectMessengerHandoff(inquiryId);
   const result = await deliverViaRecentConversation(inquiryId);
   return c.json(result, result.sent || result.reason === 'Already sent' ? 200 : 409);
 });
@@ -101,6 +111,9 @@ messengerRoutes.get('/webhook', (c) => {
 messengerRoutes.post('/webhook', async (c) => {
   const body = (await c.req.json().catch(() => null)) as WebhookBody | null;
   if (!body || body.object !== 'page') {
+    // Meta's dashboard field test uses a sample payload rather than the
+    // standard { object: "page", entry: [...] } Messenger event envelope.
+    console.log('[messenger] webhook test or unsupported event received');
     return c.json({ ok: true });
   }
 

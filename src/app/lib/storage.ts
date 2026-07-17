@@ -78,7 +78,18 @@ export function buildTagIconStoragePath(file: File): string {
 
 export async function checkStorageBucket(): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
-    await apiFetch<{ ok: boolean; message?: string }>('/api/uploads/health', { auth: false });
+    const res = await apiFetch<{
+      ok: boolean;
+      message?: string;
+      warning?: string;
+      storage?: string;
+    }>('/api/uploads/health', { auth: false });
+    if (!res.ok) {
+      return { ok: false, message: res.message || 'Upload service unavailable' };
+    }
+    if (res.storage === 'local' && res.warning) {
+      return { ok: false, message: res.warning };
+    }
     return { ok: true };
   } catch (e) {
     return {

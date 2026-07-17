@@ -6,27 +6,81 @@ export function messengerConfigured(): boolean {
   return Boolean(env.messengerPageAccessToken());
 }
 
+type GraphError = { message?: string; code?: number; error_subcode?: number };
+
+async function postMessage(
+  token: string,
+  body: Record<string, unknown>
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`${GRAPH}/me/messages?access_token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: GraphError };
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: data.error?.message || `Messenger send failed (${res.status})`,
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Send Page → customer text. Tries RESPONSE first (post-referral window),
+ * then HUMAN_AGENT tag (common for sales follow-up after m.me open).
+ */
 export async function sendMessengerText(psid: string, text: string): Promise<void> {
   const token = env.messengerPageAccessToken();
   if (!token) {
     throw new Error('MESSENGER_PAGE_ACCESS_TOKEN is not set');
   }
 
-  const res = await fetch(`${GRAPH}/me/messages?access_token=${encodeURIComponent(token)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  const attempts: Record<string, unknown>[] = [
+    {
       recipient: { id: psid },
       messaging_type: 'RESPONSE',
       message: { text },
-    }),
-  });
+    },
+    {
+      recipient: { id: psid },
+      messaging_type: 'UPDATE',
+      message: { text },
+    },
+    {
+      recipient: { id: psid },
+      messaging_type: 'MESSAGE_TAG',
+      tag: 'HUMAN_AGENT',
+      message: { text },
+    },
+  ];
 
-  const body = (await res.json().catch(() => ({}))) as {
-    error?: { message?: string };
-  };
-  if (!res.ok) {
-    throw new Error(body.error?.message || `Messenger send failed (${res.status})`);
+  let lastError = 'Messenger send failed';
+  for (const body of attempts) {
+    const result = await postMessage(token, body);
+    if (result.ok) return;
+    lastError = result.error;
+    console.warn('[messenger] send attempt failed', body.messaging_type, lastError);
+  }
+  throw new Error(lastError);
+}
+
+export async function getMessengerPageIdentity(): Promise<{
+  id: string;
+  name: string;
+} | null> {
+  const token = env.messengerPageAccessToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(
+      `${GRAPH}/me?fields=id,name&access_token=${encodeURIComponent(token)}`
+    );
+    const data = (await res.json()) as { id?: string; name?: string; error?: GraphError };
+    if (!res.ok || !data.id) return null;
+    return { id: data.id, name: data.name || '' };
+  } catch {
+    return null;
   }
 }
 

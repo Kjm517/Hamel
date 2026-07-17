@@ -7,8 +7,6 @@ import {
 } from '../data/productTags';
 import { apiFetch } from './api';
 import {
-  getDefaultTagIconPaths,
-  getPublicStorageUrl,
   normalizeStoragePathForDb,
   resolveStorageImageUrl,
 } from './storage';
@@ -53,10 +51,8 @@ function resolveTagIconUrl(row: ProductTagRow): string | undefined {
   if (row.icon_url) {
     return resolveStorageImageUrl(row.icon_url);
   }
-  if (!row.icon_emoji && import.meta.env.VITE_TAG_ICON_FALLBACK !== 'false') {
-    const [first] = getDefaultTagIconPaths(row.id);
-    if (first) return getPublicStorageUrl(first);
-  }
+  // Do not invent /uploads/<default>.png URLs — those files exist only on local
+  // disk and break on Vercel. Prefer emoji / built-in SVG badges instead.
   return undefined;
 }
 
@@ -74,6 +70,8 @@ function rowToTag(row: ProductTagRow): ProductTag {
       : autoFromDb ?? defaults?.autoApply;
   const renderMode =
     row.render_mode === 'image' || (!row.render_mode && chipImageUrl) ? 'image' : 'composed';
+  const iconEmoji =
+    row.icon_emoji ?? defaults?.iconEmoji ?? undefined;
 
   return {
     id: row.id,
@@ -84,7 +82,8 @@ function rowToTag(row: ProductTagRow): ProductTag {
     renderMode,
     chipImageUrl,
     iconUrl,
-    iconEmoji: iconUrl ? undefined : row.icon_emoji ?? undefined,
+    // Keep emoji even when iconUrl is set — PromoChip falls back if the image 404s.
+    iconEmoji,
     iconBgColor: row.icon_bg_color ?? defaults?.iconBgColor ?? undefined,
     textBgColor: row.text_bg_color ?? defaults?.textBgColor ?? undefined,
     subtitle: row.subtitle ?? undefined,

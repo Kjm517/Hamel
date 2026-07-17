@@ -94,4 +94,10 @@ export const env = {
   messengerPageUsername: () => process.env.MESSENGER_PAGE_USERNAME?.trim() || '',
   resendApiKey: () => process.env.RESEND_API_KEY?.trim() || '',
   resendFrom: () => process.env.RESEND_FROM?.trim() || 'Hamel Trading <onboarding@resend.dev>',
+
+  /** Free-tier Cloudinary (temporary media). When set, uploads skip local disk. */
+  cloudinaryCloudName: () => process.env.CLOUDINARY_CLOUD_NAME?.trim() || '',
+  cloudinaryApiKey: () => process.env.CLOUDINARY_API_KEY?.trim() || '',
+  cloudinaryApiSecret: () => process.env.CLOUDINARY_API_SECRET?.trim() || '',
+  cloudinaryFolder: () => process.env.CLOUDINARY_FOLDER?.trim() || 'hamel',
 };

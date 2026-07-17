@@ -6,6 +6,7 @@ import { ProductsPage } from "./pages/ProductsPage";
 import { BrandsPage } from "./pages/BrandsPage";
 import { WhyHamelPage } from "./pages/WhyHamelPage";
 import { ContactPage } from "./pages/ContactPage";
+import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
 import { CoolDealsPage } from "./pages/CoolDealsPage";
 import { ComparePage } from "./pages/ComparePage";
 import { PromoLandingPage } from "./pages/PromoLandingPage";
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: "compare", Component: ComparePage },
       { path: "why-hamel", Component: WhyHamelPage },
       { path: "contact", Component: ContactPage },
+      { path: "privacy-policy", Component: PrivacyPolicyPage },
       { path: "promo/:slug", Component: PromoLandingPage },
     ],
   },

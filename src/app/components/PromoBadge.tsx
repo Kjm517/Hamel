@@ -3,7 +3,7 @@
  * graphic promo overlays seen on product cards in Philippine e-commerce sites.
  */
 
-import type { KeyboardEvent, MouseEvent } from 'react';
+import { useState, type KeyboardEvent, type MouseEvent } from 'react';
 
 export type BadgeType = 'cash-deal' | 'free-install' | 'discount' | 'flash-sale' | 'bundle';
 
@@ -110,8 +110,9 @@ function PromoIconSlot({
   badgeType?: BadgeType;
   isSmall: boolean;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
   const size = isSmall ? 18 : 22;
-  if (iconUrl) {
+  if (iconUrl && !imageFailed) {
     return (
       <img
         src={iconUrl}
@@ -122,6 +123,7 @@ function PromoIconSlot({
           height: size,
           borderRadius: 2,
         }}
+        onError={() => setImageFailed(true)}
       />
     );
   }
@@ -425,13 +427,17 @@ export function PromoChip({
   size?: 'card' | 'compact';
   onClick?: (e: MouseEvent) => void;
 }) {
+  const [chipImageFailed, setChipImageFailed] = useState(false);
+  const [iconFailed, setIconFailed] = useState(false);
   const isCard = size === 'card';
   const colors = CHIP_STYLE_COLORS[badgeType];
   const textBg = textBgColor ?? colors.textBg;
   const lines = chipLines({ badgeType, label, cashPerMonth, subtitle });
   const fullTitle = subtitle ? `${label} — ${subtitle}` : label;
   const useImageChip =
-    Boolean(chipImageUrl) && (renderMode === 'image' || (!renderMode && Boolean(chipImageUrl)));
+    Boolean(chipImageUrl) &&
+    !chipImageFailed &&
+    (renderMode === 'image' || (!renderMode && Boolean(chipImageUrl)));
 
   const interactiveProps = {
     role: onClick ? ('button' as const) : undefined,
@@ -464,6 +470,7 @@ export function PromoChip({
           alt={label}
           className="pointer-events-none h-full w-auto max-w-[92px] bg-transparent object-contain object-left"
           draggable={false}
+          onError={() => setChipImageFailed(true)}
         />
       </span>
     );
@@ -475,6 +482,7 @@ export function PromoChip({
     : sticker.bg;
   const accent = textBgColor ? '#FFFFFF' : sticker.accent;
   const muted = textBgColor ? 'rgba(255,255,255,0.92)' : sticker.muted;
+  const showIconUrl = Boolean(iconUrl) && !iconFailed;
 
   return (
     <span
@@ -492,10 +500,15 @@ export function PromoChip({
       }}
       title={fullTitle}
     >
-      {(iconUrl || iconEmoji) && (
+      {(showIconUrl || iconEmoji) && (
         <span className="absolute right-1.5 top-1.5 opacity-90" aria-hidden>
-          {iconUrl ? (
-            <img src={iconUrl} alt="" className="h-4 w-4 object-contain" />
+          {showIconUrl ? (
+            <img
+              src={iconUrl}
+              alt=""
+              className="h-4 w-4 object-contain"
+              onError={() => setIconFailed(true)}
+            />
           ) : (
             <span style={{ fontSize: 12 }}>{iconEmoji}</span>
           )}

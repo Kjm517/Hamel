@@ -2252,7 +2252,12 @@ var env = {
   messengerVerifyToken: () => process.env.MESSENGER_VERIFY_TOKEN?.trim() || "hamel_messenger_verify",
   messengerPageUsername: () => process.env.MESSENGER_PAGE_USERNAME?.trim() || "",
   resendApiKey: () => process.env.RESEND_API_KEY?.trim() || "",
-  resendFrom: () => process.env.RESEND_FROM?.trim() || "Hamel Trading <onboarding@resend.dev>"
+  resendFrom: () => process.env.RESEND_FROM?.trim() || "Hamel Trading <onboarding@resend.dev>",
+  /** Free-tier Cloudinary (temporary media). When set, uploads skip local disk. */
+  cloudinaryCloudName: () => process.env.CLOUDINARY_CLOUD_NAME?.trim() || "",
+  cloudinaryApiKey: () => process.env.CLOUDINARY_API_KEY?.trim() || "",
+  cloudinaryApiSecret: () => process.env.CLOUDINARY_API_SECRET?.trim() || "",
+  cloudinaryFolder: () => process.env.CLOUDINARY_FOLDER?.trim() || "hamel"
 };
 
 // server/node_modules/bcryptjs/index.js
@@ -12769,6 +12774,66 @@ settingsRoutes.put("/:key", requireAuth, async (c) => {
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join as join2 } from "node:path";
+
+// server/src/storage/cloudinary.ts
+import { createHash as createHash2 } from "node:crypto";
+function cloudinaryConfigured() {
+  return Boolean(
+    env.cloudinaryCloudName() && env.cloudinaryApiKey() && env.cloudinaryApiSecret()
+  );
+}
+function resourceTypeFor(contentType) {
+  if (contentType.startsWith("video/")) return "video";
+  if (contentType.startsWith("image/")) return "image";
+  return "raw";
+}
+async function uploadBufferToCloudinary(opts) {
+  const cloudName = env.cloudinaryCloudName();
+  const apiKey = env.cloudinaryApiKey();
+  const apiSecret = env.cloudinaryApiSecret();
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error("Cloudinary is not configured");
+  }
+  const folder = env.cloudinaryFolder();
+  const normalized = opts.objectPath.replace(/\\/g, "/").replace(/^\/+/, "");
+  const publicId = normalized.replace(/\.[^.]+$/, "") || `upload-${Date.now()}`;
+  const timestamp = Math.floor(Date.now() / 1e3);
+  const paramsToSign = {
+    folder,
+    public_id: publicId,
+    timestamp: String(timestamp)
+  };
+  const toSign = Object.keys(paramsToSign).sort().map((k) => `${k}=${paramsToSign[k]}`).join("&");
+  const signature = createHash2("sha1").update(`${toSign}${apiSecret}`).digest("hex");
+  const resourceType = resourceTypeFor(opts.contentType);
+  const form = new FormData();
+  form.append(
+    "file",
+    new Blob([new Uint8Array(opts.buffer)], {
+      type: opts.contentType || "application/octet-stream"
+    }),
+    opts.fileName || normalized
+  );
+  form.append("api_key", apiKey);
+  form.append("timestamp", String(timestamp));
+  form.append("signature", signature);
+  form.append("folder", folder);
+  form.append("public_id", publicId);
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/${resourceType}/upload`,
+    { method: "POST", body: form }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.secure_url && !data.url) {
+    throw new Error(data.error?.message || `Cloudinary upload failed (${res.status})`);
+  }
+  return {
+    url: data.secure_url || data.url,
+    path: data.public_id || `${folder}/${publicId}`
+  };
+}
+
+// server/src/routes/uploads.ts
 var MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
 var MAX_VIDEO_UPLOAD_BYTES = 300 * 1024 * 1024;
 async function saveUploadedMedia(file, requestedPath, defaultPrefix, allowVideo = false) {
@@ -12797,12 +12862,29 @@ async function saveUploadedMedia(file, requestedPath, defaultPrefix, allowVideo 
     ...allowVideo ? ["mp4"] : []
   ].includes(ext) ? ext : "png";
   const objectPath = requestedPath || `${defaultPrefix}/${(file.name.replace(/\.[^.]+$/, "") || "image").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 48)}-${randomUUID().slice(0, 8)}.${safeExt}`;
+  if (cloudinaryConfigured()) {
+    const result = await uploadBufferToCloudinary({
+      buffer,
+      objectPath,
+      contentType: file.type || (safeExt === "mp4" ? "video/mp4" : `image/${safeExt}`),
+      fileName: file.name || objectPath
+    });
+    return { ...result, storage: "cloudinary" };
+  }
+  if (process.env.VERCEL) {
+    throw Object.assign(
+      new Error(
+        "Cloudinary is not configured on this deployment. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in Vercel \u2192 Settings \u2192 Environment Variables, then redeploy."
+      ),
+      { status: 503 }
+    );
+  }
   const uploadDir = env.uploadDir();
   const fullPath = join2(uploadDir, objectPath);
   await mkdir(join2(fullPath, ".."), { recursive: true });
   await writeFile(fullPath, buffer);
   const url = `${env.publicBaseUrl()}/uploads/${objectPath.replace(/\\/g, "/")}`;
-  return { url, path: objectPath };
+  return { url, path: objectPath, storage: "local" };
 }
 var uploadRoutes = new Hono2();
 uploadRoutes.post("/", requireAuth, async (c) => {
@@ -12824,7 +12906,7 @@ uploadRoutes.post("/", requireAuth, async (c) => {
     const status = err && typeof err === "object" && "status" in err ? Number(err.status) : 500;
     return c.json(
       { error: err instanceof Error ? err.message : "Upload failed" },
-      status === 400 ? 400 : 500
+      status === 400 || status === 503 ? status : 500
     );
   }
 });
@@ -12848,25 +12930,35 @@ uploadRoutes.post("/public", async (c) => {
   const defaultPrefix = requestedPath?.startsWith("chat-rooms/") ? "chat-rooms" : "reviews";
   try {
     const result = await saveUploadedMedia(file, requestedPath, defaultPrefix);
-    if (!PUBLIC_UPLOAD_PREFIXES.some((prefix) => result.path.startsWith(prefix))) {
-      return c.json({ error: "Invalid upload path." }, 400);
-    }
     return c.json(result);
   } catch (err) {
     const status = err && typeof err === "object" && "status" in err ? Number(err.status) : 500;
     return c.json(
       { error: err instanceof Error ? err.message : "Upload failed" },
-      status === 400 ? 400 : 500
+      status === 400 || status === 503 ? status : 500
     );
   }
 });
 uploadRoutes.get("/health", async (c) => {
+  if (cloudinaryConfigured()) {
+    return c.json({
+      ok: true,
+      storage: "cloudinary",
+      cloud: env.cloudinaryCloudName(),
+      folder: env.cloudinaryFolder()
+    });
+  }
   try {
     await mkdir(env.uploadDir(), { recursive: true });
-    return c.json({ ok: true });
+    return c.json({
+      ok: true,
+      storage: "local",
+      warning: "Using local disk. On Vercel this is temporary \u2014 set CLOUDINARY_* env vars for durable media."
+    });
   } catch (err) {
     return c.json({
       ok: false,
+      storage: "local",
       message: err instanceof Error ? err.message : "Upload directory unavailable"
     });
   }
@@ -12877,23 +12969,65 @@ var GRAPH = "https://graph.facebook.com/v21.0";
 function messengerConfigured() {
   return Boolean(env.messengerPageAccessToken());
 }
+async function postMessage(token, body) {
+  const res = await fetch(`${GRAPH}/me/messages?access_token=${encodeURIComponent(token)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: data.error?.message || `Messenger send failed (${res.status})`
+    };
+  }
+  return { ok: true };
+}
 async function sendMessengerText(psid, text) {
   const token = env.messengerPageAccessToken();
   if (!token) {
     throw new Error("MESSENGER_PAGE_ACCESS_TOKEN is not set");
   }
-  const res = await fetch(`${GRAPH}/me/messages?access_token=${encodeURIComponent(token)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const attempts = [
+    {
       recipient: { id: psid },
       messaging_type: "RESPONSE",
       message: { text }
-    })
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body.error?.message || `Messenger send failed (${res.status})`);
+    },
+    {
+      recipient: { id: psid },
+      messaging_type: "UPDATE",
+      message: { text }
+    },
+    {
+      recipient: { id: psid },
+      messaging_type: "MESSAGE_TAG",
+      tag: "HUMAN_AGENT",
+      message: { text }
+    }
+  ];
+  let lastError = "Messenger send failed";
+  for (const body of attempts) {
+    const result = await postMessage(token, body);
+    if (result.ok) return;
+    lastError = result.error;
+    console.warn("[messenger] send attempt failed", body.messaging_type, lastError);
+  }
+  throw new Error(lastError);
+}
+async function getMessengerPageIdentity() {
+  const token = env.messengerPageAccessToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(
+      `${GRAPH}/me?fields=id,name&access_token=${encodeURIComponent(token)}`
+    );
+    const data = await res.json();
+    if (!res.ok || !data.id) return null;
+    return { id: data.id, name: data.name || "" };
+  } catch {
+    return null;
   }
 }
 function formatInquiryConfirmation(row) {
@@ -12930,20 +13064,51 @@ function parseInquiryRef(ref) {
   const m2 = ref.trim().match(INQUIRY_REF_RE);
   return m2?.[1] ?? null;
 }
-function expectMessengerHandoff(inquiryId) {
-  const id = inquiryId.trim();
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
-  pendingByInquiry.set(id, Date.now());
-  prunePending();
-}
-function prunePending() {
+function prunePendingMemory() {
   const now = Date.now();
   for (const [id, at] of pendingByInquiry) {
     if (now - at > PENDING_TTL_MS) pendingByInquiry.delete(id);
   }
 }
-function takeLatestPendingInquiryId() {
-  prunePending();
+async function expectMessengerHandoff(inquiryId) {
+  const id = inquiryId.trim();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+  pendingByInquiry.set(id, Date.now());
+  prunePendingMemory();
+  const sql2 = getSql();
+  try {
+    await sql2`
+      update inquiries
+      set messenger_handoff_at = now(), updated_at = now()
+      where id = ${id}::uuid
+        and messenger_confirmation_sent_at is null
+    `;
+  } catch (err) {
+    console.warn(
+      "[messenger] handoff column missing \u2014 run sql/009_messenger_handoff.sql",
+      err instanceof Error ? err.message : err
+    );
+  }
+}
+async function takeLatestPendingInquiryId() {
+  prunePendingMemory();
+  const sql2 = getSql();
+  try {
+    const rows = await sql2`
+      select id::text as id
+      from inquiries
+      where messenger_confirmation_sent_at is null
+        and messenger_handoff_at is not null
+        and messenger_handoff_at > now() - interval '1 hour'
+      order by messenger_handoff_at desc
+      limit 1
+    `;
+    if (rows[0]?.id) {
+      pendingByInquiry.delete(rows[0].id);
+      return rows[0].id;
+    }
+  } catch {
+  }
   let best = null;
   let bestAt = 0;
   for (const [id, at] of pendingByInquiry) {
@@ -12952,8 +13117,23 @@ function takeLatestPendingInquiryId() {
       bestAt = at;
     }
   }
-  if (best) pendingByInquiry.delete(best);
-  return best;
+  if (best) {
+    pendingByInquiry.delete(best);
+    return best;
+  }
+  try {
+    const rows = await sql2`
+      select id::text as id
+      from inquiries
+      where messenger_confirmation_sent_at is null
+        and created_at > now() - interval '1 hour'
+      order by created_at desc
+      limit 1
+    `;
+    return rows[0]?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 async function sendInquiryConfirmationToPsid(inquiryId, psid) {
   if (!messengerConfigured()) {
@@ -12987,20 +13167,45 @@ async function sendInquiryConfirmationToPsid(inquiryId, psid) {
   }
   const text = formatInquiryConfirmation(row);
   await sendMessengerText(psid, text);
-  await sql2`
-    update inquiries
-    set
-      messenger_psid = ${psid},
-      messenger_confirmation_sent_at = now(),
-      updated_at = now()
-    where id = ${inquiryId}::uuid
-  `;
-  if (row.customer_id) {
+  try {
     await sql2`
-      update customers
-      set messenger_psid = ${psid}, updated_at = now()
-      where id = ${row.customer_id}::uuid
+      update inquiries
+      set
+        messenger_psid = ${psid},
+        messenger_confirmation_sent_at = now(),
+        messenger_handoff_at = null,
+        updated_at = now()
+      where id = ${inquiryId}::uuid
     `;
+  } catch {
+    await sql2`
+      update inquiries
+      set
+        messenger_psid = ${psid},
+        messenger_confirmation_sent_at = now(),
+        updated_at = now()
+      where id = ${inquiryId}::uuid
+    `;
+  }
+  if (row.customer_id) {
+    try {
+      await sql2`
+        update customers
+        set messenger_psid = null, updated_at = now()
+        where messenger_psid = ${psid}
+          and id <> ${row.customer_id}::uuid
+      `;
+      await sql2`
+        update customers
+        set messenger_psid = ${psid}, updated_at = now()
+        where id = ${row.customer_id}::uuid
+      `;
+    } catch (err) {
+      console.warn(
+        "[messenger] customer PSID link skipped",
+        err instanceof Error ? err.message : err
+      );
+    }
   }
   pendingByInquiry.delete(inquiryId);
   return { sent: true };
@@ -13011,22 +13216,9 @@ async function handleMessengerReferral(psid, ref) {
   await deliverConfirmation(psid, inquiryId);
 }
 async function handleMessengerInboundMessage(psid) {
-  const inquiryId = takeLatestPendingInquiryId();
+  const inquiryId = await takeLatestPendingInquiryId();
   if (!inquiryId) {
-    const sql2 = getSql();
-    const rows = await sql2`
-      select id::text as id
-      from inquiries
-      where messenger_confirmation_sent_at is null
-        and created_at > now() - interval '1 hour'
-      order by created_at desc
-      limit 1
-    `;
-    if (!rows[0]) {
-      console.log(`[messenger] No pending inquiry for PSID ${psid}`);
-      return;
-    }
-    await deliverConfirmation(psid, rows[0].id);
+    console.log(`[messenger] No pending inquiry for PSID ${psid}`);
     return;
   }
   await deliverConfirmation(psid, inquiryId);
@@ -13034,35 +13226,53 @@ async function handleMessengerInboundMessage(psid) {
 async function deliverViaRecentConversation(inquiryId) {
   const token = env.messengerPageAccessToken();
   if (!token) return { sent: false, reason: "Messenger not configured" };
+  const page = await getMessengerPageIdentity();
+  const pageId = page?.id;
   const fields = encodeURIComponent(
-    "participants,updated_time,messages.limit(1){message,from}"
+    "participants,updated_time,snippet,messages.limit(2){message,from,created_time}"
   );
   const res = await fetch(
-    `${GRAPH2}/me/conversations?fields=${fields}&limit=5&access_token=${encodeURIComponent(token)}`
+    `${GRAPH2}/me/conversations?fields=${fields}&limit=10&access_token=${encodeURIComponent(token)}`
   );
   const data = await res.json();
   if (!res.ok) {
+    console.warn("[messenger] conversations list failed", data.error?.message);
     return { sent: false, reason: data.error?.message || "Failed to list conversations" };
   }
-  const cutoff = Date.now() - 15 * 60 * 1e3;
+  const cutoff = Date.now() - 30 * 60 * 1e3;
+  const tried = /* @__PURE__ */ new Set();
   for (const thread of data.data ?? []) {
     const updated = thread.updated_time ? Date.parse(thread.updated_time) : 0;
     if (updated && updated < cutoff) continue;
     const people = thread.participants?.data ?? [];
-    const pageParticipant = people.find(
-      (p2) => /trading|hamel|fcm/i.test(p2.name || "")
-    );
-    const userParticipant = people.find((p2) => p2.id && p2.id !== pageParticipant?.id);
+    const userParticipant = people.find((p2) => {
+      if (!p2.id) return false;
+      if (pageId && p2.id === pageId) return false;
+      if (!pageId && /hamel|trading|fcm|page/i.test(p2.name || "")) return false;
+      return true;
+    });
     const targetPsid = userParticipant?.id;
-    if (!targetPsid) continue;
-    const result = await sendInquiryConfirmationToPsid(inquiryId, targetPsid);
-    if (result.sent || result.reason === "Already sent") {
-      return { ...result, psid: targetPsid };
+    if (!targetPsid || tried.has(targetPsid)) continue;
+    tried.add(targetPsid);
+    try {
+      const result = await sendInquiryConfirmationToPsid(inquiryId, targetPsid);
+      if (result.sent || result.reason === "Already sent") {
+        return { ...result, psid: targetPsid };
+      }
+      if (result.reason) {
+        console.warn("[messenger] deliver to", targetPsid, result.reason);
+      }
+    } catch (err) {
+      console.warn(
+        "[messenger] deliver attempt failed",
+        targetPsid,
+        err instanceof Error ? err.message : err
+      );
     }
   }
   return {
     sent: false,
-    reason: "No recent Messenger conversation \u2014 open the FCM chat from the button first"
+    reason: "No recent Messenger conversation found. Open the Hamel Trading chat from the button, then wait a few seconds \u2014 or ensure the webhook tunnel is running."
   };
 }
 async function deliverConfirmation(psid, inquiryId) {
@@ -13083,25 +13293,34 @@ function extractRef(event) {
   return event.referral?.ref || event.message?.referral?.ref || event.postback?.referral?.ref || (event.postback?.payload?.startsWith("inquiry_") ? event.postback.payload : void 0);
 }
 var messengerRoutes = new Hono2();
-messengerRoutes.get(
-  "/status",
-  (c) => c.json({
-    configured: messengerConfigured(),
-    pageUsername: env.messengerPageUsername() || null
-  })
-);
+messengerRoutes.get("/status", async (c) => {
+  const configured = messengerConfigured();
+  let pageName = null;
+  let pageId = null;
+  if (configured) {
+    const page = await getMessengerPageIdentity();
+    pageName = page?.name ?? null;
+    pageId = page?.id ?? null;
+  }
+  return c.json({
+    configured,
+    pageUsername: env.messengerPageUsername() || null,
+    pageName,
+    pageId
+  });
+});
 messengerRoutes.post("/expect", async (c) => {
   const body = await c.req.json().catch(() => null);
   const inquiryId = body?.inquiryId?.trim();
   if (!inquiryId) return c.json({ error: "inquiryId is required" }, 400);
-  expectMessengerHandoff(inquiryId);
+  await expectMessengerHandoff(inquiryId);
   return c.json({ ok: true });
 });
 messengerRoutes.post("/deliver", async (c) => {
   const body = await c.req.json().catch(() => null);
   const inquiryId = body?.inquiryId?.trim();
   if (!inquiryId) return c.json({ error: "inquiryId is required" }, 400);
-  expectMessengerHandoff(inquiryId);
+  await expectMessengerHandoff(inquiryId);
   const result = await deliverViaRecentConversation(inquiryId);
   return c.json(result, result.sent || result.reason === "Already sent" ? 200 : 409);
 });
@@ -13118,6 +13337,7 @@ messengerRoutes.get("/webhook", (c) => {
 messengerRoutes.post("/webhook", async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body || body.object !== "page") {
+    console.log("[messenger] webhook test or unsupported event received");
     return c.json({ ok: true });
   }
   console.log("[messenger] webhook event", JSON.stringify(body).slice(0, 2e3));

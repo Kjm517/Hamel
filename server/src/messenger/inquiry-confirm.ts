@@ -2,6 +2,7 @@ import { env } from '../env';
 import { getSql } from '../db';
 import {
   formatInquiryConfirmation,
+  getMessengerPageIdentity,
   messengerConfigured,
   sendMessengerText,
   type InquiryForMessenger,
@@ -10,7 +11,7 @@ import {
 const INQUIRY_REF_RE = /^inquiry[_-]?([0-9a-f-]{36})$/i;
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
-/** Short-lived handoffs: inquiry waiting for the next Messenger PSID. */
+/** In-memory fallback when DB handoff column is not migrated yet. */
 const pendingByInquiry = new Map<string, number>();
 const PENDING_TTL_MS = 60 * 60 * 1000;
 
@@ -20,22 +21,59 @@ export function parseInquiryRef(ref: string | undefined | null): string | null {
   return m?.[1] ?? null;
 }
 
-export function expectMessengerHandoff(inquiryId: string): void {
-  const id = inquiryId.trim();
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
-  pendingByInquiry.set(id, Date.now());
-  prunePending();
-}
-
-function prunePending(): void {
+function prunePendingMemory(): void {
   const now = Date.now();
   for (const [id, at] of pendingByInquiry) {
     if (now - at > PENDING_TTL_MS) pendingByInquiry.delete(id);
   }
 }
 
-function takeLatestPendingInquiryId(): string | null {
-  prunePending();
+/** Mark inquiry as waiting for Messenger open (Page will send confirmation). */
+export async function expectMessengerHandoff(inquiryId: string): Promise<void> {
+  const id = inquiryId.trim();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+
+  pendingByInquiry.set(id, Date.now());
+  prunePendingMemory();
+
+  const sql = getSql();
+  try {
+    await sql`
+      update inquiries
+      set messenger_handoff_at = now(), updated_at = now()
+      where id = ${id}::uuid
+        and messenger_confirmation_sent_at is null
+    `;
+  } catch (err) {
+    console.warn(
+      '[messenger] handoff column missing — run sql/009_messenger_handoff.sql',
+      err instanceof Error ? err.message : err
+    );
+  }
+}
+
+async function takeLatestPendingInquiryId(): Promise<string | null> {
+  prunePendingMemory();
+
+  const sql = getSql();
+  try {
+    const rows = (await sql`
+      select id::text as id
+      from inquiries
+      where messenger_confirmation_sent_at is null
+        and messenger_handoff_at is not null
+        and messenger_handoff_at > now() - interval '1 hour'
+      order by messenger_handoff_at desc
+      limit 1
+    `) as { id: string }[];
+    if (rows[0]?.id) {
+      pendingByInquiry.delete(rows[0].id);
+      return rows[0].id;
+    }
+  } catch {
+    // fall through to memory / created_at fallback
+  }
+
   let best: string | null = null;
   let bestAt = 0;
   for (const [id, at] of pendingByInquiry) {
@@ -44,8 +82,24 @@ function takeLatestPendingInquiryId(): string | null {
       bestAt = at;
     }
   }
-  if (best) pendingByInquiry.delete(best);
-  return best;
+  if (best) {
+    pendingByInquiry.delete(best);
+    return best;
+  }
+
+  try {
+    const rows = (await sql`
+      select id::text as id
+      from inquiries
+      where messenger_confirmation_sent_at is null
+        and created_at > now() - interval '1 hour'
+      order by created_at desc
+      limit 1
+    `) as { id: string }[];
+    return rows[0]?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function sendInquiryConfirmationToPsid(
@@ -92,21 +146,47 @@ export async function sendInquiryConfirmationToPsid(
   const text = formatInquiryConfirmation(row);
   await sendMessengerText(psid, text);
 
-  await sql`
-    update inquiries
-    set
-      messenger_psid = ${psid},
-      messenger_confirmation_sent_at = now(),
-      updated_at = now()
-    where id = ${inquiryId}::uuid
-  `;
+  try {
+    await sql`
+      update inquiries
+      set
+        messenger_psid = ${psid},
+        messenger_confirmation_sent_at = now(),
+        messenger_handoff_at = null,
+        updated_at = now()
+      where id = ${inquiryId}::uuid
+    `;
+  } catch {
+    await sql`
+      update inquiries
+      set
+        messenger_psid = ${psid},
+        messenger_confirmation_sent_at = now(),
+        updated_at = now()
+      where id = ${inquiryId}::uuid
+    `;
+  }
 
   if (row.customer_id) {
-    await sql`
-      update customers
-      set messenger_psid = ${psid}, updated_at = now()
-      where id = ${row.customer_id}::uuid
-    `;
+    try {
+      // Clear any other customer row that already owns this PSID (unique index).
+      await sql`
+        update customers
+        set messenger_psid = null, updated_at = now()
+        where messenger_psid = ${psid}
+          and id <> ${row.customer_id}::uuid
+      `;
+      await sql`
+        update customers
+        set messenger_psid = ${psid}, updated_at = now()
+        where id = ${row.customer_id}::uuid
+      `;
+    } catch (err) {
+      console.warn(
+        '[messenger] customer PSID link skipped',
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
   pendingByInquiry.delete(inquiryId);
@@ -125,22 +205,9 @@ export async function handleMessengerReferral(
 
 /** Any customer message → Page sends the pending inquiry confirmation. */
 export async function handleMessengerInboundMessage(psid: string): Promise<void> {
-  const inquiryId = takeLatestPendingInquiryId();
+  const inquiryId = await takeLatestPendingInquiryId();
   if (!inquiryId) {
-    const sql = getSql();
-    const rows = (await sql`
-      select id::text as id
-      from inquiries
-      where messenger_confirmation_sent_at is null
-        and created_at > now() - interval '1 hour'
-      order by created_at desc
-      limit 1
-    `) as { id: string }[];
-    if (!rows[0]) {
-      console.log(`[messenger] No pending inquiry for PSID ${psid}`);
-      return;
-    }
-    await deliverConfirmation(psid, rows[0].id);
+    console.log(`[messenger] No pending inquiry for PSID ${psid}`);
     return;
   }
   await deliverConfirmation(psid, inquiryId);
@@ -148,7 +215,7 @@ export async function handleMessengerInboundMessage(psid: string): Promise<void>
 
 /**
  * Webhook-independent fallback: find the most recently active conversation
- * and send the inquiry from the Page (same as Faith Hugs grey bubble).
+ * and send the inquiry from the Page (Faith Hugs grey bubble).
  */
 export async function deliverViaRecentConversation(
   inquiryId: string
@@ -156,11 +223,14 @@ export async function deliverViaRecentConversation(
   const token = env.messengerPageAccessToken();
   if (!token) return { sent: false, reason: 'Messenger not configured' };
 
+  const page = await getMessengerPageIdentity();
+  const pageId = page?.id;
+
   const fields = encodeURIComponent(
-    'participants,updated_time,messages.limit(1){message,from}'
+    'participants,updated_time,snippet,messages.limit(2){message,from,created_time}'
   );
   const res = await fetch(
-    `${GRAPH}/me/conversations?fields=${fields}&limit=5&access_token=${encodeURIComponent(token)}`
+    `${GRAPH}/me/conversations?fields=${fields}&limit=10&access_token=${encodeURIComponent(token)}`
   );
   const data = (await res.json()) as {
     data?: Array<{
@@ -170,32 +240,50 @@ export async function deliverViaRecentConversation(
     error?: { message?: string };
   };
   if (!res.ok) {
+    console.warn('[messenger] conversations list failed', data.error?.message);
     return { sent: false, reason: data.error?.message || 'Failed to list conversations' };
   }
 
-  const cutoff = Date.now() - 15 * 60 * 1000;
+  const cutoff = Date.now() - 30 * 60 * 1000;
+  const tried = new Set<string>();
 
   for (const thread of data.data ?? []) {
     const updated = thread.updated_time ? Date.parse(thread.updated_time) : 0;
     if (updated && updated < cutoff) continue;
 
     const people = thread.participants?.data ?? [];
-    const pageParticipant = people.find((p) =>
-      /trading|hamel|fcm/i.test(p.name || '')
-    );
-    const userParticipant = people.find((p) => p.id && p.id !== pageParticipant?.id);
+    const userParticipant = people.find((p) => {
+      if (!p.id) return false;
+      if (pageId && p.id === pageId) return false;
+      // Skip obvious page-named participants when page id unknown
+      if (!pageId && /hamel|trading|fcm|page/i.test(p.name || '')) return false;
+      return true;
+    });
     const targetPsid = userParticipant?.id;
-    if (!targetPsid) continue;
+    if (!targetPsid || tried.has(targetPsid)) continue;
+    tried.add(targetPsid);
 
-    const result = await sendInquiryConfirmationToPsid(inquiryId, targetPsid);
-    if (result.sent || result.reason === 'Already sent') {
-      return { ...result, psid: targetPsid };
+    try {
+      const result = await sendInquiryConfirmationToPsid(inquiryId, targetPsid);
+      if (result.sent || result.reason === 'Already sent') {
+        return { ...result, psid: targetPsid };
+      }
+      if (result.reason) {
+        console.warn('[messenger] deliver to', targetPsid, result.reason);
+      }
+    } catch (err) {
+      console.warn(
+        '[messenger] deliver attempt failed',
+        targetPsid,
+        err instanceof Error ? err.message : err
+      );
     }
   }
 
   return {
     sent: false,
-    reason: 'No recent Messenger conversation — open the FCM chat from the button first',
+    reason:
+      'No recent Messenger conversation found. Open the Hamel Trading chat from the button, then wait a few seconds — or ensure the webhook tunnel is running.',
   };
 }
 

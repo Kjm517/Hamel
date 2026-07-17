@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { Hono } from 'hono';
 import { env } from '../env';
 import { requireAuth, type AuthVariables } from '../middleware/auth';
+import { cloudinaryConfigured, uploadBufferToCloudinary } from '../storage/cloudinary';
 
 const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_UPLOAD_BYTES = 300 * 1024 * 1024;
@@ -13,7 +14,7 @@ async function saveUploadedMedia(
   requestedPath: string | null,
   defaultPrefix: string,
   allowVideo = false
-): Promise<{ url: string; path: string }> {
+): Promise<{ url: string; path: string; storage: 'cloudinary' | 'local' }> {
   if (!file.type.startsWith('image/') && !(allowVideo && file.type === 'video/mp4')) {
     throw Object.assign(new Error('Please choose an image or MP4 video.'), {
       status: 400,
@@ -51,13 +52,32 @@ async function saveUploadedMedia(
       .replace(/[^a-zA-Z0-9._-]+/g, '-')
       .slice(0, 48)}-${randomUUID().slice(0, 8)}.${safeExt}`;
 
+  if (cloudinaryConfigured()) {
+    const result = await uploadBufferToCloudinary({
+      buffer,
+      objectPath,
+      contentType: file.type || (safeExt === 'mp4' ? 'video/mp4' : `image/${safeExt}`),
+      fileName: file.name || objectPath,
+    });
+    return { ...result, storage: 'cloudinary' };
+  }
+
+  if (process.env.VERCEL) {
+    throw Object.assign(
+      new Error(
+        'Cloudinary is not configured on this deployment. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in Vercel → Settings → Environment Variables, then redeploy.'
+      ),
+      { status: 503 }
+    );
+  }
+
   const uploadDir = env.uploadDir();
   const fullPath = join(uploadDir, objectPath);
   await mkdir(join(fullPath, '..'), { recursive: true });
   await writeFile(fullPath, buffer);
 
   const url = `${env.publicBaseUrl()}/uploads/${objectPath.replace(/\\/g, '/')}`;
-  return { url, path: objectPath };
+  return { url, path: objectPath, storage: 'local' };
 }
 
 export const uploadRoutes = new Hono<{ Variables: AuthVariables }>();
@@ -90,7 +110,7 @@ uploadRoutes.post('/', requireAuth, async (c) => {
         : 500;
     return c.json(
       { error: err instanceof Error ? err.message : 'Upload failed' },
-      status === 400 ? 400 : 500
+      status === 400 || status === 503 ? (status as 400 | 503) : 500
     );
   }
 });
@@ -129,9 +149,6 @@ uploadRoutes.post('/public', async (c) => {
 
   try {
     const result = await saveUploadedMedia(file, requestedPath, defaultPrefix);
-    if (!PUBLIC_UPLOAD_PREFIXES.some((prefix) => result.path.startsWith(prefix))) {
-      return c.json({ error: 'Invalid upload path.' }, 400);
-    }
     return c.json(result);
   } catch (err) {
     const status =
@@ -140,18 +157,33 @@ uploadRoutes.post('/public', async (c) => {
         : 500;
     return c.json(
       { error: err instanceof Error ? err.message : 'Upload failed' },
-      status === 400 ? 400 : 500
+      status === 400 || status === 503 ? (status as 400 | 503) : 500
     );
   }
 });
 
 uploadRoutes.get('/health', async (c) => {
+  if (cloudinaryConfigured()) {
+    return c.json({
+      ok: true,
+      storage: 'cloudinary',
+      cloud: env.cloudinaryCloudName(),
+      folder: env.cloudinaryFolder(),
+    });
+  }
+
   try {
     await mkdir(env.uploadDir(), { recursive: true });
-    return c.json({ ok: true });
+    return c.json({
+      ok: true,
+      storage: 'local',
+      warning:
+        'Using local disk. On Vercel this is temporary — set CLOUDINARY_* env vars for durable media.',
+    });
   } catch (err) {
     return c.json({
       ok: false,
+      storage: 'local',
       message: err instanceof Error ? err.message : 'Upload directory unavailable',
     });
   }

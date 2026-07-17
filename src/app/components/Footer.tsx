@@ -115,6 +115,9 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="text-center text-sm text-white">
             <p>© {new Date().getFullYear()} {settings.storeName}. All rights reserved.</p>
+            <Link to="/privacy-policy" className="mt-1 inline-block underline hover:text-sky-100">
+              Privacy Policy
+            </Link>
           </div>
         </div>
       </div>
