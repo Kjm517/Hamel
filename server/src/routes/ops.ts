@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { getSql } from '../db';
-import { requireAuth, type AuthVariables } from '../middleware/auth';
+import { requireAuth, requireManager, type AuthVariables } from '../middleware/auth';
 
 export const eventRoutes = new Hono<{ Variables: AuthVariables }>();
 
@@ -26,6 +26,20 @@ eventRoutes.post('/', async (c) => {
 });
 
 export const analyticsRoutes = new Hono<{ Variables: AuthVariables }>();
+
+/**
+ * Clear only anonymous analytics events (pageviews, chat opens, etc.).
+ * Operational records such as inquiries, customers, products, and messages remain untouched.
+ */
+analyticsRoutes.delete('/events', requireAuth, requireManager, async (c) => {
+  const sql = getSql();
+  const deleted = (await sql`
+    delete from site_events
+    returning id
+  `) as { id: string }[];
+
+  return c.json({ ok: true, deleted: deleted.length });
+});
 
 analyticsRoutes.get('/summary', requireAuth, async (c) => {
   try {

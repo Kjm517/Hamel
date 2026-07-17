@@ -6,6 +6,8 @@ export type StoreSettings = {
   storeName: string;
   contactEmail: string;
   showAiChat: boolean;
+  /** Show % badge next to Cool Deals in the main nav. */
+  showCoolDealsNavIcon: boolean;
   address: string;
   phoneDisplay: string;
   messengerUrl: string;
@@ -17,9 +19,10 @@ export const DEFAULT_STORE: StoreSettings = {
   storeName: 'Hamel Trading',
   contactEmail: 'hello@hamel.example',
   showAiChat: true,
+  showCoolDealsNavIcon: true,
   address: '123 Osmeña Boulevard\nCebu City, 6000\nCebu, Philippines',
   phoneDisplay: '(032) 123-4567',
-  messengerUrl: 'https://m.me/fcmtradingservices',
+  messengerUrl: 'https://m.me/hameltrading',
 };
 
 export async function fetchStoreSettings(): Promise<StoreSettings> {
@@ -84,6 +87,10 @@ export type AnalyticsSummary = {
 
 export async function fetchAnalyticsSummary(): Promise<AnalyticsSummary> {
   return apiFetch<AnalyticsSummary>('/api/analytics/summary');
+}
+
+export async function resetAnalyticsEvents(): Promise<{ ok: true; deleted: number }> {
+  return apiFetch('/api/analytics/events', { method: 'DELETE' });
 }
 
 export type DashboardCard = {

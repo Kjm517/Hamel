@@ -190,3 +190,79 @@ export function brandProductsHref(brand: BrandCardConfig): string {
 export function defaultCtaLabel(name: string): string {
   return `View ${name} Products`;
 }
+
+/** Enabled brands in admin order — drives Products page filter and homepage logos. */
+export function enabledBrands(config: BrandsPageConfig): BrandCardConfig[] {
+  return config.brands.filter((b) => b.enabled && brandCatalogKey(b));
+}
+
+/** Filter option labels for Products page (`All` + catalog keys in admin order). */
+export function deriveBrandFilterOptionsFromConfig(config: BrandsPageConfig): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const brand of enabledBrands(config)) {
+    const key = brandCatalogKey(brand);
+    const lower = key.toLowerCase();
+    if (seen.has(lower)) continue;
+    seen.add(lower);
+    ordered.push(key);
+  }
+  return ['All', ...ordered];
+}
+
+/**
+ * Products-page brand filter from live catalog data.
+ * - Only brands that exist on active products
+ * - Enabled Brands-admin entries keep admin order
+ * - Disabled Brands-admin entries stay hidden even if products exist
+ * - Catalog brands with no admin row still appear (A–Z after admin-ordered ones)
+ */
+export function deriveBrandFilterOptionsFromCatalog(
+  products: Product[],
+  config?: BrandsPageConfig
+): string[] {
+  const catalogByLower = new Map<string, string>();
+  for (const p of products) {
+    if (p.isActive === false) continue;
+    const brand = p.brand?.trim();
+    if (!brand) continue;
+    const lower = brand.toLowerCase();
+    if (!catalogByLower.has(lower)) catalogByLower.set(lower, brand);
+  }
+
+  if (!config) {
+    return [
+      'All',
+      ...Array.from(catalogByLower.values()).sort((a, b) => a.localeCompare(b)),
+    ];
+  }
+
+  const disabled = new Set(
+    config.brands
+      .filter((b) => !b.enabled)
+      .map((b) => brandCatalogKey(b).toLowerCase())
+      .filter(Boolean)
+  );
+
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+
+  for (const brand of enabledBrands(config)) {
+    const lower = brandCatalogKey(brand).toLowerCase();
+    if (!catalogByLower.has(lower) || seen.has(lower)) continue;
+    seen.add(lower);
+    ordered.push(catalogByLower.get(lower)!);
+  }
+
+  const orphans = Array.from(catalogByLower.entries())
+    .filter(([lower]) => !seen.has(lower) && !disabled.has(lower))
+    .map(([, name]) => name)
+    .sort((a, b) => a.localeCompare(b));
+
+  return ['All', ...ordered, ...orphans];
+}
+
+/** Brand names for product create/edit dropdowns. */
+export function deriveProductBrandChoices(config: BrandsPageConfig): string[] {
+  return deriveBrandFilterOptionsFromConfig(config).filter((b) => b !== 'All');
+}

@@ -1,6 +1,7 @@
 import { apiFetch } from '../../lib/api';
 
 export type InquiryStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+export type LeadScore = 'high' | 'medium' | 'low';
 
 export type InquiryRow = {
   id: string;
@@ -22,6 +23,10 @@ export type InquiryRow = {
   notes?: string | null;
   source?: string | null;
   customerId?: string | null;
+  leadScore?: LeadScore | null;
+  leadReasons?: string[];
+  aiReplyDraft?: string | null;
+  aiReplyDraftAt?: string | null;
 };
 
 type DbInquiry = {
@@ -41,8 +46,26 @@ type DbInquiry = {
   notes?: string | null;
   source?: string | null;
   customer_id?: string | null;
+  lead_score?: string | null;
+  lead_reasons?: string[] | null;
+  ai_reply_draft?: string | null;
+  ai_reply_draft_at?: string | null;
   created_at: string;
 };
+
+export function leadScoreLabel(score: LeadScore | string | null | undefined): string {
+  if (score === 'high' || score === 'hot') return 'High Priority';
+  if (score === 'medium' || score === 'warm') return 'Medium Priority';
+  if (score === 'low' || score === 'cold') return 'Low Priority';
+  return '—';
+}
+
+function normalizeLeadScore(raw: string | null | undefined): LeadScore | null {
+  if (raw === 'high' || raw === 'hot') return 'high';
+  if (raw === 'medium' || raw === 'warm') return 'medium';
+  if (raw === 'low' || raw === 'cold') return 'low';
+  return null;
+}
 
 export function formatHpQty(productLabel: string | null, quantity: string | null, hp?: string | null): string {
   const hpVal = hp?.trim() || productLabel?.match(/(\d+(?:\.\d+)?)\s*HP/i)?.[1];
@@ -64,6 +87,7 @@ export function formatRelativeTime(iso: string): string {
 }
 
 function mapInquiry(row: DbInquiry): InquiryRow {
+  const reasons = Array.isArray(row.lead_reasons) ? row.lead_reasons.map(String) : [];
   return {
     id: row.id,
     customerName: row.customer_name,
@@ -84,6 +108,10 @@ function mapInquiry(row: DbInquiry): InquiryRow {
     notes: row.notes,
     source: row.source,
     customerId: row.customer_id,
+    leadScore: normalizeLeadScore(row.lead_score),
+    leadReasons: reasons,
+    aiReplyDraft: row.ai_reply_draft,
+    aiReplyDraftAt: row.ai_reply_draft_at,
   };
 }
 
@@ -99,10 +127,12 @@ export async function fetchRecentInquiries(limit = 5): Promise<InquiryRow[]> {
 export async function fetchInquiries(opts?: {
   limit?: number;
   status?: string;
+  leadScore?: string;
 }): Promise<InquiryRow[]> {
   const params = new URLSearchParams();
   params.set('limit', String(opts?.limit ?? 100));
   if (opts?.status) params.set('status', opts.status);
+  if (opts?.leadScore) params.set('leadScore', opts.leadScore);
   const res = await apiFetch<{ inquiries: DbInquiry[] }>(`/api/inquiries?${params}`);
   return (res.inquiries ?? []).map(mapInquiry);
 }
@@ -114,8 +144,42 @@ export async function updateInquiryStatus(id: string, status: InquiryStatus): Pr
   });
 }
 
+export async function updateInquiryPriority(
+  id: string,
+  leadScore: LeadScore
+): Promise<{ leadScore: LeadScore; leadReasons: string[] }> {
+  const res = await apiFetch<{ leadScore?: string; leadReasons?: string[] }>(
+    `/api/inquiries/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: { leadScore },
+    }
+  );
+  return {
+    leadScore: normalizeLeadScore(res.leadScore) ?? leadScore,
+    leadReasons: res.leadReasons ?? ['Set manually by admin'],
+  };
+}
+
 export async function completeInquiry(id: string): Promise<void> {
   await apiFetch(`/api/inquiries/${encodeURIComponent(id)}/complete`, { method: 'PATCH' });
+}
+
+export async function generateInquiryReplyDraft(id: string): Promise<{ draft: string }> {
+  return apiFetch<{ draft: string }>(`/api/inquiries/${encodeURIComponent(id)}/draft-reply`, {
+    method: 'POST',
+  });
+}
+
+export async function rescoreInquiry(id: string): Promise<{ leadScore: LeadScore; leadReasons: string[] }> {
+  const res = await apiFetch<{ leadScore: string; leadReasons: string[] }>(
+    `/api/inquiries/${encodeURIComponent(id)}/score`,
+    { method: 'POST' }
+  );
+  return {
+    leadScore: normalizeLeadScore(res.leadScore) ?? 'low',
+    leadReasons: res.leadReasons ?? [],
+  };
 }
 
 export type CreateInquiryInput = {

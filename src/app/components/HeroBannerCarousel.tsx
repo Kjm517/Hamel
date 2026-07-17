@@ -54,7 +54,9 @@ export function HeroBannerCarousel({ slides, className = '' }: HeroBannerCarouse
             alt={s.imageAlt ?? ''}
             className="absolute inset-0 w-full h-full object-cover"
           />
-          <div className="absolute inset-0" style={{ background: s.overlayColor }} />
+          {s.overlayColor ? (
+            <div className="absolute inset-0" style={{ background: s.overlayColor }} />
+          ) : null}
           <div className="relative z-10 h-full flex flex-col justify-center px-6 md:px-12 max-w-7xl mx-auto w-full items-start text-left">
             {s.tag && (
               <div

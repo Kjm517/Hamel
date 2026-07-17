@@ -107,7 +107,7 @@ export function AdminProfilePage() {
           label="Profile picture"
           value={avatarUrl}
           onChange={setAvatarUrl}
-          hint="PNG, JPG, or WebP up to 3 MB."
+          hint="PNG, JPG, or WebP up to 25 MB."
           remoteUpload={{
             getObjectPath: (file) => {
               const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';

@@ -1,6 +1,15 @@
 import type { BannerConfig } from '../components/PageBanner';
 import { fetchContent, getCachedContent, saveContent } from '../lib/content-api';
 import { hamelAssets, hamelHeroSlides, hamelPromoBanners } from './hamelAssets';
+import type { PromoAnimationStyle } from '../lib/promo-animations';
+import type {
+  PromoAmbientEffect,
+  PromoAmbientIntensity,
+} from '../lib/promo-ambient-effects';
+import {
+  normalizePromoAmbientEffect,
+  normalizePromoAmbientIntensity,
+} from '../lib/promo-ambient-effects';
 
 export type PageKey = 'home' | 'products' | 'brands' | 'why-hamel' | 'contact';
 
@@ -28,6 +37,12 @@ export interface FeaturedCollectionConfig {
   countdownEndsAt?: string;
   /** Label beside countdown, e.g. "ENDS IN". */
   countdownLabel?: string;
+  /** Entrance animation for the Birthday / promo event strip. */
+  animation?: PromoAnimationStyle;
+  /** Continuous overlay effect (balloons, breeze, frost, etc.). */
+  ambientEffect?: PromoAmbientEffect;
+  /** How strong the ambient overlay feels. */
+  ambientIntensity?: PromoAmbientIntensity;
 }
 
 /** Cool Deals page hero — full-width banner image + optional text overlay. */
@@ -51,6 +66,8 @@ export interface CoolDealsBannerConfig {
 }
 
 export interface PromoBannerItem {
+  /** Whether this optional offer appears beside the homepage carousel. */
+  enabled?: boolean;
   title: string;
   titleAccent?: string;
   subtitle?: string;
@@ -107,6 +124,9 @@ const defaultFeaturedCollection: FeaturedCollectionConfig = {
   productIds: [],
   countdownEndsAt: undefined,
   countdownLabel: 'ENDS IN',
+  animation: 'fade',
+  ambientEffect: 'none',
+  ambientIntensity: 'medium',
 };
 
 const FEATURED_PRODUCT_LIMIT = 5;
@@ -132,14 +152,20 @@ function mergeFeaturedCollection(
     seeAllExternal: Boolean(parsed?.seeAllExternal),
     countdownEndsAt: parsed?.countdownEndsAt?.trim() || undefined,
     countdownLabel: parsed?.countdownLabel?.trim() || defaultFeaturedCollection.countdownLabel,
+    animation: parsed?.animation || defaultFeaturedCollection.animation || 'fade',
+    ambientEffect: normalizePromoAmbientEffect(parsed?.ambientEffect),
+    ambientIntensity: normalizePromoAmbientIntensity(parsed?.ambientIntensity),
   };
 }
 
 export { FEATURED_PRODUCT_LIMIT };
 
-const defaultPromoBanners: [PromoBannerItem, PromoBannerItem, PromoBannerItem] = [
-  ...hamelPromoBanners,
-];
+const defaultPromoBanners = hamelPromoBanners.map((banner, index) => ({
+  ...banner,
+  // The original homepage used items 2 and 3; keep that visible arrangement
+  // while making the previously spare item available as an optional third offer.
+  enabled: index > 0,
+})) as unknown as [PromoBannerItem, PromoBannerItem, PromoBannerItem];
 
 const defaultCoolDealsBanner: CoolDealsBannerConfig = {
   badge: 'Limited Time Only!',
@@ -242,13 +268,28 @@ function mergeCoolDealsBanner(parsed?: LegacyCoolDealsBanner): CoolDealsBannerCo
   return base;
 }
 
+function mergePromoBanners(
+  parsed?: PromoBannerItem[] | null
+): [PromoBannerItem, PromoBannerItem, PromoBannerItem] {
+  return defaultPromoBanners.map((fallback, index) => {
+    const saved = parsed?.[index];
+    return {
+      ...fallback,
+      ...saved,
+      // Saved banner sets created before this setting retain their original
+      // visible/spare positions instead of unexpectedly showing another tile.
+      enabled: saved?.enabled ?? fallback.enabled,
+    };
+  }) as [PromoBannerItem, PromoBannerItem, PromoBannerItem];
+}
+
 function normalizeStore(parsed: Partial<BannerStore> | null | undefined): BannerStore {
   return {
     ...defaultBanners,
     ...parsed,
     heroSlides: parsed?.heroSlides ?? defaultBanners.heroSlides,
     featuredCollection: mergeFeaturedCollection(parsed?.featuredCollection),
-    promoBanners: parsed?.promoBanners ?? defaultBanners.promoBanners,
+    promoBanners: mergePromoBanners(parsed?.promoBanners),
     coolDealsBanner: mergeCoolDealsBanner(parsed?.coolDealsBanner),
   };
 }

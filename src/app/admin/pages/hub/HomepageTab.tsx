@@ -58,7 +58,7 @@ export function HomepageTab() {
     setSaved(false);
   };
 
-  const updateSide = (index: 1 | 2, patch: Partial<PromoBannerItem>) => {
+  const updateSide = (index: 0 | 1 | 2, patch: Partial<PromoBannerItem>) => {
     setStore((prev) => {
       const promos = [...prev.promoBanners] as [PromoBannerItem, PromoBannerItem, PromoBannerItem];
       promos[index] = { ...promos[index], ...patch };
@@ -71,7 +71,7 @@ export function HomepageTab() {
     <div className="space-y-6">
       <PageEditorIntro
         title="Home page"
-        description="Update the big sliding pictures at the top, and the two smaller offer tiles on the right."
+        description="Update the big sliding pictures at the top and up to three optional offer tiles on the right."
         saveMode="manual"
         previewHref="/"
         showDragTip
@@ -93,7 +93,7 @@ export function HomepageTab() {
       <div>
         <p className="mb-2 text-sm font-semibold text-gray-800">Live preview</p>
         <div className="rounded-xl border border-gray-200 overflow-hidden pointer-events-none opacity-90">
-          <MarketplaceBannerGrid carouselSlides={slides} sideBanners={[store.promoBanners[1], store.promoBanners[2]]} />
+          <MarketplaceBannerGrid carouselSlides={slides} sideBanners={store.promoBanners} />
         </div>
       </div>
 
@@ -153,6 +153,41 @@ export function HomepageTab() {
                       <Field label="Short line under title" value={slide.subtitle || ''} onChange={(v) => updateSlide(slide.id, { subtitle: v })} rows={2} />
                     </div>
                     <ImageUrlOrUploadField label="Image" value={slide.imageUrl} onChange={(v) => updateSlide(slide.id, { imageUrl: v })} />
+                    <div>
+                      <p className="mb-1.5 text-xs font-medium text-gray-600">Color overlay (smoke)</p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => updateSlide(slide.id, { overlayColor: undefined })}
+                          className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${
+                            !slide.overlayColor
+                              ? 'border-[#0EA5E9] bg-[#E0F2FE] text-[#0369A1]'
+                              : 'border-gray-200 text-gray-600'
+                          }`}
+                        >
+                          None — image only
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSlide(slide.id, {
+                              overlayColor:
+                                'linear-gradient(90deg, rgba(14,90,180,0.92) 0%, rgba(14,165,233,0.75) 45%, rgba(14,165,233,0.25) 100%)',
+                            })
+                          }
+                          className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${
+                            slide.overlayColor
+                              ? 'border-[#0EA5E9] bg-[#E0F2FE] text-[#0369A1]'
+                              : 'border-gray-200 text-gray-600'
+                          }`}
+                        >
+                          Soft blue
+                        </button>
+                      </div>
+                      <p className="mt-1 text-[11px] text-gray-400">
+                        Use <strong>None</strong> when Marketing’s artwork already includes text (no smoke).
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -174,17 +209,59 @@ export function HomepageTab() {
 
       <div>
         <h3 className="mb-1 text-sm font-bold text-gray-800">2. Side offers</h3>
-        <p className="mb-3 text-xs text-gray-500">These are the two smaller tiles next to the sliding pictures.</p>
+        <p className="mb-3 text-xs text-gray-500">
+          Add up to three smaller tiles beside the sliding pictures. Turn off any offer you do not want to show.
+        </p>
         <div className="grid md:grid-cols-2 gap-4">
-        {([1, 2] as const).map((idx) => {
+        {([0, 1, 2] as const).map((idx) => {
           const b = store.promoBanners[idx];
           return (
             <div key={idx} className="rounded-xl border border-gray-200 p-4 bg-gray-50">
-              <h3 className="text-sm font-bold text-gray-800 mb-3">
-                {idx === 1 ? 'Top offer tile' : 'Bottom offer tile'}
-              </h3>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-gray-800">Offer {idx + 1}</h3>
+                <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={b.enabled !== false}
+                    onChange={(e) => updateSide(idx, { enabled: e.target.checked })}
+                  />
+                  Show on homepage
+                </label>
+              </div>
               <Field label="Title line 1" value={b.title} onChange={(v) => updateSide(idx, { title: v })} />
-              <Field label="Title line 2" value={b.titleAccent || ''} onChange={(v) => updateSide(idx, { titleAccent: v })} />
+              <Field label="Title accent / pill" value={b.titleAccent || ''} onChange={(v) => updateSide(idx, { titleAccent: v })} />
+              <Field label="Badge" value={b.badge || ''} onChange={(v) => updateSide(idx, { badge: v })} />
+              <Field label="Subtitle" value={b.subtitle || ''} onChange={(v) => updateSide(idx, { subtitle: v })} />
+              <Field label="CTA label" value={b.ctaLabel || ''} onChange={(v) => updateSide(idx, { ctaLabel: v })} />
+              <div className="mb-3 grid grid-cols-3 gap-2">
+                <label className="block text-xs">
+                  <span className="font-medium text-gray-600">Background</span>
+                  <input
+                    type="color"
+                    value={b.bgColor || '#0EA5E9'}
+                    onChange={(e) => updateSide(idx, { bgColor: e.target.value })}
+                    className="mt-1 h-9 w-full cursor-pointer rounded border border-gray-200"
+                  />
+                </label>
+                <label className="block text-xs">
+                  <span className="font-medium text-gray-600">Text</span>
+                  <input
+                    type="color"
+                    value={b.textColor || '#FFFFFF'}
+                    onChange={(e) => updateSide(idx, { textColor: e.target.value })}
+                    className="mt-1 h-9 w-full cursor-pointer rounded border border-gray-200"
+                  />
+                </label>
+                <label className="block text-xs">
+                  <span className="font-medium text-gray-600">Accent</span>
+                  <input
+                    type="color"
+                    value={b.accentColor || '#FFC107'}
+                    onChange={(e) => updateSide(idx, { accentColor: e.target.value })}
+                    className="mt-1 h-9 w-full cursor-pointer rounded border border-gray-200"
+                  />
+                </label>
+              </div>
               <ImageUrlOrUploadField label="Image" value={b.imageUrl || ''} onChange={(v) => updateSide(idx, { imageUrl: v })} />
               <BannerLinkDestinationField fields={b} onChange={(p) => updateSide(idx, p)} />
             </div>

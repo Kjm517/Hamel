@@ -50,7 +50,7 @@ export function PageBanner({ config, className = '' }: PageBannerProps) {
     ctaLabel,
     ctaHref,
     ctaExternal,
-    overlayColor = 'linear-gradient(to right, rgba(14,165,233,0.92) 0%, rgba(14,165,233,0.6) 60%, rgba(14,165,233,0.2) 100%)',
+    overlayColor,
     textAlign = 'left',
     height = 'md',
   } = config;
@@ -65,8 +65,8 @@ export function PageBanner({ config, className = '' }: PageBannerProps) {
         alt={imageAlt}
         className="absolute inset-0 w-full h-full object-cover"
       />
-      {/* Color overlay */}
-      <div className="absolute inset-0" style={{ background: overlayColor }} />
+      {/* Color overlay — only when set in admin */}
+      {overlayColor ? <div className="absolute inset-0" style={{ background: overlayColor }} /> : null}
 
       {/* Content */}
       <div className={`relative z-10 h-full flex flex-col justify-center px-6 md:px-12 max-w-7xl mx-auto w-full ${contentAlign}`}>

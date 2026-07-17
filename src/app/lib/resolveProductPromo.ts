@@ -8,6 +8,8 @@ export type ResolvedProductPromo = {
   label: string;
   subtitle?: string;
   description?: string;
+  chipImageUrl?: string;
+  renderMode?: 'composed' | 'image';
   iconUrl?: string;
   iconEmoji?: string;
   iconBgColor: string;

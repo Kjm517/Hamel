@@ -1,7 +1,6 @@
 import { ProductCard } from '../components/ProductCard';
 import { useCatalog } from '../context/CatalogContext';
 import { homepageTestimonials, FACEBOOK_REVIEWS_URL, FACEBOOK_RECOMMEND_SUMMARY } from '../data/testimonials';
-import { hamelBrandLogos } from '../data/hamelAssets';
 import { FEATURED_PRODUCT_LIMIT } from '../data/banners';
 import { Shield, Wrench, Headset, Star, Truck, MessageCircle, Award, CheckCircle, ClipboardList, ChevronRight, ArrowRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -9,10 +8,14 @@ import { Link } from 'react-router';
 import { ContactOptionsModal } from '../components/ContactOptionsModal';
 import { MarketplaceBannerGrid } from '../components/MarketplaceBannerGrid';
 import { FeaturedEventCountdown } from '../components/PromoCountdownBanner';
+import { PromoAmbientLayer } from '../components/PromoAmbientLayer';
 import { useHeroSlides, useFeaturedCollection, usePromoBanners } from '../hooks/useBanner';
+import { useBrandsPage } from '../hooks/useBrandsPage';
+import { brandProductsHref, enabledBrands } from '../data/brands-page';
 import { isPromoCountdownActive } from '../lib/product-promos';
 import { isStorefrontProduct } from '../lib/catalog-product';
 import { resolveStorageImageUrl } from '../lib/storage';
+import { promoAnimationClass } from '../lib/promo-animations';
 
 const TRUST_BADGES = [
   { icon: <Award size={16} />, label: 'Licensed Installer' },
@@ -27,6 +30,8 @@ export function HomePage() {
   const heroSlides = useHeroSlides();
   const featuredCollection = useFeaturedCollection();
   const promoBanners = usePromoBanners();
+  const brandsConfig = useBrandsPage({ trackPageLoading: false });
+  const homepageBrands = useMemo(() => enabledBrands(brandsConfig).slice(0, 6), [brandsConfig]);
   const [isContactOpen, setIsContactOpen] = useState(false);
 
   const storefront = useMemo(() => products.filter(isStorefrontProduct), [products]);
@@ -58,7 +63,7 @@ export function HomePage() {
       {/* Shopee / Abenson-style banners: carousel + side promos */}
       <MarketplaceBannerGrid
         carouselSlides={heroSlides}
-        sideBanners={[promoBanners[1], promoBanners[2]]}
+        sideBanners={promoBanners}
       />
 
       {/* Trust strip — below banners */}
@@ -78,7 +83,7 @@ export function HomePage() {
       {/* Promo event section (Cool Summer / Birthday Sale / etc.) */}
       {featuredCollection.enabled !== false && featuredProducts.length > 0 ? (
       <section
-        className="relative overflow-hidden py-10"
+        className={`relative overflow-hidden py-10 ${promoAnimationClass(featuredCollection.animation)}`}
         style={{ backgroundColor: featuredCollection.bgColor }}
       >
         {featuredBgImage ? (
@@ -101,13 +106,27 @@ export function HomePage() {
             />
           </>
         ) : null}
+        <PromoAmbientLayer
+          effect={featuredCollection.ambientEffect}
+          intensity={featuredCollection.ambientIntensity}
+          accentColor={featuredCollection.highlightColor}
+        />
         <div className="relative z-10 max-w-7xl mx-auto px-4">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-none">
-                <span style={{ color: featuredCollection.titleColor }}>{featuredCollection.title} </span>
-                <span style={{ color: featuredCollection.highlightColor }}>{featuredCollection.titleHighlight}</span>
-              </h2>
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-none">
+                  <span style={{ color: featuredCollection.titleColor }}>{featuredCollection.title} </span>
+                  <span style={{ color: featuredCollection.highlightColor }}>{featuredCollection.titleHighlight}</span>
+                </h2>
+                {showCountdown ? (
+                  <FeaturedEventCountdown
+                    endsAt={featuredCollection.countdownEndsAt!}
+                    label={featuredCollection.countdownLabel || 'ENDS IN'}
+                    labelColor={featuredCollection.titleColor}
+                  />
+                ) : null}
+              </div>
               {featuredCollection.subtitle && (
                 <p className="text-sm mt-1.5" style={{ color: featuredCollection.titleColor, opacity: 0.8 }}>
                   {featuredCollection.subtitle}
@@ -115,13 +134,6 @@ export function HomePage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-4 shrink-0">
-              {showCountdown ? (
-                <FeaturedEventCountdown
-                  endsAt={featuredCollection.countdownEndsAt!}
-                  label={featuredCollection.countdownLabel || 'ENDS IN'}
-                  labelColor={featuredCollection.titleColor}
-                />
-              ) : null}
               {seeAllExternal ? (
                 <a
                   href={seeAllHref}
@@ -240,52 +252,41 @@ export function HomePage() {
       </section>
 
       {/* Brands */}
-      <section className="py-12" style={{ backgroundColor: '#F0F9FF' }}>
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-8">
-            <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#FFC107' }}>Authorized Dealer</p>
-            <h2 className="text-3xl font-bold" style={{ color: '#0EA5E9' }}>Brands We Carry</h2>
-            <p className="text-sm text-gray-500 mt-1">All units come with official manufacturer warranty</p>
+      {homepageBrands.length > 0 ? (
+        <section className="py-12" style={{ backgroundColor: '#F0F9FF' }}>
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-8">
+              <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#FFC107' }}>Authorized Dealer</p>
+              <h2 className="text-3xl font-bold" style={{ color: '#0EA5E9' }}>Brands We Carry</h2>
+              <p className="text-sm text-gray-500 mt-1">All units come with official manufacturer warranty</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-4">
+              {homepageBrands.map((brand) => {
+                const logo = brand.logoImageUrl;
+                return (
+                  <Link
+                    key={brand.id}
+                    to={brandProductsHref(brand)}
+                    className="flex h-20 w-[calc((100%-1rem)/2)] items-center justify-center rounded-xl border border-gray-100 bg-white p-4 transition-all hover:border-[#BAE6FD] hover:shadow-md group sm:w-[calc((100%-2rem)/3)] md:w-[calc((100%-5rem)/6)]"
+                  >
+                    {logo ? (
+                      <img
+                        src={logo}
+                        alt={brand.name}
+                        className="max-h-10 w-full max-w-[110px] object-contain opacity-90 transition-opacity group-hover:opacity-100"
+                      />
+                    ) : (
+                      <span className="text-base font-extrabold tracking-tight text-[#0C4A6E]">
+                        {brand.name}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-            {(
-              [
-                'Samsung',
-                'Carrier',
-                'Panasonic',
-                'Daikin',
-                'Midea',
-                'LG',
-              ] as const
-            ).map((name) => {
-              const logo = hamelBrandLogos[name];
-              return (
-                <Link
-                  key={name}
-                  to={`/products?brand=${encodeURIComponent(name)}`}
-                  className="flex h-20 items-center justify-center rounded-xl border border-gray-100 bg-white p-4 transition-all hover:border-[#BAE6FD] hover:shadow-md group"
-                >
-                  {logo ? (
-                    <img
-                      src={logo}
-                      alt={name}
-                      className={
-                        name === 'Samsung'
-                          ? 'h-auto w-[130px] max-h-10 object-contain opacity-90 transition-opacity group-hover:opacity-100'
-                          : 'max-h-10 w-full max-w-[110px] object-contain opacity-90 transition-opacity group-hover:opacity-100'
-                      }
-                    />
-                  ) : (
-                    <span className="text-base font-extrabold tracking-tight text-[#0C4A6E]">
-                      {name}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {/* Testimonials — from Facebook reviews */}
       <section className="py-16 bg-white">

@@ -19,6 +19,7 @@ import { hexForColorInput } from '../../lib/color-utils';
 const PAGE_KEYS: PageKey[] = ['home', 'products', 'brands', 'why-hamel', 'contact'];
 
 const OVERLAY_PRESETS: { label: string; value: string }[] = [
+  { label: 'None (image only)', value: '' },
   { label: 'Blue (Brand)', value: 'linear-gradient(to right, rgba(14,165,233,0.93) 0%, rgba(14,165,233,0.65) 55%, rgba(14,165,233,0.15) 100%)' },
   { label: 'Dark Navy', value: 'linear-gradient(to right, rgba(26,58,107,0.95) 0%, rgba(14,165,233,0.75) 55%, rgba(14,165,233,0.2) 100%)' },
   { label: 'Orange (Flash)', value: 'linear-gradient(to right, rgba(234,88,12,0.93) 0%, rgba(249,115,22,0.75) 55%, rgba(249,115,22,0.3) 100%)' },
@@ -119,14 +120,28 @@ function SlideEditor({
                   {OVERLAY_PRESETS.map((preset) => (
                     <button
                       key={preset.label}
-                      onClick={() => onChange({ overlayColor: preset.value })}
+                      type="button"
+                      onClick={() => onChange({ overlayColor: preset.value || undefined })}
                       className="flex items-center gap-1.5 px-2 py-1.5 rounded border text-xs hover:bg-gray-50 transition-colors text-left"
                       style={{
-                        borderColor: slide.overlayColor === preset.value ? '#0EA5E9' : '#E5E7EB',
-                        backgroundColor: slide.overlayColor === preset.value ? '#E0F2FE' : undefined,
+                        borderColor:
+                          (preset.value === '' && !slide.overlayColor) ||
+                          slide.overlayColor === preset.value
+                            ? '#0EA5E9'
+                            : '#E5E7EB',
+                        backgroundColor:
+                          (preset.value === '' && !slide.overlayColor) ||
+                          slide.overlayColor === preset.value
+                            ? '#E0F2FE'
+                            : undefined,
                       }}
                     >
-                      <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: preset.value }} />
+                      <div
+                        className="w-3 h-3 rounded-sm shrink-0 border border-gray-200"
+                        style={{
+                          background: preset.value || 'linear-gradient(45deg,#fff 40%,#e5e7eb 40%)',
+                        }}
+                      />
                       <span className="truncate">{preset.label}</span>
                     </button>
                   ))}
@@ -137,7 +152,9 @@ function SlideEditor({
           {slide.imageUrl && (
             <div className="mt-2 h-14 rounded-lg overflow-hidden border border-gray-200 relative">
               <img src={slide.imageUrl} alt="" className="w-full h-full object-cover" />
-              <div className="absolute inset-0" style={{ background: slide.overlayColor }} />
+              {slide.overlayColor ? (
+                <div className="absolute inset-0" style={{ background: slide.overlayColor }} />
+              ) : null}
               <div className="absolute inset-0 flex items-center px-4">
                 <span className="text-white font-bold text-sm drop-shadow line-clamp-1">{slide.title}</span>
               </div>
@@ -157,7 +174,7 @@ const newSlideTemplate: BannerConfig = {
   subtitle: '',
   ctaLabel: 'Shop Now',
   ctaHref: '/products',
-  overlayColor: 'linear-gradient(to right, rgba(14,165,233,0.93) 0%, rgba(14,165,233,0.65) 55%, rgba(14,165,233,0.15) 100%)',
+  overlayColor: undefined,
   height: 'sm',
   textAlign: 'left',
 };
@@ -170,7 +187,6 @@ export function AdminBannersPage() {
   const [expanded, setExpanded] = useState<PageKey | null>('home');
   const [homeGridOpen, setHomeGridOpen] = useState(true);
   const [featuredSectionOpen, setFeaturedSectionOpen] = useState(false);
-  const [promoSectionOpen, setPromoSectionOpen] = useState(false);
   const [coolDealsSectionOpen, setCoolDealsSectionOpen] = useState(false);
   const [homeGridPreview, setHomeGridPreview] = useState(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -323,7 +339,7 @@ export function AdminBannersPage() {
             <div className="border-b bg-gray-50/80 pointer-events-none">
               <MarketplaceBannerGrid
                 carouselSlides={banners.heroSlides}
-                sideBanners={[banners.promoBanners[1], banners.promoBanners[2]]}
+                sideBanners={banners.promoBanners}
               />
             </div>
           )}
@@ -331,7 +347,7 @@ export function AdminBannersPage() {
           {homeGridOpen && (
             <div className="p-5 space-y-6">
               <p className="text-xs text-gray-500">
-                Matches the top of the homepage: large rotating banner on the left, two stacked promos on the right. Visitors can click anywhere on a banner to open its link.
+                Matches the top of the homepage: large rotating banner on the left and up to three optional promos on the right. Visitors can click anywhere on a banner to open its link.
               </p>
 
               <div>
@@ -359,46 +375,17 @@ export function AdminBannersPage() {
               </div>
 
               <div className="border-t border-gray-100 pt-5 space-y-4">
-                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Right side banners</h4>
-                <PromoSideBannerEditor
-                  label="Top right banner"
-                  badgeNumber={1}
-                  item={banners.promoBanners[1]}
-                  onChange={(patch) => updatePromoBanner(1, patch)}
-                />
-                <PromoSideBannerEditor
-                  label="Bottom right banner"
-                  badgeNumber={2}
-                  item={banners.promoBanners[2]}
-                  onChange={(patch) => updatePromoBanner(2, patch)}
-                />
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Right side offers (maximum 3)</h4>
+                {banners.promoBanners.map((banner, index) => (
+                  <PromoSideBannerEditor
+                    key={index}
+                    label={`Side offer ${index + 1}`}
+                    badgeNumber={index + 1}
+                    item={banner}
+                    onChange={(patch) => updatePromoBanner(index as 0 | 1 | 2, patch)}
+                  />
+                ))}
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── Extra promo tile (not shown on homepage hero) ── */}
-        <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden shadow-sm mb-4">
-          <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
-            <button
-              type="button"
-              onClick={() => setPromoSectionOpen(!promoSectionOpen)}
-              className="flex items-center gap-2 text-left flex-1"
-            >
-              <Palette size={16} className="text-gray-400" />
-              <span className="font-bold text-gray-900 text-sm">Extra promo tile</span>
-              <span className="text-xs text-gray-400 ml-1">optional — not on homepage grid</span>
-              {promoSectionOpen ? <ChevronUp size={16} className="text-gray-400 ml-auto" /> : <ChevronDown size={16} className="text-gray-400 ml-auto" />}
-            </button>
-          </div>
-          {promoSectionOpen && (
-            <div className="p-5">
-              <PromoSideBannerEditor
-                label="Spare promo (for future use)"
-                badgeNumber={3}
-                item={banners.promoBanners[0]}
-                onChange={(patch) => updatePromoBanner(0, patch)}
-              />
             </div>
           )}
         </div>
@@ -745,14 +732,31 @@ export function AdminBannersPage() {
                             {OVERLAY_PRESETS.map((preset) => (
                               <button
                                 key={preset.label}
-                                onClick={() => updateBanner(page, { overlayColor: preset.value })}
+                                type="button"
+                                onClick={() =>
+                                  updateBanner(page, { overlayColor: preset.value || undefined })
+                                }
                                 className="flex items-center gap-1.5 px-2 py-1.5 rounded border text-xs hover:bg-gray-50 transition-colors text-left"
                                 style={{
-                                  borderColor: banner.overlayColor === preset.value ? '#0EA5E9' : '#E5E7EB',
-                                  backgroundColor: banner.overlayColor === preset.value ? '#E0F2FE' : undefined,
+                                  borderColor:
+                                    (preset.value === '' && !banner.overlayColor) ||
+                                    banner.overlayColor === preset.value
+                                      ? '#0EA5E9'
+                                      : '#E5E7EB',
+                                  backgroundColor:
+                                    (preset.value === '' && !banner.overlayColor) ||
+                                    banner.overlayColor === preset.value
+                                      ? '#E0F2FE'
+                                      : undefined,
                                 }}
                               >
-                                <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: preset.value }} />
+                                <div
+                                  className="w-3 h-3 rounded-sm shrink-0 border border-gray-200"
+                                  style={{
+                                    background:
+                                      preset.value || 'linear-gradient(45deg,#fff 40%,#e5e7eb 40%)',
+                                  }}
+                                />
                                 <span className="truncate">{preset.label}</span>
                               </button>
                             ))}

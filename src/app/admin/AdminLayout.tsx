@@ -14,6 +14,9 @@ import {
   LogOut,
   Search,
   Sparkles,
+  CreditCard,
+  Ticket,
+  Megaphone,
 } from 'lucide-react';
 import { useAdminAuth } from './context/AdminAuthContext';
 import { signOutAdmin } from './lib/admin-auth';
@@ -25,7 +28,10 @@ const navMain = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/pages', label: 'Website pages', icon: Image },
   { to: '/admin/promo-event', label: 'Promo event', icon: Sparkles },
+  { to: '/admin/promo-popup', label: 'Promo popups', icon: Megaphone },
   { to: '/admin/tags', label: 'Tags', icon: Bookmark },
+  { to: '/admin/installments', label: 'Card installments', icon: CreditCard },
+  { to: '/admin/vouchers', label: 'Vouchers', icon: Ticket },
 ] as const;
 
 const navAfterProducts = [

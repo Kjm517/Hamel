@@ -5,6 +5,8 @@ export type ChatRole = 'user' | 'assistant';
 export type ChatMessage = {
   role: ChatRole;
   content: string;
+  /** Optional room / product photo URL for multimodal room estimates */
+  imageUrl?: string;
 };
 
 export type ChatCompletionInput = {

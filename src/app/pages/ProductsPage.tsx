@@ -1,32 +1,39 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { ProductCard } from '../components/ProductCard';
+import { CompareLimitModal } from '../components/CompareLimitModal';
 import { useCatalog } from '../context/CatalogContext';
 import { Filter } from 'lucide-react';
 import { PageBanner } from '../components/PageBanner';
 import { useBanner } from '../hooks/useBanner';
+import { useBrandsPage } from '../hooks/useBrandsPage';
+import { deriveBrandFilterOptionsFromCatalog } from '../data/brands-page';
 import {
-  deriveBrandFilterOptions,
   deriveCategoryFilterOptions,
   deriveHpFilterOptions,
   filterStorefrontProducts,
   resolveBrandFilterValue,
 } from '../lib/catalog-product';
 import {
+  clearCompare,
   getCompareIds,
   isInCompare,
   MAX_COMPARE,
   toggleCompare,
 } from '../lib/product-actions';
+import { usePageLoading } from '../context/SiteLoadingContext';
 
 export function ProductsPage() {
   const { products, loading, error } = useCatalog();
+  usePageLoading(loading, 'products');
   const productsBanner = useBanner('products');
+  const brandsConfig = useBrandsPage({ trackPageLoading: false });
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const brandFromUrl = searchParams.get('brand');
   const pickForCompare = searchParams.get('pickForCompare') === '1';
   const [, bumpCompare] = useState(0);
+  const [compareLimitOpen, setCompareLimitOpen] = useState(false);
 
   useEffect(() => {
     const refresh = () => bumpCompare((n) => n + 1);
@@ -34,24 +41,70 @@ export function ProductsPage() {
     return () => window.removeEventListener('hamel-product-actions-updated', refresh);
   }, []);
 
-  const catalogProducts = useMemo(() => products, [products]);
+  // Comparison selections are only kept while using the dedicated
+  // “Choose for Compare” flow. Returning to the regular product catalogue
+  // starts a normal browsing session, so product details do not remain marked
+  // as “In compare” from a previous comparison.
+  useEffect(() => {
+    if (!pickForCompare && getCompareIds().length > 0) {
+      clearCompare();
+    }
+  }, [pickForCompare]);
 
-  const brandOptions = useMemo(() => deriveBrandFilterOptions(catalogProducts), [catalogProducts]);
-  const categoryOptions = useMemo(
-    () => deriveCategoryFilterOptions(catalogProducts),
-    [catalogProducts]
-  );
-  const hpOptions = useMemo(() => deriveHpFilterOptions(catalogProducts), [catalogProducts]);
+  const catalogProducts = useMemo(() => products, [products]);
 
   const [selectedBrand, setSelectedBrand] = useState('All');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedHP, setSelectedHP] = useState('All');
+
+  const brandOptions = useMemo(
+    () => deriveBrandFilterOptionsFromCatalog(catalogProducts, brandsConfig),
+    [catalogProducts, brandsConfig]
+  );
+
+  /** Category options from products matching the selected brand. */
+  const categoryOptions = useMemo(
+    () =>
+      deriveCategoryFilterOptions(
+        filterStorefrontProducts(catalogProducts, {
+          brand: selectedBrand,
+          category: 'All',
+          hp: 'All',
+        })
+      ),
+    [catalogProducts, selectedBrand]
+  );
+
+  /** HP options from products matching the selected brand + category. */
+  const hpOptions = useMemo(
+    () =>
+      deriveHpFilterOptions(
+        filterStorefrontProducts(catalogProducts, {
+          brand: selectedBrand,
+          category: selectedCategory,
+          hp: 'All',
+        })
+      ),
+    [catalogProducts, selectedBrand, selectedCategory]
+  );
 
   useEffect(() => {
     if (brandFromUrl) {
       setSelectedBrand(resolveBrandFilterValue(brandOptions, brandFromUrl));
     }
   }, [brandFromUrl, brandOptions]);
+
+  useEffect(() => {
+    if (selectedCategory !== 'All' && !categoryOptions.includes(selectedCategory)) {
+      setSelectedCategory('All');
+    }
+  }, [categoryOptions, selectedCategory]);
+
+  useEffect(() => {
+    if (selectedHP !== 'All' && !hpOptions.includes(selectedHP)) {
+      setSelectedHP('All');
+    }
+  }, [hpOptions, selectedHP]);
 
   const filteredProducts = useMemo(
     () =>
@@ -85,7 +138,8 @@ export function ProductsPage() {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <>
+      <div className="bg-gray-50 min-h-screen">
       <PageBanner config={productsBanner} />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -215,10 +269,7 @@ export function ProductsPage() {
                         ? (picked) => {
                             const result = toggleCompare(picked.id);
                             if (result.full && !result.added) {
-                              window.alert(
-                                `Compare is full (${MAX_COMPARE} products). Remove one on the compare page first.`
-                              );
-                              navigate(`/compare?ids=${getCompareIds().join(',')}`);
+                              setCompareLimitOpen(true);
                               return;
                             }
                             navigate(`/compare?ids=${result.ids.join(',')}`);
@@ -232,7 +283,13 @@ export function ProductsPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      <CompareLimitModal
+        isOpen={compareLimitOpen}
+        onClose={() => setCompareLimitOpen(false)}
+        maxProducts={MAX_COMPARE}
+      />
+    </>
   );
 }
 

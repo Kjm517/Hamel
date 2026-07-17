@@ -1,7 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { AdminAuthShell } from '../components/AdminAuthShell';
+import {
+  AdminAuthShell,
+  adminAuthFieldClass,
+  adminAuthLabelClass,
+} from '../components/AdminAuthShell';
 import { sendPasswordResetEmail } from '../lib/admin-auth';
+
+const ctaClass =
+  'mt-1 h-[50px] w-full rounded-xl border-0 bg-gradient-to-b from-[#ffc62b] to-[#f6b50c] text-[15.5px] font-bold tracking-[0.01em] text-[#3a2c00] shadow-[0_8px_18px_-8px_rgba(246,181,12,0.7)] transition-[transform,box-shadow] hover:shadow-[0_10px_22px_-8px_rgba(246,181,12,0.85)] active:translate-y-px disabled:opacity-60';
 
 export function AdminForgotPasswordPage() {
   const [identifier, setIdentifier] = useState('');
@@ -30,18 +37,23 @@ export function AdminForgotPasswordPage() {
   return (
     <AdminAuthShell
       title="Forgot password"
-      subtitle="Create a password reset link for your admin account."
+      subtitle="Enter your email and we'll send a reset link to your admin account."
+      footer={
+        <Link to="/admin/login" className="font-semibold text-[#1795d1] hover:text-[#1279b0]">
+          ← Back to sign in
+        </Link>
+      }
     >
       {sent ? (
         <div className="space-y-4">
-          <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-3 text-sm text-green-800">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
             {resetUrl ? (
               <>
                 Reset link for <strong>{sentToEmail ?? identifier}</strong> (SMTP not configured —
                 use this link):
                 <a
                   href={resetUrl}
-                  className="mt-2 block break-all font-medium text-[#0EA5E9] hover:underline"
+                  className="mt-2 block break-all font-semibold text-[#1795d1] hover:text-[#1279b0]"
                 >
                   {resetUrl}
                 </a>
@@ -53,48 +65,31 @@ export function AdminForgotPasswordPage() {
               </>
             )}
           </div>
-          <Link
-            to="/admin/login"
-            className="block text-center text-sm font-medium text-[#0EA5E9] hover:underline"
-          >
-            Back to sign in
-          </Link>
         </div>
       ) : (
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-[18px]">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
               {error}
             </div>
           )}
 
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Email or username</span>
+          <label className="flex flex-col gap-2">
+            <span className={adminAuthLabelClass()}>Email or username</span>
             <input
               type="text"
               required
               autoComplete="username"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:border-[#0EA5E9] focus:outline-none focus:ring-1 focus:ring-[#0EA5E9]"
+              className={adminAuthFieldClass()}
               placeholder="manager or you@hamel.example"
             />
           </label>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-amber-400 py-3 font-bold text-gray-900 transition-colors hover:bg-amber-500 disabled:opacity-60"
-          >
-            {submitting ? 'Creating link…' : 'Create reset link'}
+          <button type="submit" disabled={submitting} className={ctaClass}>
+            {submitting ? 'Sending…' : 'Send reset link'}
           </button>
-
-          <Link
-            to="/admin/login"
-            className="block text-center text-sm font-medium text-[#0EA5E9] hover:underline"
-          >
-            Back to sign in
-          </Link>
         </form>
       )}
     </AdminAuthShell>

@@ -23,6 +23,8 @@ type ProductTagRow = {
   text_bg_color: string | null;
   subtitle: string | null;
   description?: string | null;
+  chip_image_url?: string | null;
+  render_mode?: string | null;
   sort_order: number | null;
   is_active: boolean | null;
   placement?: string | null;
@@ -60,6 +62,9 @@ function resolveTagIconUrl(row: ProductTagRow): string | undefined {
 
 function rowToTag(row: ProductTagRow): ProductTag {
   const iconUrl = resolveTagIconUrl(row);
+  const chipImageUrl = row.chip_image_url
+    ? resolveStorageImageUrl(row.chip_image_url)
+    : undefined;
   const placement = normalizePlacement(row.placement, row.id);
   const defaults = getDefaultTagById(row.id);
   const autoFromDb = normalizeAutoRule(row.auto_rule);
@@ -67,6 +72,8 @@ function rowToTag(row: ProductTagRow): ProductTag {
     placement === 'corner'
       ? autoFromDb ?? defaults?.autoApply ?? 'manual'
       : autoFromDb ?? defaults?.autoApply;
+  const renderMode =
+    row.render_mode === 'image' || (!row.render_mode && chipImageUrl) ? 'image' : 'composed';
 
   return {
     id: row.id,
@@ -74,6 +81,8 @@ function rowToTag(row: ProductTagRow): ProductTag {
     style: normalizePromoBadgeStyle(row.style),
     placement,
     autoApply,
+    renderMode,
+    chipImageUrl,
     iconUrl,
     iconEmoji: iconUrl ? undefined : row.icon_emoji ?? undefined,
     iconBgColor: row.icon_bg_color ?? defaults?.iconBgColor ?? undefined,
@@ -97,6 +106,9 @@ export async function upsertProductTags(tags: ProductTag[]): Promise<void> {
       tags: tags.map((tag) => ({
         ...tag,
         iconUrl: tag.iconUrl ? normalizeStoragePathForDb(tag.iconUrl) ?? tag.iconUrl : undefined,
+        chipImageUrl: tag.chipImageUrl
+          ? normalizeStoragePathForDb(tag.chipImageUrl) ?? tag.chipImageUrl
+          : undefined,
       })),
     },
   });

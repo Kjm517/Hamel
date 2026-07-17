@@ -1,4 +1,9 @@
+import { resolveImagePayload } from '../image';
 import type { AiProvider, ChatCompletionInput, ChatCompletionResult } from '../types';
+
+type GeminiPart =
+  | { text: string }
+  | { inline_data: { mime_type: string; data: string } };
 
 /** Gemini adapter — ready for client switch; set AI_PROVIDER=gemini + GEMINI_API_KEY. */
 export function createGeminiProvider(opts: {
@@ -12,15 +17,25 @@ export function createGeminiProvider(opts: {
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(opts.model)}:generateContent` +
         `?key=${encodeURIComponent(opts.apiKey)}`;
 
-      // Gemini uses alternating user/model turns; fold system into first user message.
-      const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+      const contents: Array<{ role: string; parts: GeminiPart[] }> = [];
+
       for (const msg of input.messages) {
         const role = msg.role === 'assistant' ? 'model' : 'user';
+        const parts: GeminiPart[] = [{ text: msg.content || 'Hello' }];
+        if (msg.role === 'user' && msg.imageUrl) {
+          const image = await resolveImagePayload(msg.imageUrl);
+          if (image) {
+            parts.unshift({
+              inline_data: { mime_type: image.mediaType, data: image.base64 },
+            });
+          }
+        }
+
         const prev = contents[contents.length - 1];
         if (prev && prev.role === role) {
-          prev.parts[0].text += `\n\n${msg.content}`;
+          prev.parts.push(...parts);
         } else {
-          contents.push({ role, parts: [{ text: msg.content }] });
+          contents.push({ role, parts });
         }
       }
 
@@ -28,10 +43,16 @@ export function createGeminiProvider(opts: {
         contents.push({ role: 'user', parts: [{ text: 'Hello' }] });
       }
 
-      // Prepend system guidance to the first user turn
       const firstUser = contents.find((c) => c.role === 'user');
       if (firstUser) {
-        firstUser.parts[0].text = `${input.system}\n\n---\nCustomer message:\n${firstUser.parts[0].text}`;
+        const textPart = firstUser.parts.find((p): p is { text: string } => 'text' in p);
+        if (textPart) {
+          textPart.text = `${input.system}\n\n---\nCustomer message:\n${textPart.text}`;
+        } else {
+          firstUser.parts.unshift({
+            text: `${input.system}\n\n---\nCustomer message:`,
+          });
+        }
       }
 
       const res = await fetch(url, {

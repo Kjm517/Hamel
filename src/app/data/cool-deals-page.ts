@@ -1,5 +1,6 @@
 import { hexForColorInput, readableOnBackground } from '../lib/color-utils';
 import { fetchContent, getCachedContent, saveContent } from '../lib/content-api';
+import type { BannerLinkFields } from '../lib/banner-link';
 import { hamelAssets } from './hamelAssets';
 
 const cd = hamelAssets.coolDeals;
@@ -11,7 +12,7 @@ export type CoolDealsSectionType =
   | 'cta'
   | 'stats-brands';
 
-export interface CoolDealsCardItem {
+export interface CoolDealsCardItem extends BannerLinkFields {
   id: string;
   title: string;
   color: string;
@@ -27,7 +28,7 @@ export const DEAL_CARD_DEFAULT_COLORS = {
   accent: '#FFFFFF',
 } as const;
 
-export interface CoolDealsDealCardItem {
+export interface CoolDealsDealCardItem extends BannerLinkFields {
   id: string;
   title: string;
   body: string;
@@ -83,7 +84,7 @@ export interface CoolDealsCardGridSection extends CoolDealsSectionBase {
   dealCards?: CoolDealsDealCardItem[];
 }
 
-export interface CoolDealsProductColumn {
+export interface CoolDealsProductColumn extends BannerLinkFields {
   id: string;
   name: string;
   sub: string;
@@ -295,6 +296,7 @@ export const COOL_DEALS_SECTION_LABELS: Record<CoolDealsSectionType, string> = {
 
 function mergeDealCard(card: CoolDealsDealCardItem, index: number): CoolDealsDealCardItem {
   const fallback = defaultDealCards[index % defaultDealCards.length];
+  const legacyHref = card.href?.trim() || fallback.href;
   return {
     ...fallback,
     ...card,
@@ -302,7 +304,13 @@ function mergeDealCard(card: CoolDealsDealCardItem, index: number): CoolDealsDea
     title: card.title?.trim() || fallback.title,
     body: card.body?.trim() || fallback.body,
     cta: card.cta?.trim() || fallback.cta,
-    href: card.href?.trim() || fallback.href,
+    href: legacyHref,
+    linkMode: card.linkMode ?? (legacyHref ? 'custom' : 'none'),
+    promoPageId: card.promoPageId,
+    linkHref: card.linkHref?.trim() || legacyHref,
+    linkExternal: Boolean(card.linkExternal),
+    ctaHref: card.ctaHref?.trim() || legacyHref,
+    ctaExternal: Boolean(card.ctaExternal),
     imageUrl: card.imageUrl?.trim() || fallback.imageUrl,
     accent: card.accent?.trim() ? card.accent : fallback.accent,
     bgColor: card.bgColor,
@@ -321,6 +329,32 @@ function mergeDealCardGrid(section: CoolDealsCardGridSection): CoolDealsCardGrid
   };
 }
 
+function mergeVoucherCard(card: CoolDealsCardItem, index: number): CoolDealsCardItem {
+  const fallback = defaultVoucherCards[index % defaultVoucherCards.length];
+  return {
+    ...fallback,
+    ...card,
+    id: card.id,
+    title: card.title?.trim() || fallback.title,
+    body: card.body?.trim() || fallback.body,
+    imageUrl: card.imageUrl?.trim() || fallback.imageUrl,
+    linkMode: card.linkMode ?? 'none',
+    promoPageId: card.promoPageId,
+    linkHref: card.linkHref?.trim() || '',
+    linkExternal: Boolean(card.linkExternal),
+    ctaHref: card.ctaHref?.trim() || '',
+    ctaExternal: Boolean(card.ctaExternal),
+  };
+}
+
+function mergeVoucherCardGrid(section: CoolDealsCardGridSection): CoolDealsCardGridSection {
+  if (section.variant !== 'voucher' || !section.cards?.length) return section;
+  return {
+    ...section,
+    cards: section.cards.map(mergeVoucherCard),
+  };
+}
+
 function mergeProductMatrix(section: CoolDealsProductMatrixSection): CoolDealsProductMatrixSection {
   const base = { ...section };
   if (!base.columns?.length) {
@@ -328,6 +362,15 @@ function mergeProductMatrix(section: CoolDealsProductMatrixSection): CoolDealsPr
   }
   if (!base.mechanicsLinkText) base.mechanicsLinkText = 'View Full Promo Mechanics';
   if (!base.mechanicsLinkHref) base.mechanicsLinkHref = '/contact';
+  base.columns = base.columns.map((column) => ({
+    ...column,
+    linkMode: column.linkMode ?? 'none',
+    promoPageId: column.promoPageId,
+    linkHref: column.linkHref?.trim() || '',
+    linkExternal: Boolean(column.linkExternal),
+    ctaHref: column.ctaHref?.trim() || '',
+    ctaExternal: Boolean(column.ctaExternal),
+  }));
   return base;
 }
 
@@ -335,6 +378,7 @@ function normalizeSections(sections: CoolDealsSection[]): CoolDealsSection[] {
   return sections.map((s) => {
     if (s.type === 'product-matrix') return mergeProductMatrix(s);
     if (s.type === 'card-grid' && s.variant === 'deal') return mergeDealCardGrid(s);
+    if (s.type === 'card-grid' && s.variant === 'voucher') return mergeVoucherCardGrid(s);
     return s;
   });
 }
@@ -362,7 +406,11 @@ export function getCoolDealsPage(): CoolDealsPageConfig {
   } catch {
     // ignore
   }
-  return JSON.parse(JSON.stringify(defaultCoolDealsPage)) as CoolDealsPageConfig;
+  return {
+    sections: normalizeSections(
+      JSON.parse(JSON.stringify(defaultCoolDealsPage)).sections as CoolDealsSection[]
+    ),
+  };
 }
 
 export async function loadCoolDealsPage(): Promise<CoolDealsPageConfig> {
@@ -375,7 +423,7 @@ export async function loadCoolDealsPage(): Promise<CoolDealsPageConfig> {
 }
 
 export async function saveCoolDealsPage(config: CoolDealsPageConfig): Promise<void> {
-  await saveContent('cool_deals', config);
+  await saveContent('cool_deals', { sections: normalizeSections(config.sections) });
   try {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem('hamel_cool_deals_page_v1');
@@ -417,6 +465,7 @@ export function createVoucherCard(): CoolDealsCardItem {
     color: '#0EA5E9',
     imageUrl: cd.voucherFan,
     body: 'Describe this promotion.',
+    linkMode: 'none',
   };
 }
 
@@ -427,6 +476,9 @@ export function createDealCard(): CoolDealsDealCardItem {
     body: 'Short description.',
     cta: 'Learn more',
     href: '/contact',
+    linkMode: 'custom',
+    linkHref: '/contact',
+    ctaHref: '/contact',
     bgColor: DEAL_CARD_DEFAULT_COLORS.bg,
     titleColor: DEAL_CARD_DEFAULT_COLORS.title,
     bodyColor: DEAL_CARD_DEFAULT_COLORS.body,
@@ -475,5 +527,6 @@ export function createProductColumn(): CoolDealsProductColumn {
     sub: 'Short description',
     imageUrl: cd.typeWindow,
     perks: ['Free delivery', 'Discount voucher'],
+    linkMode: 'none',
   };
 }

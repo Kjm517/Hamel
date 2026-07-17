@@ -2,7 +2,15 @@ import { Hono } from 'hono';
 import { getSql } from '../db';
 import { requireAuth, type AuthVariables } from '../middleware/auth';
 
-const ALLOWED_KEYS = new Set(['banners', 'cool_deals', 'promo_pages', 'brands_page']);
+const ALLOWED_KEYS = new Set([
+  'banners',
+  'cool_deals',
+  'promo_pages',
+  'brands_page',
+  'installment_plans',
+  'site_promo_popup',
+  'vouchers',
+]);
 
 export const contentRoutes = new Hono<{ Variables: AuthVariables }>();
 

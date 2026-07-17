@@ -8,12 +8,14 @@ import { useBanner } from '../hooks/useBanner';
 import { useBrandsPage } from '../hooks/useBrandsPage';
 import { brandProductsHref, countProductsForBrand, defaultCtaLabel, formatModelCount } from '../data/brands-page';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { usePageLoading } from '../context/SiteLoadingContext';
 
 export function BrandsPage() {
   const { products, loading: catalogLoading } = useCatalog();
   const brandsBanner = useBanner('brands');
   const { brands } = useBrandsPage();
   const [isContactOpen, setIsContactOpen] = useState(false);
+  usePageLoading(catalogLoading, 'brands');
 
   const visibleBrands = brands.filter((b) => b.enabled);
 

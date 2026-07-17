@@ -23,6 +23,7 @@ export type BannerNavigateType = 'none' | 'page' | 'link';
 interface BannerLinkDestinationFieldProps {
   fields: BannerLinkFields;
   onChange: (patch: Partial<BannerLinkFields>) => void;
+  label?: string;
 }
 
 function toNavigateType(fields: BannerLinkFields): BannerNavigateType {
@@ -59,7 +60,11 @@ function applyNavigateType(
   };
 }
 
-export function BannerLinkDestinationField({ fields, onChange }: BannerLinkDestinationFieldProps) {
+export function BannerLinkDestinationField({
+  fields,
+  onChange,
+  label = 'Banner navigation',
+}: BannerLinkDestinationFieldProps) {
   const promoPages = usePromoPages();
   const navigateType = toNavigateType(fields);
   const selectedPage = fields.promoPageId ? getPromoPageById(fields.promoPageId) : undefined;
@@ -68,7 +73,7 @@ export function BannerLinkDestinationField({ fields, onChange }: BannerLinkDesti
   return (
     <div className="mb-4 rounded-lg border-2 border-[#0EA5E9]/20 bg-[#F0F9FF]/50 p-4">
       <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">
-        Banner navigation
+        {label}
       </label>
 
       <div className="grid grid-cols-3 gap-2 mb-4">

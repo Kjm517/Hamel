@@ -92,4 +92,6 @@ export const env = {
   messengerVerifyToken: () =>
     process.env.MESSENGER_VERIFY_TOKEN?.trim() || 'hamel_messenger_verify',
   messengerPageUsername: () => process.env.MESSENGER_PAGE_USERNAME?.trim() || '',
+  resendApiKey: () => process.env.RESEND_API_KEY?.trim() || '',
+  resendFrom: () => process.env.RESEND_FROM?.trim() || 'Hamel Trading <onboarding@resend.dev>',
 };

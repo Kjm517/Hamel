@@ -9,6 +9,10 @@ export const hamelAssets = {
   mascot: {
     hero: `${base}/mascot/penguin-hero.png`,
     cta: `${base}/mascot/penguin-cta.png`,
+    assistance: `${base}/mascot/hamel-assistance.webp`,
+    walking: `${base}/mascot/penguin_walking_stride.webp`,
+    /** Horizontal 6-frame strip: 9600×1600 (1600×1600 each), transparent */
+    danceSheet: `${base}/mascot/penguin_dance_spritesheet.png?v=3`,
   },
   promo: {
     fan: `${base}/promo/fan-promo.png`,
@@ -110,7 +114,6 @@ export const hamelHeroSlides = [
     ctaHref: '/cool-deals',
     linkMode: 'promo-page' as const,
     promoPageId: 'promo-summer-sale',
-    overlayColor: 'linear-gradient(to right, rgba(14,165,233,0.88) 0%, rgba(14,165,233,0.55) 60%, rgba(14,165,233,0.15) 100%)',
     height: 'md' as const,
     textAlign: 'left' as const,
   },
@@ -122,7 +125,6 @@ export const hamelHeroSlides = [
     subtitle: 'Book this week and get certified installation at zero cost. Metro Cebu only.',
     ctaLabel: 'Book Now',
     ctaHref: '/contact',
-    overlayColor: 'linear-gradient(to right, rgba(12,74,110,0.9) 0%, rgba(14,165,233,0.65) 55%, rgba(14,165,233,0.2) 100%)',
     height: 'md' as const,
     textAlign: 'left' as const,
   },
@@ -134,7 +136,6 @@ export const hamelHeroSlides = [
     subtitle: 'Latest inverter technology. Energy-efficient. Whisper-quiet.',
     ctaLabel: 'See New Arrivals',
     ctaHref: '/products',
-    overlayColor: 'linear-gradient(to right, rgba(26,58,107,0.9) 0%, rgba(14,165,233,0.6) 55%, rgba(14,165,233,0.15) 100%)',
     height: 'md' as const,
     textAlign: 'left' as const,
   },

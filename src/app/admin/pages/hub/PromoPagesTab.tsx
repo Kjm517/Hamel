@@ -532,8 +532,11 @@ export function PromoPagesTab() {
                     {!page.published && (
                       <span className="text-xs text-gray-400 ml-2">(not on website yet)</span>
                     )}
-                    {page.published && (
+                    {page.published && page.showInNav && (
                       <span className="text-xs text-emerald-600 ml-2">(in menu)</span>
+                    )}
+                    {page.published && !page.showInNav && (
+                      <span className="text-xs text-sky-600 ml-2">(live, hidden from menu)</span>
                     )}
                   </button>
                   {page.published && getPromoPageHref(page) && (
@@ -672,33 +675,40 @@ export function PromoPagesTab() {
                           type="checkbox"
                           className="mt-0.5"
                           checked={Boolean(page.published)}
-                          onChange={(e) => {
-                            const on = e.target.checked;
-                            update(page.id, {
-                              published: on,
-                              showInNav: on,
-                            });
-                          }}
+                          onChange={(e) => update(page.id, { published: e.target.checked })}
                         />
                         <span>
-                          <span className="font-semibold">Show in the website menu</span>
+                          <span className="font-semibold">Publish this page</span>
                           <span className="block text-xs text-gray-500 mt-0.5">
-                            Adds “{displayName(page)}” in the header (between Why Hamel and Contact).
+                            Makes this page live so links and cards can open it.
                           </span>
                         </span>
                       </label>
                       {page.published ? (
-                        <Field
-                          label="Menu label"
-                          value={page.navLabel || page.title}
-                          onChange={(v) =>
-                            update(page.id, {
-                              navLabel: v,
-                              title: v,
-                            })
-                          }
-                          hint="This is the name shown in the website header and above."
-                        />
+                        <>
+                          <label className="flex items-start gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5"
+                              checked={Boolean(page.showInNav)}
+                              onChange={(e) => update(page.id, { showInNav: e.target.checked })}
+                            />
+                            <span>
+                              <span className="font-semibold">Show in the top bar menu</span>
+                              <span className="block text-xs text-gray-500 mt-0.5">
+                                Adds “{displayName(page)}” in the header between Why Hamel and Contact.
+                              </span>
+                            </span>
+                          </label>
+                          {page.showInNav ? (
+                            <Field
+                              label="Menu label"
+                              value={page.navLabel || page.title}
+                              onChange={(v) => update(page.id, { navLabel: v })}
+                              hint="This name is shown only in the website header."
+                            />
+                          ) : null}
+                        </>
                       ) : null}
                       <div className="border-t border-red-100 pt-3">
                         <p className="text-xs text-gray-500">

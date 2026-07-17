@@ -1,12 +1,12 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Upload, Plus, X } from 'lucide-react';
+import { Upload, Plus, X, ExternalLink } from 'lucide-react';
 import type { Product, ProductPromoEntry } from '../../data/products';
 import { getHpUnitPrice, MAX_PRODUCT_PROMOS } from '../../data/products';
 import { createProduct, fetchProductDetail, saveProduct } from '../../lib/catalog-api';
 import { useProductTags } from '../../context/ProductTagsContext';
 import type { ProductTag } from '../../data/productTags';
-import { CornerTag, PromoBadge } from '../../components/PromoBadge';
+import { CornerTag, PromoChip } from '../../components/PromoBadge';
 import {
   CORNER_AUTO_RULE_LABELS,
   isCornerTag,
@@ -25,6 +25,13 @@ import {
   toDatetimeLocalValue,
 } from '../../lib/product-promos';
 import {
+  listVouchersForProduct,
+  loadVouchers,
+  VOUCHER_AUDIENCE_LABELS,
+  voucherLimitLabel,
+  type StoreVoucher,
+} from '../../data/vouchers';
+import {
   demoNewProductTemplate,
   FEATURE_OPTIONS,
   HP_OPTIONS,
@@ -32,6 +39,8 @@ import {
   PRODUCT_CATEGORIES,
   STOCK_OPTIONS,
 } from '../data/admin-demo';
+import { useBrandsPage } from '../../hooks/useBrandsPage';
+import { deriveProductBrandChoices } from '../../data/brands-page';
 
 type StockStatus = (typeof STOCK_OPTIONS)[number];
 
@@ -39,8 +48,18 @@ export function AddEditProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
+  const brandsConfig = useBrandsPage({ trackPageLoading: false });
   const [product, setProduct] = useState<Product>(() => demoNewProductTemplate());
   const [modelNumber, setModelNumber] = useState('CS-CU-Z12ZKH');
+
+  const brandChoices = useMemo(() => {
+    const fromAdmin = deriveProductBrandChoices(brandsConfig);
+    const base = fromAdmin.length > 0 ? fromAdmin : PRODUCT_BRANDS;
+    if (product.brand && !base.some((b) => b.toLowerCase() === product.brand.toLowerCase())) {
+      return [...base, product.brand];
+    }
+    return base;
+  }, [brandsConfig, product.brand]);
   const [stockStatus, setStockStatus] = useState<StockStatus>('In Stock');
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
@@ -49,6 +68,13 @@ export function AddEditProductPage() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [vouchersForProduct, setVouchersForProduct] = useState<StoreVoucher[]>([]);
+
+  useEffect(() => {
+    void loadVouchers().then((cfg) => {
+      setVouchersForProduct(listVouchersForProduct(product.id, cfg));
+    });
+  }, [product.id]);
 
   useEffect(() => {
     if (!id) return;
@@ -282,7 +308,7 @@ export function AddEditProductPage() {
                   className={inputClass}
                 >
                   <option value="">Select Brand</option>
-                  {PRODUCT_BRANDS.map((b) => (
+                  {brandChoices.map((b) => (
                     <option key={b} value={b}>
                       {b}
                     </option>
@@ -397,63 +423,52 @@ export function AddEditProductPage() {
                 </p>
               </Field>
             ) : null}
-            <Field label="Vouchers (optional)">
-              <div className="space-y-2">
-                {(product.vouchers ?? []).map((voucher, index) => (
-                  <div key={index} className="flex flex-wrap gap-2">
-                    <input
-                      value={voucher.code}
-                      onChange={(e) =>
-                        setProduct((p) => {
-                          const vouchers = [...(p.vouchers ?? [])];
-                          vouchers[index] = {
-                            ...vouchers[index],
-                            code: e.target.value.toUpperCase(),
-                          };
-                          return { ...p, vouchers };
-                        })
-                      }
-                      placeholder="CODE"
-                      className={`${inputClass} max-w-[140px]`}
-                    />
-                    <input
-                      value={voucher.label}
-                      onChange={(e) =>
-                        setProduct((p) => {
-                          const vouchers = [...(p.vouchers ?? [])];
-                          vouchers[index] = { ...vouchers[index], label: e.target.value };
-                          return { ...p, vouchers };
-                        })
-                      }
-                      placeholder="₱1000 off voucher"
-                      className={`${inputClass} min-w-[180px] flex-1`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setProduct((p) => ({
-                          ...p,
-                          vouchers: (p.vouchers ?? []).filter((_, i) => i !== index),
-                        }))
-                      }
-                      className="rounded-lg border border-gray-200 px-2 text-red-500 hover:bg-red-50"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setProduct((p) => ({
-                      ...p,
-                      vouchers: [...(p.vouchers ?? []), { code: '', label: '' }],
-                    }))
-                  }
+            <Field label="Vouchers (from Vouchers page)">
+              <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-xs text-gray-600">
+                  Manage codes, product targeting, and who can claim them on the{' '}
+                  <Link
+                    to="/admin/vouchers"
+                    className="inline-flex items-center gap-1 font-semibold text-[#0EA5E9] hover:underline"
+                  >
+                    Vouchers
+                    <ExternalLink size={12} />
+                  </Link>{' '}
+                  page. Below are vouchers that currently apply to this product.
+                </p>
+                {vouchersForProduct.length === 0 ? (
+                  <p className="text-xs text-gray-500">
+                    No platform vouchers apply to this product yet. Create one and set scope to
+                    “All products” or select this product.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {vouchersForProduct.map((v) => (
+                      <li
+                        key={v.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-white bg-white px-2.5 py-2 text-sm"
+                      >
+                        <span>
+                          <span className="font-mono font-bold text-gray-900">{v.code}</span>
+                          <span className="ml-2 text-gray-600">{v.label}</span>
+                        </span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[#0369A1]">
+                          {v.productScope === 'all' ? 'All products' : 'This product'}
+                          {' · '}
+                          {VOUCHER_AUDIENCE_LABELS[v.audience]}
+                          {' · '}
+                          {voucherLimitLabel(v)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Link
+                  to="/admin/vouchers"
                   className="inline-flex items-center gap-1 text-sm font-semibold text-[#0EA5E9]"
                 >
-                  <Plus size={14} /> Add voucher
-                </button>
+                  <Plus size={14} /> Manage vouchers
+                </Link>
               </div>
             </Field>
             <Field label="Compare — Summary (optional)">
@@ -525,9 +540,9 @@ export function AddEditProductPage() {
             </Field>
           </Section>
 
-          <Section title="Corner badges (SALE, INV, TOP)">
+          <Section title="Corner tags (−20%, INVERTER)">
             <p className="mb-3 text-xs text-gray-500">
-              Small labels on the top-right of the product image. Manage types in{' '}
+              Pill tags above the product title (solid discount or outline spec). Manage types in{' '}
               <Link to="/admin/tags" className="font-medium text-[#0EA5E9] hover:underline">
                 Admin → Tags → Corner badges
               </Link>
@@ -639,7 +654,18 @@ export function AddEditProductPage() {
                       className={inputClass}
                     >
                       <option value="">Select a tag…</option>
-                      {promoCatalog.map((t) => (
+                      {promoCatalog
+                        // Keep this row's selected tag visible, but hide tags
+                        // already assigned to another promo slot.
+                        .filter(
+                          (t) =>
+                            t.id === promo.tagId ||
+                            !promoList.some(
+                              (otherPromo, otherIndex) =>
+                                otherIndex !== index && otherPromo.tagId === t.id
+                            )
+                        )
+                        .map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name} ({t.style})
                         </option>
@@ -730,17 +756,19 @@ export function AddEditProductPage() {
               <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white p-3">
                 <span className="w-full text-xs text-gray-500">Preview:</span>
                 {resolvedPromos.map((promo, i) => (
-                  <PromoBadge
+                  <PromoChip
                     key={i}
                     badgeType={promo.badgeType}
                     label={promo.label}
                     cashPerMonth={promo.cashPerMonth}
+                    chipImageUrl={promo.chipImageUrl}
+                    renderMode={promo.renderMode}
                     iconUrl={promo.iconUrl}
                     iconEmoji={promo.iconEmoji}
                     iconBgColor={promo.iconBgColor}
                     textBgColor={promo.textBgColor}
                     subtitle={promo.subtitle}
-                    size="md"
+                    size="card"
                   />
                 ))}
               </div>

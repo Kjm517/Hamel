@@ -400,24 +400,20 @@ export function isExternalPromoLink(page: PromoPage): boolean {
   return /^https?:\/\//i.test(url);
 }
 
-/**
- * Pages that appear in the header menu.
- * Any published custom page shows in the menu (showInNav stays in sync with published).
- */
+/** Published custom pages explicitly opted into the header menu. */
 export function getNavPromoPages(): PromoPage[] {
   return getPromoPages().filter((p) => {
-    if (!p.published) return false;
+    if (!p.published || !p.showInNav) return false;
     if (p.linkMode === 'url') return Boolean(p.externalUrl?.trim());
     return Boolean(p.slug?.trim());
   });
 }
 
 function withBlocks(page: PromoPage): PromoPage {
-  // Keep menu visibility aligned with “published” so older pages with
-  // published=true but showInNav=false still appear in the header.
+  // Preserve legacy published pages in the menu when they predate the separate visibility option.
   return {
     ...page,
-    showInNav: Boolean(page.published),
+    showInNav: page.showInNav ?? Boolean(page.published),
     blocks: ensurePageBlocks(page),
   };
 }
@@ -441,7 +437,7 @@ export function createPromoPageDraft(title = 'New page'): PromoPage {
     ctaLabel: '',
     ctaHref: '',
     published: true,
-    showInNav: true,
+    showInNav: false,
     navLabel: title,
     linkMode: 'page',
     externalUrl: '',

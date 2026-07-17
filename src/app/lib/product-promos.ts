@@ -121,6 +121,8 @@ export function resolvePromoEntry(
     label,
     subtitle: tag?.subtitle,
     description: tag?.description?.trim() || undefined,
+    chipImageUrl: tag?.chipImageUrl,
+    renderMode: tag?.renderMode ?? (tag?.chipImageUrl ? 'image' : 'composed'),
     iconUrl: tag?.iconUrl,
     iconEmoji: tag?.iconUrl ? undefined : tag?.iconEmoji,
     iconBgColor: tag?.iconBgColor ?? colors.iconBg,

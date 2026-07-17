@@ -20,13 +20,20 @@ import { brandLogoFor } from '../data/hamelAssets';
 import { useCatalog } from '../context/CatalogContext';
 import { ConversationalInquiryModal, type InquiryFormData } from '../components/ConversationalInquiryModal';
 import { PageBanner } from '../components/PageBanner';
-import { PromoBadge } from '../components/PromoBadge';
+import { PromoChip, CornerTag } from '../components/PromoBadge';
 import { SpecialOffersModal } from '../components/SpecialOffersModal';
 import { InstallmentChip, InstallmentOptionsModal } from '../components/InstallmentOptionsModal';
+import {
+  loadInstallmentPlans,
+  resolveInstallmentOptionsForPrice,
+} from '../data/installment-plans';
+import { SelectOrEnterVoucher } from '../components/SelectOrEnterVoucher';
+import { computeVoucherDiscount, type StoreVoucher } from '../data/vouchers';
 import { WriteReviewModal } from '../components/WriteReviewModal';
 import { PromoCountdownBanner } from '../components/PromoCountdownBanner';
 import { ShareProductModal } from '../components/ShareProductModal';
-import type { Product } from '../data/products';
+import { CompareLimitModal } from '../components/CompareLimitModal';
+import type { InstallmentOption, Product } from '../data/products';
 import { useProductTags } from '../context/ProductTagsContext';
 import { isStorefrontProduct } from '../lib/catalog-product';
 import {
@@ -40,10 +47,16 @@ import {
   getProductPromoList,
   getPromoCountdownEndsAt,
   isPromoCountdownActive,
-  productHasFlashSale,
   productHasPromos,
   resolveProductPromos,
 } from '../lib/product-promos';
+import {
+  cornerTagBgColor,
+  cornerTagTextColor,
+  cornerTagVariant,
+  formatCornerTagLabel,
+  resolveProductCornerTags,
+} from '../lib/product-corner-tags';
 import {
   getCompareIds,
   isInCompare,
@@ -51,6 +64,7 @@ import {
   toggleCompare,
   toggleWishlist,
 } from '../lib/product-actions';
+import { usePageLoading } from '../context/SiteLoadingContext';
 
 function getPriceColor(tier: Product['tier'], hasPromo: boolean): string {
   if (tier === 'flash-sale' && hasPromo) return '#EA580C';
@@ -76,7 +90,7 @@ function ratingDistribution(reviews: CustomerReview[]): Record<number, number> {
 export function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { products } = useCatalog();
+  const { products, loading: catalogLoading } = useCatalog();
   const { tags: tagCatalog } = useProductTags();
   const product = products.find((p) => p.id === id && isStorefrontProduct(p));
   const [reviews, setReviews] = useState<CustomerReview[]>([]);
@@ -92,10 +106,15 @@ export function ProductDetailPage() {
   const [offersOpen, setOffersOpen] = useState(false);
   const [offerFocus, setOfferFocus] = useState(0);
   const [installmentsOpen, setInstallmentsOpen] = useState(false);
+  const [installmentOptions, setInstallmentOptions] = useState<InstallmentOption[]>([]);
+  const [appliedVoucher, setAppliedVoucher] = useState<StoreVoucher | null>(null);
   const [wishlisted, setWishlisted] = useState(() => (id ? isInWishlist(id) : false));
   const [comparing, setComparing] = useState(() => (id ? isInCompare(id) : false));
+  const [compareLimitOpen, setCompareLimitOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+
+  usePageLoading(catalogLoading || reviewsLoading, `product:${id ?? 'unknown'}`);
 
   const loadReviews = async (productId: string) => {
     setReviewsLoading(true);
@@ -137,6 +156,31 @@ export function ProductDetailPage() {
     }
   }, [product]);
 
+  useEffect(() => {
+    if (!product) {
+      setInstallmentOptions([]);
+      return;
+    }
+    let cancelled = false;
+    const unit = getHpUnitPrice(product, selectedHP || product.hp[0]);
+    const discounted = getDiscountedPrice(product, unit);
+    const refresh = () => {
+      void loadInstallmentPlans().then((cfg) => {
+        if (!cancelled) {
+          setInstallmentOptions(
+            resolveInstallmentOptionsForPrice(discounted, product.installmentOptions, cfg)
+          );
+        }
+      });
+    };
+    refresh();
+    window.addEventListener('hamel-installment-plans-updated', refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('hamel-installment-plans-updated', refresh);
+    };
+  }, [product, selectedHP]);
+
   const handleInquiryComplete = (data: InquiryFormData) => {
     setInquiryData(data);
   };
@@ -174,6 +218,7 @@ export function ProductDetailPage() {
   }
 
   const resolvedPromos = resolveProductPromos(product, tagCatalog);
+  const cornerTags = resolveProductCornerTags(product, tagCatalog);
   const primaryPromo = getPrimaryPromoEntry(product);
   const promoList = getProductPromoList(product);
   const hasPromos = productHasPromos(product);
@@ -221,7 +266,8 @@ export function ProductDetailPage() {
   }[product.tier];
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <>
+      <div className="bg-gray-50 min-h-screen">
       {/* Per-product hero banner — editable via detailBannerConfig above */}
       <PageBanner
         config={{
@@ -266,47 +312,6 @@ export function ProductDetailPage() {
                 alt={product.model}
                 className="w-full h-96 object-contain"
               />
-              {/* Top-right corner tags */}
-              <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
-                {productHasFlashSale(product) && (
-                  <div className="px-2 py-1 text-xs font-bold text-white rounded shadow" style={{ backgroundColor: '#EA580C', letterSpacing: '0.05em' }}>FLASH SALE</div>
-                )}
-                {product.features.some(f => f.toLowerCase().includes('inverter')) && (
-                  <div className="px-2 py-1 text-xs font-semibold text-white rounded" style={{ backgroundColor: '#0EA5E9' }}>Inverter</div>
-                )}
-                {liveCount > 150 && (
-                  <div className="px-2 py-1 text-xs font-semibold text-white rounded" style={{ backgroundColor: '#7C3AED' }}>Top Rated</div>
-                )}
-              </div>
-              {/* Bottom promo sticker badges */}
-              {resolvedPromos.length > 0 && (
-                <div className="absolute bottom-4 left-4 right-4 flex max-h-[35%] flex-wrap gap-2 overflow-hidden">
-                  {resolvedPromos.map((promo, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      className="text-left"
-                      onClick={() => {
-                        setOfferFocus(i);
-                        setOffersOpen(true);
-                      }}
-                      title="View offer details"
-                    >
-                      <PromoBadge
-                        badgeType={promo.badgeType}
-                        label={promo.label}
-                        cashPerMonth={promo.cashPerMonth}
-                        iconUrl={promo.iconUrl}
-                        iconEmoji={promo.iconEmoji}
-                        iconBgColor={promo.iconBgColor}
-                        textBgColor={promo.textBgColor}
-                        subtitle={promo.subtitle}
-                        size="md"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
             <div className="flex gap-3">
               {product.images.map((image, index) => (
@@ -356,7 +361,7 @@ export function ProductDetailPage() {
                     onClick={() => {
                       const result = toggleCompare(product.id);
                       if (result.full && !result.added) {
-                        window.alert(`You can compare up to ${getCompareIds().length} products. Remove one first.`);
+                        setCompareLimitOpen(true);
                         return;
                       }
                       setComparing(result.ids.includes(product.id));
@@ -395,6 +400,30 @@ export function ProductDetailPage() {
                   </button>
                 </div>
               </div>
+              {cornerTags.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {cornerTags.map((tag) => {
+                    const variant = cornerTagVariant(tag);
+                    const bg = cornerTagBgColor(tag);
+                    return (
+                      <CornerTag
+                        key={tag.id}
+                        size="detail"
+                        variant={variant}
+                        label={formatCornerTagLabel(product, tag)}
+                        color={variant === 'outline' ? bg : cornerTagTextColor(tag)}
+                        bgColor={
+                          variant === 'outline'
+                            ? bg === '#EA580C' || bg === '#EF4444'
+                              ? '#0EA5E9'
+                              : bg
+                            : bg
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              )}
               <h1 className="text-3xl font-bold mb-2" style={{ color: '#0EA5E9' }}>
                 {product.model}
               </h1>
@@ -479,23 +508,25 @@ export function ProductDetailPage() {
                         <button
                           key={i}
                           type="button"
-                          className="text-left"
+                          className="border-0 bg-transparent p-0 text-left leading-none"
                           onClick={() => {
                             setOfferFocus(i);
                             setOffersOpen(true);
                           }}
                           title="View offer details"
                         >
-                          <PromoBadge
+                          <PromoChip
+                            size="card"
                             badgeType={promo.badgeType}
                             label={promo.label}
                             cashPerMonth={promo.cashPerMonth}
+                            chipImageUrl={promo.chipImageUrl}
+                            renderMode={promo.renderMode}
                             iconUrl={promo.iconUrl}
                             iconEmoji={promo.iconEmoji}
                             iconBgColor={promo.iconBgColor}
                             textBgColor={promo.textBgColor}
                             subtitle={promo.subtitle}
-                            size="md"
                           />
                         </button>
                       ))}
@@ -517,16 +548,44 @@ export function ProductDetailPage() {
                 ) : null}
 
                 {/* Installment hint */}
-                {product.installmentOptions && product.installmentOptions.length > 0 && (
+                {installmentOptions.length > 0 && (
                   <div className="mt-3">
                     <InstallmentChip
                       size="detail"
                       price={discountedUnit}
-                      options={product.installmentOptions}
+                      options={installmentOptions}
                       onClick={() => setInstallmentsOpen(true)}
                     />
                   </div>
                 )}
+
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Subtotal</span>
+                    <span className="font-semibold text-gray-900">
+                      ₱{discountedUnit.toLocaleString()}
+                    </span>
+                  </div>
+                  <SelectOrEnterVoucher
+                    subtotal={discountedUnit}
+                    applied={appliedVoucher}
+                    onApply={setAppliedVoucher}
+                    productId={product.id}
+                  />
+                  {appliedVoucher ? (
+                    <div className="flex items-center justify-between border-t border-dashed border-gray-200 pt-2 text-sm">
+                      <span className="font-bold text-gray-900">Total</span>
+                      <span className="text-lg font-black text-[#2563EB]">
+                        ₱
+                        {Math.max(
+                          0,
+                          discountedUnit -
+                            computeVoucherDiscount(appliedVoucher, discountedUnit).amount
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               {/* Vouchers */}
@@ -870,7 +929,7 @@ export function ProductDetailPage() {
         open={installmentsOpen}
         onClose={() => setInstallmentsOpen(false)}
         price={discountedUnit}
-        options={product.installmentOptions ?? []}
+        options={installmentOptions}
         productName={`${product.brand} ${product.model} · ${selectedHP || product.hp[0]}`}
       />
 
@@ -892,6 +951,12 @@ export function ProductDetailPage() {
         text={`Check out ${product.brand} ${product.model} at Hamel Trading`}
         url={typeof window !== 'undefined' ? window.location.href : ''}
       />
-    </div>
+      </div>
+      <CompareLimitModal
+        isOpen={compareLimitOpen}
+        onClose={() => setCompareLimitOpen(false)}
+        maxProducts={getCompareIds().length}
+      />
+    </>
   );
 }

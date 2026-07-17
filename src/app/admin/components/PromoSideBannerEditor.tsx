@@ -55,6 +55,14 @@ export function PromoSideBannerEditor({ label, badgeNumber, item, onChange }: Pr
         </span>
         {label}
       </div>
+      <label className="mb-3 flex items-center gap-2 text-xs font-semibold text-gray-700">
+        <input
+          type="checkbox"
+          checked={item.enabled !== false}
+          onChange={(e) => onChange({ enabled: e.target.checked })}
+        />
+        Show on homepage
+      </label>
       <div className="h-10 rounded-lg mb-3 flex items-center px-3 gap-2" style={{ backgroundColor: item.bgColor }}>
         <span className="text-sm font-black" style={{ color: item.textColor }}>
           {item.title}{' '}

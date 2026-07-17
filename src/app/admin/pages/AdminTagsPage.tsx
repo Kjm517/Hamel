@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
-import { CornerTag, PromoBadge } from '../../components/PromoBadge';
+import { CornerTag, PromoChip } from '../../components/PromoBadge';
 import { useProductTags } from '../../context/ProductTagsContext';
+import { useCatalog } from '../../context/CatalogContext';
 import { checkStorageBucket, DEFAULT_STORAGE_BUCKET } from '../../lib/storage';
 import {
   cornerTagBgColor,
   cornerTagTextColor,
+  cornerTagVariant,
+  resolveProductCornerTags,
 } from '../../lib/product-corner-tags';
+import { getProductPromoList } from '../../lib/product-promos';
 import {
   CORNER_AUTO_RULE_LABELS,
   deleteProductTag,
@@ -16,6 +20,7 @@ import {
   PROMO_BADGE_STYLE_LABELS,
   resetProductTags,
   saveProductTags,
+  type ChipRenderMode,
   type CornerTagAutoRule,
   type ProductTag,
   type PromoBadgeStyle,
@@ -30,6 +35,7 @@ const emptyPromoTag = (): ProductTag => ({
   name: '',
   style: 'flash-sale',
   placement: 'promo',
+  renderMode: 'composed',
   iconEmoji: '⚡',
 });
 
@@ -43,40 +49,34 @@ const emptyCornerTag = (): ProductTag => ({
   iconBgColor: '#FFFFFF',
 });
 
-function TagIconUploadGuide() {
+function TagChipUploadGuide() {
   return (
     <div className="rounded-lg border border-[#BAE6FD] bg-[#F0F9FF] px-4 py-3 text-[#0C4A6E]">
-      <p className="mb-2 text-sm font-semibold">Icon image guide</p>
+      <p className="mb-2 text-sm font-semibold">TAG D — full chip image (Abenson-style)</p>
       <ul className="space-y-1.5 text-xs leading-relaxed">
         <li>
-          <span className="font-medium">Recommended size:</span> 64×64 px or 128×128 px, square.
-          Displays at about 18×18 px on product cards.
+          <span className="font-medium">Recommended:</span> PNG with transparent edges, about{' '}
+          <strong>320×56</strong> or <strong>240×48</strong> px. The whole graphic is the chip.
         </li>
         <li>
-          <span className="font-medium">Format:</span> PNG (transparent background works best). Icons
-          show in <strong>full color</strong>. Simple graphics read better at chip size (~18×18 px)
-          than detailed photos.
+          <span className="font-medium">Composed mode:</span> uses icon + colors below (legacy).
+          Switch to <strong>Image chip</strong> when you upload a full graphic.
         </li>
         <li>
-          <span className="font-medium">Max file size:</span> 3 MB.
+          Max file size 25 MB. Folder: <span className="font-mono">{DEFAULT_STORAGE_BUCKET}</span>.
         </li>
-        <li>
-          <span className="font-medium">Upload:</span> Drag and drop or click below — the file name is
-          created automatically (e.g. <span className="font-mono">tag-icons/name-abc12345.png</span>).
-          Folder: <span className="font-mono">{DEFAULT_STORAGE_BUCKET}</span>.
-        </li>
-        <li>
-          <span className="font-medium">Already uploaded?</span> Paste the public URL (e.g.{' '}
-          <span className="font-mono">/uploads/…</span>).
-        </li>
-        <li>
-          <span className="font-medium">Emoji vs image:</span> If you upload or paste an image, the emoji
-          field is ignored. Use one or the other.
-        </li>
-        <li>
-          Click <span className="font-medium">Save tag</span> when finished so the homepage and product
-          cards update.
-        </li>
+      </ul>
+    </div>
+  );
+}
+
+function TagIconUploadGuide() {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700">
+      <p className="mb-2 text-sm font-semibold">Small icon (composed chips only)</p>
+      <ul className="space-y-1.5 text-xs leading-relaxed">
+        <li>64×64 or 128×128 px square PNG. Shows ~18×18 on cards.</li>
+        <li>Ignored when chip mode is Image.</li>
       </ul>
     </div>
   );
@@ -84,6 +84,7 @@ function TagIconUploadGuide() {
 
 export function AdminTagsPage() {
   const { tags, loading, error, reload } = useProductTags();
+  const { products } = useCatalog();
   const [tab, setTab] = useState<'promo' | 'corner'>('promo');
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -101,6 +102,24 @@ export function AdminTagsPage() {
   }, []);
 
   const visibleTags = tags.filter((t) => (tab === 'corner' ? isCornerTag(t) : isPromoTag(t)));
+
+  const usageByTagId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tag of tags) {
+      if (isCornerTag(tag)) {
+        const count = products.filter((p) =>
+          resolveProductCornerTags(p, tags).some((t) => t.id === tag.id)
+        ).length;
+        map.set(tag.id, count);
+      } else {
+        const count = products.filter((p) =>
+          getProductPromoList(p).some((pr) => pr.tagId === tag.id)
+        ).length;
+        map.set(tag.id, count);
+      }
+    }
+    return map;
+  }, [tags, products]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -178,8 +197,8 @@ export function AdminTagsPage() {
           <h2 className="text-2xl font-bold text-gray-900">Product tags</h2>
           <p className="text-gray-600">
             {tab === 'promo'
-              ? 'Promo stickers on the product image (e.g. 15% OFF). Assign up to 4 per product.'
-              : 'Corner badges (SALE, INV, TOP) on the top-right of the card. Use auto rules or pick per product.'}
+              ? 'Abenson-style sticker chips under the price — upload a full graphic (best) or use the playful composed sticker. Assign up to 4 per product.'
+              : 'Pill tags above the product title (TAG-D): solid for discounts (−20%), outline for specs (INVERTER).'}
           </p>
           <div className="mt-3 flex gap-2">
             <button
@@ -338,6 +357,39 @@ export function AdminTagsPage() {
               )}
               {!isCornerForm && (
               <label className="block">
+                <span className="text-sm font-medium text-gray-700">Chip render mode</span>
+                <select
+                  value={form.renderMode ?? (form.chipImageUrl ? 'image' : 'composed')}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      renderMode: e.target.value as ChipRenderMode,
+                    }))
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                >
+                  <option value="composed">Composed (icon + text)</option>
+                  <option value="image">Image chip (TAG D / Abenson-style)</option>
+                </select>
+              </label>
+              )}
+              {!isCornerForm && <TagChipUploadGuide />}
+              {!isCornerForm && (
+              <ImageUrlOrUploadField
+                label="Full chip image (TAG D)"
+                value={form.chipImageUrl ?? ''}
+                onChange={(url) =>
+                  setForm((f) => ({
+                    ...f,
+                    chipImageUrl: url || undefined,
+                    renderMode: url ? 'image' : f.renderMode ?? 'composed',
+                  }))
+                }
+                remoteUpload={{}}
+              />
+              )}
+              {!isCornerForm && (
+              <label className="block">
                 <span className="text-sm font-medium text-gray-700">Badge style</span>
                 <select
                   value={form.style}
@@ -359,7 +411,7 @@ export function AdminTagsPage() {
                 </select>
               </label>
               )}
-              {!isCornerForm && (
+              {!isCornerForm && (form.renderMode ?? 'composed') !== 'image' && (
               <label className="block">
                 <span className="text-sm font-medium text-gray-700">Icon emoji (optional)</span>
                 <input
@@ -373,8 +425,8 @@ export function AdminTagsPage() {
                 <p className="mt-1 text-xs text-gray-500">Only used when no icon image is set below.</p>
               </label>
               )}
-              {!isCornerForm && <TagIconUploadGuide />}
-              {!isCornerForm && (
+              {!isCornerForm && (form.renderMode ?? 'composed') !== 'image' && <TagIconUploadGuide />}
+              {!isCornerForm && (form.renderMode ?? 'composed') !== 'image' && (
               <ImageUrlOrUploadField
                 label="Icon image (API upload)"
                 value={form.iconUrl ?? ''}
@@ -385,7 +437,7 @@ export function AdminTagsPage() {
               />
               )}
               <div className="grid grid-cols-2 gap-3">
-                {!isCornerForm && (
+                {!isCornerForm && (form.renderMode ?? 'composed') !== 'image' && (
                 <label className="block">
                   <span className="text-xs font-medium text-gray-600">Icon background</span>
                   <div className="mt-1 flex gap-2">
@@ -407,6 +459,7 @@ export function AdminTagsPage() {
                   </div>
                 </label>
                 )}
+                {((!isCornerForm && (form.renderMode ?? 'composed') !== 'image') || isCornerForm) && (
                 <label className="block">
                   <span className="text-xs font-medium text-gray-600">
                     {isCornerForm ? 'Badge background' : 'Text background'}
@@ -429,6 +482,7 @@ export function AdminTagsPage() {
                     />
                   </div>
                 </label>
+                )}
                 {isCornerForm && (
                 <label className="block">
                   <span className="text-xs font-medium text-gray-600">Text color</span>
@@ -452,24 +506,39 @@ export function AdminTagsPage() {
                 )}
               </div>
             </div>
-            <div className="flex flex-col items-center justify-center rounded-lg bg-gray-100 p-6">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Preview</p>
+            <div className="flex flex-col items-center justify-center rounded-lg bg-slate-100 p-6">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Preview
+              </p>
               {isCornerForm ? (
-                <CornerTag
-                  label={form.name || 'SALE'}
-                  color={cornerTagTextColor(form)}
-                  bgColor={cornerTagBgColor(form)}
-                />
+                <div className="flex w-full max-w-[220px] flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="flex flex-wrap gap-1.5">
+                    <CornerTag
+                      variant={cornerTagVariant(form)}
+                      label={form.name || 'SALE'}
+                      color={
+                        cornerTagVariant(form) === 'outline'
+                          ? cornerTagBgColor(form)
+                          : cornerTagTextColor(form)
+                      }
+                      bgColor={cornerTagBgColor(form)}
+                    />
+                  </div>
+                  <div className="text-xs font-bold text-slate-800">Product title preview</div>
+                  <div className="text-sm font-bold text-[#0EA5E9]">₱24,225</div>
+                </div>
               ) : (
-                <PromoBadge
+                <PromoChip
                   badgeType={form.style}
                   label={form.name || 'Tag name'}
                   subtitle={form.subtitle}
+                  chipImageUrl={form.chipImageUrl}
+                  renderMode={form.renderMode}
                   iconUrl={form.iconUrl}
                   iconEmoji={form.iconEmoji}
                   iconBgColor={form.iconBgColor ?? previewColors.iconBg}
                   textBgColor={form.textBgColor ?? previewColors.textBg}
-                  size="md"
+                  size="card"
                 />
               )}
             </div>
@@ -497,81 +566,124 @@ export function AdminTagsPage() {
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-6 py-3 text-xs font-semibold uppercase text-gray-500">Preview</th>
-              <th className="px-6 py-3 text-xs font-semibold uppercase text-gray-500">Name</th>
-              <th className="px-6 py-3 text-xs font-semibold uppercase text-gray-500">
+            <tr className="border-b border-gray-200 bg-slate-50">
+              <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
+                Tag
+              </th>
+              <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
+                Used
+              </th>
+              <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
                 {tab === 'corner' ? 'Auto rule' : 'Style'}
               </th>
               {tab === 'promo' && (
-                <th className="px-6 py-3 text-xs font-semibold uppercase text-gray-500">Icon</th>
+                <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Mode
+                </th>
               )}
-              <th className="px-6 py-3 text-xs font-semibold uppercase text-gray-500">Actions</th>
+              <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {visibleTags.map((tag) => {
               const colors = getStyleColors(tag.style);
+              const used = usageByTagId.get(tag.id) ?? 0;
               return (
-                <tr key={tag.id} className="border-b border-gray-100">
-                  <td className="px-6 py-4">
-                    {isCornerTag(tag) ? (
-                      <CornerTag
-                        label={tag.name}
-                        color={cornerTagTextColor(tag)}
-                        bgColor={cornerTagBgColor(tag)}
+                <tr key={tag.id} className="border-b border-slate-100">
+                  <td className="px-6 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="inline-block h-3 w-3 shrink-0 rounded"
+                        style={{
+                          backgroundColor: isCornerTag(tag)
+                            ? cornerTagBgColor(tag)
+                            : tag.textBgColor ?? colors.textBg,
+                        }}
+                        aria-hidden
                       />
-                    ) : (
-                      <PromoBadge
-                        badgeType={tag.style}
-                        label={tag.name}
-                        subtitle={tag.subtitle}
-                        iconUrl={tag.iconUrl}
-                        iconEmoji={tag.iconEmoji}
-                        iconBgColor={tag.iconBgColor ?? colors.iconBg}
-                        textBgColor={tag.textBgColor ?? colors.textBg}
-                        size="sm"
-                      />
-                    )}
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-900">{tag.name}</div>
+                        <div className="mt-1.5">
+                          {isCornerTag(tag) ? (
+                            <CornerTag
+                              variant={cornerTagVariant(tag)}
+                              label={tag.name}
+                              color={
+                                cornerTagVariant(tag) === 'outline'
+                                  ? cornerTagBgColor(tag)
+                                  : cornerTagTextColor(tag)
+                              }
+                              bgColor={cornerTagBgColor(tag)}
+                            />
+                          ) : (
+                            <PromoChip
+                              badgeType={tag.style}
+                              label={tag.name}
+                              subtitle={tag.subtitle}
+                              chipImageUrl={tag.chipImageUrl}
+                              renderMode={tag.renderMode}
+                              iconUrl={tag.iconUrl}
+                              iconEmoji={tag.iconEmoji}
+                              iconBgColor={tag.iconBgColor ?? colors.iconBg}
+                              textBgColor={tag.textBgColor ?? colors.textBg}
+                              size="card"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 font-medium text-gray-900">{tag.name}</td>
-                  <td className="px-6 py-4 text-gray-600 text-xs">
+                  <td className="px-6 py-3.5 text-slate-500">
+                    {used} {used === 1 ? 'product' : 'products'}
+                  </td>
+                  <td className="px-6 py-3.5 text-xs text-slate-600">
                     {isCornerTag(tag)
                       ? CORNER_AUTO_RULE_LABELS[tag.autoApply ?? 'manual']
                       : PROMO_BADGE_STYLE_LABELS[tag.style]}
                   </td>
                   {tab === 'promo' && (
-                  <td className="px-6 py-4 text-gray-600">
-                    {tag.iconUrl ? (
-                      <img src={tag.iconUrl} alt="" className="h-8 w-8 object-contain" />
-                    ) : (
-                      tag.iconEmoji ?? '—'
-                    )}
-                  </td>
+                    <td className="px-6 py-3.5 text-xs text-slate-600">
+                      {(tag.renderMode ?? (tag.chipImageUrl ? 'image' : 'composed')) ===
+                      'image'
+                        ? 'Image (TAG D)'
+                        : 'Composed'}
+                    </td>
                   )}
-                  <td className="px-6 py-4">
-                    <div className="flex gap-3">
+                  <td className="px-6 py-3.5">
+                    <div className="flex justify-end gap-3">
                       <button
                         type="button"
                         onClick={() => openEdit(tag)}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-[#0EA5E9] hover:underline"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-[#0EA5E9]"
+                        title="Edit"
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(tag.id)}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-red-600"
+                        title="Delete"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        Delete
                       </button>
                     </div>
                   </td>
                 </tr>
               );
             })}
+            {visibleTags.length === 0 && (
+              <tr>
+                <td
+                  colSpan={tab === 'promo' ? 5 : 4}
+                  className="px-6 py-8 text-center text-sm text-gray-500"
+                >
+                  No tags yet. Click Add tag to create one.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

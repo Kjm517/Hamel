@@ -264,6 +264,11 @@ function ProductMatrixEditor({
             <Field label="Name" value={col.name} onChange={(v) => patchColumn(col.id, { name: v })} />
             <Field label="Description" value={col.sub} onChange={(v) => patchColumn(col.id, { sub: v })} />
             <ImageUrlOrUploadField label="Image" value={col.imageUrl} onChange={(v) => patchColumn(col.id, { imageUrl: v })} />
+            <BannerLinkDestinationField
+              label="Card navigation"
+              fields={col}
+              onChange={(patch) => patchColumn(col.id, patch)}
+            />
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Perks (one per line)</label>
               <textarea
@@ -383,6 +388,11 @@ function CardGridEditor({
               <Field label="Title" value={card.title} onChange={(v) => patchVoucherCard(card.id, { title: v })} />
               <ImageUrlOrUploadField label="Image" value={card.imageUrl} onChange={(v) => patchVoucherCard(card.id, { imageUrl: v })} />
               <input type="color" value={hexForColorInput(card.color)} onChange={(e) => patchVoucherCard(card.id, { color: e.target.value })} />
+              <BannerLinkDestinationField
+                label="Card navigation"
+                fields={card}
+                onChange={(patch) => patchVoucherCard(card.id, patch)}
+              />
             </div>
           ))}
         </>
@@ -396,10 +406,12 @@ function CardGridEditor({
               <div className="pr-3 py-2 space-y-2">
                 <Field label="Title" value={card.title} onChange={(v) => onPatchDealCard(card.id, { title: v })} />
                 <Field label="Description" value={card.body} onChange={(v) => onPatchDealCard(card.id, { body: v })} rows={2} />
-                <div className="grid sm:grid-cols-2 gap-2">
-                  <Field label="Button text" value={card.cta} onChange={(v) => onPatchDealCard(card.id, { cta: v })} />
-                  <Field label="Link URL" value={card.href} onChange={(v) => onPatchDealCard(card.id, { href: v })} />
-                </div>
+                <Field label="Button text" value={card.cta} onChange={(v) => onPatchDealCard(card.id, { cta: v })} />
+                <BannerLinkDestinationField
+                  label="Tile navigation"
+                  fields={card}
+                  onChange={(patch) => onPatchDealCard(card.id, patch)}
+                />
                 <ImageUrlOrUploadField label="Background image (optional)" value={card.imageUrl || ''} onChange={(v) => onPatchDealCard(card.id, { imageUrl: v || undefined })} />
                 <Field label="Accent text (e.g. 0%)" value={card.accent || ''} onChange={(v) => onPatchDealCard(card.id, { accent: v || undefined })} />
                 <DealTileColorFields card={card} onPatch={(p) => onPatchDealCard(card.id, p)} />

@@ -95,7 +95,8 @@ productTagRoutes.get('/', async (c) => {
   const rows = await sql`
     select
       id, name, style, placement, auto_rule, icon_url, icon_emoji,
-      icon_bg_color, text_bg_color, subtitle, description, sort_order, is_active
+      icon_bg_color, text_bg_color, subtitle, description,
+      chip_image_url, render_mode, sort_order, is_active
     from product_tags
     order by sort_order asc, name asc
   `;
@@ -148,15 +149,32 @@ productTagRoutes.put('/', requireAuth, async (c) => {
       tag.description != null && String(tag.description).trim()
         ? String(tag.description).trim()
         : null;
+    const chipImageUrl =
+      tag.chipImageUrl != null
+        ? String(tag.chipImageUrl)
+        : tag.chip_image_url != null
+          ? String(tag.chip_image_url)
+          : null;
+    const renderModeRaw =
+      tag.renderMode != null
+        ? String(tag.renderMode)
+        : tag.render_mode != null
+          ? String(tag.render_mode)
+          : chipImageUrl
+            ? 'image'
+            : 'composed';
+    const renderMode = renderModeRaw === 'image' ? 'image' : 'composed';
     const sortOrder = i + 1;
 
     await sql`
       insert into product_tags (
         id, name, style, placement, auto_rule, icon_url, icon_emoji,
-        icon_bg_color, text_bg_color, subtitle, description, sort_order, is_active, updated_at
+        icon_bg_color, text_bg_color, subtitle, description,
+        chip_image_url, render_mode, sort_order, is_active, updated_at
       ) values (
         ${id}, ${name}, ${style}, ${placement}, ${autoRule}, ${iconUrl}, ${iconEmoji},
-        ${iconBg}, ${textBg}, ${subtitle}, ${description}, ${sortOrder}, true, now()
+        ${iconBg}, ${textBg}, ${subtitle}, ${description},
+        ${chipImageUrl}, ${renderMode}, ${sortOrder}, true, now()
       )
       on conflict (id) do update set
         name = excluded.name,
@@ -169,6 +187,8 @@ productTagRoutes.put('/', requireAuth, async (c) => {
         text_bg_color = excluded.text_bg_color,
         subtitle = excluded.subtitle,
         description = excluded.description,
+        chip_image_url = excluded.chip_image_url,
+        render_mode = excluded.render_mode,
         sort_order = excluded.sort_order,
         is_active = true,
         updated_at = now()
@@ -220,7 +240,8 @@ productTagRoutes.post('/reset', requireAuth, async (c) => {
   const rows = await sql`
     select
       id, name, style, placement, auto_rule, icon_url, icon_emoji,
-      icon_bg_color, text_bg_color, subtitle, description, sort_order, is_active
+      icon_bg_color, text_bg_color, subtitle, description,
+      chip_image_url, render_mode, sort_order, is_active
     from product_tags
     order by sort_order asc
   `;

@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
-import { AdminAuthShell } from '../components/AdminAuthShell';
+import {
+  AdminAuthShell,
+  adminAuthFieldClass,
+  adminAuthLabelClass,
+} from '../components/AdminAuthShell';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { signInAdmin } from '../lib/admin-auth';
 
@@ -33,7 +37,9 @@ export function AdminLoginPage() {
       navigate(from, { replace: true });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Sign in failed. Check your email or username and password.'
+        err instanceof Error
+          ? err.message
+          : 'Sign in failed. Check your email or username and password.'
       );
     } finally {
       setSubmitting(false);
@@ -43,73 +49,73 @@ export function AdminLoginPage() {
   return (
     <AdminAuthShell
       title="Sign in"
-      subtitle="Use your Hamel admin account to access the dashboard."
+      subtitle="Welcome back. Use your Hamel admin account to access the dashboard."
     >
-      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+      <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-[18px]">
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
             {error}
           </div>
         )}
 
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">Email or username</span>
+        <label className="flex flex-col gap-2">
+          <span className={adminAuthLabelClass()}>Email or username</span>
           <input
             type="text"
             required
             autoComplete="username"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm focus:border-[#0EA5E9] focus:outline-none focus:ring-1 focus:ring-[#0EA5E9]"
+            className={adminAuthFieldClass()}
             placeholder="manager or you@hamel.example"
           />
         </label>
 
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">Password</span>
-          <div className="relative mt-1">
+        <label className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between">
+            <span className={adminAuthLabelClass()}>Password</span>
+            <Link
+              to="/admin/forgot-password"
+              className="text-[12.5px] font-semibold text-[#1795d1] hover:text-[#1279b0]"
+            >
+              Forgot password?
+            </Link>
+          </div>
+          <div className="relative flex items-center">
             <input
               type={showPassword ? 'text' : 'password'}
               required
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2.5 pr-10 text-sm focus:border-[#0EA5E9] focus:outline-none focus:ring-1 focus:ring-[#0EA5E9]"
-              placeholder="••••••••"
+              className={`${adminAuthFieldClass()} pr-12`}
+              placeholder="Enter your password"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              className="absolute right-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-[#94a3b3] transition-colors hover:bg-[#eef4f9] hover:text-[#4a5866]"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
         </label>
 
-        <div className="flex items-center justify-between gap-2">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
-            />
-            Remember me
-          </label>
-          <Link
-            to="/admin/forgot-password"
-            className="text-sm font-medium text-[#0EA5E9] hover:underline"
-          >
-            Forgot password?
-          </Link>
-        </div>
+        <label className="-mt-0.5 flex cursor-pointer items-center gap-2.5">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="h-[17px] w-[17px] cursor-pointer accent-[#17abee]"
+          />
+          <span className="text-sm text-[#4a5866]">Keep me signed in</span>
+        </label>
 
         <button
           type="submit"
           disabled={submitting || loading}
-          className="w-full rounded-md bg-amber-400 py-3 font-bold text-gray-900 transition-colors hover:bg-amber-500 disabled:opacity-60"
+          className="mt-1 h-[50px] w-full rounded-xl border-0 bg-gradient-to-b from-[#ffc62b] to-[#f6b50c] text-[15.5px] font-bold tracking-[0.01em] text-[#3a2c00] shadow-[0_8px_18px_-8px_rgba(246,181,12,0.7)] transition-[transform,box-shadow] hover:shadow-[0_10px_22px_-8px_rgba(246,181,12,0.85)] active:translate-y-px disabled:opacity-60"
         >
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>

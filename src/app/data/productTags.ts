@@ -16,6 +16,9 @@ export type TagPlacement = 'promo' | 'corner';
 /** Auto-apply corner badge when product matches (if not manually overridden). */
 export type CornerTagAutoRule = 'manual' | 'flash-sale' | 'inverter' | 'best-seller';
 
+/** Composed = icon panel + text; image = Abenson-style full chip graphic (TAG D). */
+export type ChipRenderMode = 'composed' | 'image';
+
 export interface ProductTag {
   id: string;
   name: string;
@@ -23,6 +26,10 @@ export interface ProductTag {
   placement?: TagPlacement;
   /** Corner badges only — when to show without picking on the product. */
   autoApply?: CornerTagAutoRule;
+  /** How promo chips render on storefront cards. */
+  renderMode?: ChipRenderMode;
+  /** Full chip graphic (TAG D). Used when renderMode is `image`. */
+  chipImageUrl?: string;
   iconUrl?: string;
   iconEmoji?: string;
   iconBgColor?: string;
@@ -73,12 +80,19 @@ export function getStyleColors(style: string | undefined): { iconBg: string; tex
 function mergeTagWithDefaults(partial: Partial<ProductTag>, fallback: ProductTag): ProductTag {
   const style = normalizePromoBadgeStyle(partial.style ?? fallback.style);
   const placement = partial.placement ?? fallback.placement ?? 'promo';
+  const chipImageUrl = partial.chipImageUrl ?? fallback.chipImageUrl;
+  const renderMode: ChipRenderMode =
+    partial.renderMode ??
+    fallback.renderMode ??
+    (chipImageUrl ? 'image' : 'composed');
   return {
     id: partial.id ?? fallback.id,
     name: partial.name ?? fallback.name,
     style,
     placement,
     autoApply: partial.autoApply ?? fallback.autoApply,
+    renderMode,
+    chipImageUrl,
     iconUrl: partial.iconUrl ?? fallback.iconUrl,
     iconEmoji: partial.iconEmoji ?? fallback.iconEmoji,
     iconBgColor: partial.iconBgColor ?? fallback.iconBgColor,

@@ -1,8 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronRight, X } from 'lucide-react';
 import type { InstallmentOption } from '../data/products';
 import { calcInstallment } from '../data/products';
+import {
+  activeBankLogos,
+  getInstallmentPlansCached,
+  loadInstallmentPlans,
+} from '../data/installment-plans';
 
 type InstallmentOptionsModalProps = {
   open: boolean;
@@ -19,6 +24,14 @@ function formatMoney(amount: number): string {
   })}`;
 }
 
+const FALLBACK_LOGOS = [
+  { name: 'BDO', src: '/hamel/payments/BDO.svg' },
+  { name: 'BPI', src: '/hamel/payments/BPI.svg' },
+  { name: 'Metrobank', src: '/hamel/payments/Metrobank.svg' },
+  { name: 'Visa', src: '/hamel/payments/visa.svg' },
+  { name: 'Mastercard', src: '/hamel/payments/mastercard.svg' },
+];
+
 export function InstallmentOptionsModal({
   open,
   onClose,
@@ -26,6 +39,23 @@ export function InstallmentOptionsModal({
   options,
   productName,
 }: InstallmentOptionsModalProps) {
+  const [logos, setLogos] = useState(() => activeBankLogos(getInstallmentPlansCached()));
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      void loadInstallmentPlans().then((cfg) => {
+        if (!cancelled) setLogos(activeBankLogos(cfg));
+      });
+    };
+    refresh();
+    window.addEventListener('hamel-installment-plans-updated', refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('hamel-installment-plans-updated', refresh);
+    };
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -43,6 +73,7 @@ export function InstallmentOptionsModal({
   if (!open || typeof document === 'undefined') return null;
 
   const sorted = [...options].sort((a, b) => b.months - a.months);
+  const bankLogos = logos.length ? logos : FALLBACK_LOGOS;
 
   return createPortal(
     <div
@@ -58,15 +89,10 @@ export function InstallmentOptionsModal({
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <div>
-            <h2
-              id="installment-options-title"
-              className="text-lg font-bold text-gray-900"
-            >
+            <h2 id="installment-options-title" className="text-lg font-bold text-gray-900">
               Installment Options
             </h2>
-            {productName ? (
-              <p className="mt-0.5 text-xs text-gray-500">{productName}</p>
-            ) : null}
+            {productName ? <p className="mt-0.5 text-xs text-gray-500">{productName}</p> : null}
           </div>
           <button
             type="button"
@@ -96,7 +122,7 @@ export function InstallmentOptionsModal({
                     <span className="ml-1.5 text-xs font-semibold text-emerald-600">0%</span>
                   ) : (
                     <span className="ml-1.5 text-xs text-gray-400">
-                      {(opt.interestRate * 100).toFixed(0)}% p.a.
+                      {(opt.interestRate * 100).toFixed(2)}%/mo
                     </span>
                   )}
                 </span>
@@ -111,28 +137,17 @@ export function InstallmentOptionsModal({
         <div className="border-t border-gray-100 px-5 py-4">
           <p className="mb-1 text-sm font-semibold text-gray-800">Valid Payments</p>
           <p className="mb-3 text-xs text-gray-500">
-            Up to {Math.max(...options.map((o) => o.months))} months installment based on installment
-            price. Credit and debit cards accepted. Subject to bank approval.
+            Up to {Math.max(0, ...options.map((o) => o.months))} months installment based on
+            installment price. Credit and debit cards accepted. Subject to bank approval.
           </p>
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            {[
-              { name: 'BDO', src: '/hamel/payments/BDO.svg', tall: false },
-              { name: 'BPI', src: '/hamel/payments/BPI.svg', tall: false },
-              { name: 'Metrobank', src: '/hamel/payments/Metrobank.svg', tall: false },
-              { name: 'UnionBank', src: '/hamel/payments/UnionBank.svg', tall: false },
-              { name: 'Security Bank', src: '/hamel/payments/Security%20Bank.svg', tall: false },
-              { name: 'Visa', src: '/hamel/payments/visa.svg', tall: true },
-              { name: 'Mastercard', src: '/hamel/payments/mastercard.svg', tall: true },
-              { name: 'QR Ph', src: '/hamel/payments/QR_Ph_Logo.svg', tall: true },
-            ].map((bank) => (
+            {bankLogos.map((bank) => (
               <img
                 key={bank.name}
                 src={bank.src}
                 alt={bank.name}
                 title={bank.name}
-                className={`w-auto object-contain ${
-                  bank.tall ? 'h-10 max-w-[96px]' : 'h-7 max-w-[72px]'
-                }`}
+                className="h-7 w-auto max-w-[72px] object-contain"
               />
             ))}
           </div>

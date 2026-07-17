@@ -12,6 +12,9 @@ interface PromoBadgeProps {
   label: string;
   cashPerMonth?: number;
   size?: 'sm' | 'md';
+  /** Abenson-style full chip image (TAG D). */
+  chipImageUrl?: string;
+  renderMode?: 'composed' | 'image';
   iconUrl?: string;
   iconEmoji?: string;
   iconBgColor?: string;
@@ -366,11 +369,51 @@ function ColoredGlyph({
   }
 }
 
-/** Marketplace-style chip: Abenson special-offer badge (logo panel + offer text). */
+const STICKER_THEMES: Record<
+  BadgeType,
+  { bg: string; accent: string; muted: string; bar: string; textShadow?: string }
+> = {
+  'flash-sale': {
+    bg: 'linear-gradient(135deg, #E0F2FE 0%, #7DD3FC 55%, #38BDF8 100%)',
+    accent: '#DB2777',
+    muted: '#0369A1',
+    bar: '#0EA5E9',
+    textShadow: '0 1px 0 rgba(255,255,255,0.55)',
+  },
+  'free-install': {
+    bg: 'linear-gradient(135deg, #FEF08A 0%, #FDE047 50%, #FACC15 100%)',
+    accent: '#1E3A8A',
+    muted: '#1D4ED8',
+    bar: '#1E40AF',
+  },
+  discount: {
+    bg: 'linear-gradient(135deg, #F472B6 0%, #EC4899 50%, #DB2777 100%)',
+    accent: '#FFFFFF',
+    muted: 'rgba(255,255,255,0.9)',
+    bar: '#9D174D',
+  },
+  'cash-deal': {
+    bg: 'linear-gradient(135deg, #FDE68A 0%, #FBBF24 100%)',
+    accent: '#1E40AF',
+    muted: '#1D4ED8',
+    bar: '#1E3A8A',
+  },
+  bundle: {
+    bg: 'linear-gradient(135deg, #E9D5FF 0%, #C4B5FD 50%, #A78BFA 100%)',
+    accent: '#5B21B6',
+    muted: '#6D28D9',
+    bar: '#7C3AED',
+    textShadow: '0 1px 0 rgba(255,255,255,0.45)',
+  },
+};
+
+/** Abenson-style sticker chip (image banner or playful composed sticker). */
 export function PromoChip({
   badgeType,
   label,
   cashPerMonth,
+  chipImageUrl,
+  renderMode,
   iconUrl,
   iconEmoji,
   iconBgColor,
@@ -385,93 +428,112 @@ export function PromoChip({
   const isCard = size === 'card';
   const colors = CHIP_STYLE_COLORS[badgeType];
   const textBg = textBgColor ?? colors.textBg;
-  const iconBg = iconBgColor ?? colors.iconBg;
-  // Custom tag colors are often dark — always use white text for readability
-  const textColor = textBgColor ? '#FFFFFF' : colors.textColor;
-  const mutedColor = textBgColor ? 'rgba(255,255,255,0.9)' : colors.mutedColor;
   const lines = chipLines({ badgeType, label, cashPerMonth, subtitle });
   const fullTitle = subtitle ? `${label} — ${subtitle}` : label;
-  const height = isCard ? 30 : 26;
-  const logoWidth = isCard ? 28 : 24;
-  const glyphSize = isCard ? 14 : 12;
-  const primarySize = isCard ? 9 : 8;
-  const secondarySize = isCard ? 7 : 6;
+  const useImageChip =
+    Boolean(chipImageUrl) && (renderMode === 'image' || (!renderMode && Boolean(chipImageUrl)));
+
+  const interactiveProps = {
+    role: onClick ? ('button' as const) : undefined,
+    tabIndex: onClick ? 0 : undefined,
+    onClick,
+    onKeyDown: onClick
+      ? (e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick(e as unknown as MouseEvent);
+          }
+        }
+      : undefined,
+  };
+
+  if (useImageChip && chipImageUrl) {
+    return (
+      <span
+        {...interactiveProps}
+        className={`inline-flex shrink-0 bg-transparent leading-none [mix-blend-mode:darken] ${
+          onClick ? 'cursor-pointer transition hover:opacity-90' : ''
+        }`}
+        style={{
+          height: isCard ? 32 : 28,
+        }}
+        title={fullTitle}
+      >
+        <img
+          src={chipImageUrl}
+          alt={label}
+          className="pointer-events-none h-full w-auto max-w-[92px] bg-transparent object-contain object-left"
+          draggable={false}
+        />
+      </span>
+    );
+  }
+
+  const sticker = STICKER_THEMES[badgeType];
+  const stickerBg = textBgColor
+    ? `linear-gradient(135deg, ${textBg} 0%, ${iconBgColor ?? textBg} 100%)`
+    : sticker.bg;
+  const accent = textBgColor ? '#FFFFFF' : sticker.accent;
+  const muted = textBgColor ? 'rgba(255,255,255,0.92)' : sticker.muted;
 
   return (
     <span
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (e: KeyboardEvent) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onClick(e as unknown as MouseEvent);
-              }
-            }
-          : undefined
-      }
-      className={`inline-flex max-w-full items-stretch overflow-hidden shadow-sm ${
+      {...interactiveProps}
+      className={`relative inline-flex max-w-full flex-col justify-center overflow-hidden border border-black/10 shadow-sm ${
         onClick ? 'cursor-pointer transition hover:brightness-[0.98] hover:shadow-md' : ''
       }`}
       style={{
-        height,
-        minWidth: isCard ? 96 : 84,
-        maxWidth: isCard ? 140 : 120,
-        borderRadius: 6,
-        border: '1px solid rgba(0,0,0,0.06)',
+        height: isCard ? 32 : 28,
+        minWidth: isCard ? 72 : 64,
+        maxWidth: isCard ? 100 : 88,
+        borderRadius: 7,
+        background: stickerBg,
+        padding: isCard ? '3px 6px' : '3px 5px',
       }}
       title={fullTitle}
     >
+      {(iconUrl || iconEmoji) && (
+        <span className="absolute right-1.5 top-1.5 opacity-90" aria-hidden>
+          {iconUrl ? (
+            <img src={iconUrl} alt="" className="h-4 w-4 object-contain" />
+          ) : (
+            <span style={{ fontSize: 12 }}>{iconEmoji}</span>
+          )}
+        </span>
+      )}
       <span
-        className="flex shrink-0 items-center justify-center"
+        className="truncate font-bold uppercase leading-none"
         style={{
-          width: logoWidth,
-          backgroundColor: iconBg,
-          borderRight: '1px solid rgba(0,0,0,0.06)',
+          color: muted,
+          fontSize: isCard ? 6 : 6,
+          letterSpacing: '0.04em',
         }}
       >
-        {iconUrl ? (
-          <img
-            src={iconUrl}
-            alt=""
-            className="object-contain"
-            style={{ width: isCard ? 18 : 16, height: isCard ? 18 : 16 }}
-          />
-        ) : iconEmoji ? (
-          <span style={{ fontSize: isCard ? 12 : 11, lineHeight: 1 }} aria-hidden>
-            {iconEmoji}
-          </span>
-        ) : (
-          <ColoredGlyph badgeType={badgeType} color={textBg} size={glyphSize} />
-        )}
+        {lines.eyebrow.length > 18 ? `${lines.eyebrow.slice(0, 16)}…` : lines.eyebrow}
       </span>
       <span
-        className="flex min-w-0 flex-1 flex-col justify-center px-1.5 py-0.5"
-        style={{ backgroundColor: textBg }}
+        className="mt-1 truncate font-black uppercase leading-tight"
+        style={{
+          color: accent,
+          fontSize: isCard ? 9 : 8,
+          letterSpacing: '0.01em',
+          textShadow: sticker.textShadow,
+        }}
       >
-        <span
-          className="truncate font-semibold uppercase leading-none"
-          style={{
-            color: mutedColor,
-            fontSize: secondarySize,
-            letterSpacing: '0.04em',
-          }}
-        >
-          {lines.eyebrow.length > 16 ? `${lines.eyebrow.slice(0, 14)}…` : lines.eyebrow}
-        </span>
-        <span
-          className="mt-0.5 truncate font-extrabold uppercase leading-tight"
-          style={{
-            color: textColor,
-            fontSize: primarySize,
-            letterSpacing: '0.01em',
-          }}
-        >
-          {lines.headline}
-        </span>
+        {lines.headline}
       </span>
+      {badgeType === 'discount' || badgeType === 'cash-deal' ? (
+        <span
+          className="mt-auto self-start rounded px-1.5 py-0.5 font-extrabold uppercase leading-none text-white"
+          style={{
+            backgroundColor: sticker.bar,
+            fontSize: isCard ? 6 : 6,
+            marginTop: 2,
+          }}
+        >
+          {badgeType === 'cash-deal' ? 'Cool cash' : 'Limited'}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -690,23 +752,56 @@ export function PromoBadge({
   return null;
 }
 
-/** Small corner tag for SALE / NEW / INVERTER */
+/** TAG-D pills: solid discount (-20%) or outline spec (INVERTER). */
+export type CornerTagVariant = 'solid' | 'outline';
+
 interface CornerTagProps {
   label: string;
   color?: string;
   bgColor?: string;
+  size?: 'card' | 'detail';
+  variant?: CornerTagVariant;
 }
-export function CornerTag({ label, color = '#FFF', bgColor = '#EF4444' }: CornerTagProps) {
+export function CornerTag({
+  label,
+  color = '#FFF',
+  bgColor = '#EF4444',
+  size = 'card',
+  variant = 'solid',
+}: CornerTagProps) {
+  const isDetail = size === 'detail';
+  const fontSize = isDetail ? 11 : 10;
+  const pad = isDetail ? '5px 12px' : '4px 10px';
+
+  if (variant === 'outline') {
+    const outline = bgColor || '#0EA5E9';
+    return (
+      <span
+        className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border-[1.5px] bg-white font-extrabold uppercase"
+        style={{
+          borderColor: outline,
+          color: color && color !== '#FFFFFF' ? color : outline,
+          fontSize,
+          lineHeight: 1,
+          letterSpacing: '0.04em',
+          padding: pad,
+        }}
+      >
+        {label}
+      </span>
+    );
+  }
+
   return (
     <span
-      className="inline-flex h-[22px] w-full min-w-[40px] shrink-0 items-center justify-center whitespace-nowrap px-2 font-semibold shadow-sm"
+      className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full font-extrabold uppercase shadow-sm"
       style={{
         backgroundColor: bgColor,
         color,
-        borderRadius: '4px',
-        fontSize: 10,
+        fontSize,
         lineHeight: 1,
-        letterSpacing: '0.02em',
+        letterSpacing: '0.03em',
+        padding: pad,
       }}
     >
       {label}

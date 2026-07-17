@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { RotateCcw } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -14,7 +15,21 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { fetchAnalyticsSummary, type AnalyticsSummary } from '../lib/ops-api';
+import {
+  fetchAnalyticsSummary,
+  resetAnalyticsEvents,
+  type AnalyticsSummary,
+} from '../lib/ops-api';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../components/ui/alert-dialog';
 
 const SKY = '#0EA5E9';
 const AMBER = '#F59E0B';
@@ -51,12 +66,28 @@ function ChartCard({
 export function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     void fetchAnalyticsSummary()
       .then(setData)
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load analytics'));
   }, []);
+
+  const resetAnalytics = async () => {
+    setResetting(true);
+    setError(null);
+    try {
+      await resetAnalyticsEvents();
+      setData(await fetchAnalyticsSummary());
+      setResetOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to reset analytics');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const cards = data
     ? [
@@ -86,9 +117,19 @@ export function AdminAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
-        <p className="text-gray-600">Live metrics from Neon + pageview beacons.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
+          <p className="text-gray-600">Live metrics from Neon + pageview beacons.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setResetOpen(true)}
+          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+        >
+          <RotateCcw size={16} />
+          Reset analytics
+        </button>
       </div>
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -251,6 +292,31 @@ export function AdminAnalyticsPage() {
           </ChartCard>
         </div>
       )}
+
+      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset analytics data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes tracked page views and chat-open events. Products, customers,
+              messages, and inquiries will not be changed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={resetting}
+              onClick={(event) => {
+                event.preventDefault();
+                void resetAnalytics();
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {resetting ? 'Resetting…' : 'Reset analytics'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

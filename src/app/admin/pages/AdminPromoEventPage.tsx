@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { ChevronDown, ChevronUp, ExternalLink, Plus, Sparkles, X } from 'lucide-react';
 import {
   defaultBanners,
   FEATURED_PRODUCT_LIMIT,
   getBanners,
+  loadBanners,
   saveBanners,
   type FeaturedCollectionConfig,
 } from '../../data/banners';
@@ -14,9 +15,23 @@ import {
   isPromoCountdownActive,
   toDatetimeLocalValue,
 } from '../../lib/product-promos';
+import { storefrontProducts } from '../../lib/catalog-product';
 import { resolveStorageImageUrl } from '../../lib/storage';
 import { AdminSaveBar } from '../components/AdminSaveBar';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import {
+  PROMO_ANIMATION_OPTIONS,
+  normalizePromoAnimation,
+} from '../../lib/promo-animations';
+import {
+  PROMO_AMBIENT_INTENSITY_OPTIONS,
+  PROMO_AMBIENT_OPTIONS,
+  normalizePromoAmbientEffect,
+  normalizePromoAmbientIntensity,
+  type PromoAmbientEffect,
+  type PromoAmbientIntensity,
+} from '../../lib/promo-ambient-effects';
+import { PromoAmbientLayer, PROMO_AMBIENT_ICONS } from '../../components/PromoAmbientLayer';
 
 function hexForColorInput(value: string): string {
   const v = value.trim();
@@ -102,6 +117,8 @@ const EVENT_PRESETS: Array<
     titleColor: '#FFFFFF',
     highlightColor: '#FFC107',
     subtitle: 'Beat the heat with our top-selling cooling solutions.',
+    ambientEffect: 'cool-mist',
+    ambientIntensity: 'medium',
   },
   {
     label: 'Hot Deals',
@@ -111,6 +128,8 @@ const EVENT_PRESETS: Array<
     titleColor: '#FFFFFF',
     highlightColor: '#FFC107',
     subtitle: 'Limited-time savings on best-selling aircons.',
+    ambientEffect: 'sparkles',
+    ambientIntensity: 'medium',
   },
   {
     label: 'Birthday Sale',
@@ -120,6 +139,8 @@ const EVENT_PRESETS: Array<
     titleColor: '#0C4A6E',
     highlightColor: '#EA580C',
     subtitle: 'Celebrate with exclusive bundles and vouchers.',
+    ambientEffect: 'balloons',
+    ambientIntensity: 'medium',
   },
   {
     label: 'Winter Sale',
@@ -129,6 +150,8 @@ const EVENT_PRESETS: Array<
     titleColor: '#FFFFFF',
     highlightColor: '#7DD3FC',
     subtitle: 'Cooler prices for the season — shop selected models.',
+    ambientEffect: 'snow',
+    ambientIntensity: 'medium',
   },
 ];
 
@@ -141,30 +164,70 @@ export function AdminPromoEventPage() {
   const [productSearch, setProductSearch] = useState('');
   const [saved, setSaved] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipAutoSave = useRef(true);
+  const featuredRef = useRef(featured);
+  featuredRef.current = featured;
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadBanners().then((store) => {
+      if (cancelled) return;
+      skipAutoSave.current = true;
+      setFeatured(store.featuredCollection);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const persistNow = () => {
+    const store = getBanners();
+    void saveBanners({ ...store, featuredCollection: featuredRef.current });
+    setSaved(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setSaved(false), 2000);
+  };
 
   const updateFeatured = (patch: Partial<FeaturedCollectionConfig>) => {
     setFeatured((prev) => ({ ...prev, ...patch }));
     setSaved(false);
   };
 
+  useEffect(() => {
+    if (skipAutoSave.current) {
+      skipAutoSave.current = false;
+      return;
+    }
+    if (persistTimer.current) clearTimeout(persistTimer.current);
+    persistTimer.current = setTimeout(persistNow, 450);
+    return () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+    };
+  }, [featured]);
+
   const save = () => {
-    const store = getBanners();
-    void saveBanners({ ...store, featuredCollection: featured });
-    setSaved(true);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setSaved(false), 2000);
+    if (persistTimer.current) clearTimeout(persistTimer.current);
+    persistNow();
   };
 
+  const catalogDefaultProducts = useMemo(
+    () => storefrontProducts(products).slice(0, FEATURED_PRODUCT_LIMIT),
+    [products]
+  );
+  const usesCatalogDefault = (featured.productIds?.length ?? 0) === 0;
+
   const selectedProducts = useMemo(() => {
+    if (usesCatalogDefault) return catalogDefaultProducts;
     const ids = featured.productIds ?? [];
     return ids
       .map((id) => products.find((p) => p.id === id))
       .filter((p): p is NonNullable<typeof p> => Boolean(p));
-  }, [featured.productIds, products]);
+  }, [usesCatalogDefault, catalogDefaultProducts, featured.productIds, products]);
 
   const searchableProducts = useMemo(() => {
     const q = productSearch.trim().toLowerCase();
-    const selected = new Set(featured.productIds ?? []);
+    const selected = new Set(selectedProducts.map((p) => p.id));
     return products
       .filter((p) => !selected.has(p.id))
       .filter((p) => {
@@ -176,20 +239,29 @@ export function AdminPromoEventPage() {
         );
       })
       .slice(0, 12);
-  }, [products, featured.productIds, productSearch]);
+  }, [products, selectedProducts, productSearch]);
 
   const addProduct = (id: string) => {
-    const current = featured.productIds ?? [];
+    const current = usesCatalogDefault
+      ? catalogDefaultProducts.map((p) => p.id)
+      : featured.productIds ?? [];
     if (current.includes(id) || current.length >= FEATURED_PRODUCT_LIMIT) return;
     updateFeatured({ productIds: [...current, id] });
   };
 
   const removeProduct = (id: string) => {
-    updateFeatured({ productIds: (featured.productIds ?? []).filter((x) => x !== id) });
+    const current = usesCatalogDefault
+      ? catalogDefaultProducts.map((p) => p.id)
+      : featured.productIds ?? [];
+    updateFeatured({ productIds: current.filter((x) => x !== id) });
   };
 
   const moveProduct = (id: string, dir: -1 | 1) => {
-    const list = [...(featured.productIds ?? [])];
+    const list = [
+      ...(usesCatalogDefault
+        ? catalogDefaultProducts.map((p) => p.id)
+        : featured.productIds ?? []),
+    ];
     const i = list.indexOf(id);
     if (i < 0) return;
     const j = i + dir;
@@ -285,9 +357,9 @@ export function AdminPromoEventPage() {
             ) : null}
           </div>
           <p className="relative z-10 mt-3 text-[11px] text-white/75">
-            {selectedProducts.length
-              ? `${selectedProducts.length} curated product${selectedProducts.length === 1 ? '' : 's'}`
-              : `No products picked — homepage will show the first ${FEATURED_PRODUCT_LIMIT} from the catalog`}
+            {usesCatalogDefault
+              ? `Automatically showing the first ${selectedProducts.length} active catalog products`
+              : `${selectedProducts.length} curated product${selectedProducts.length === 1 ? '' : 's'}`}
           </p>
         </div>
 
@@ -394,6 +466,103 @@ export function AdminPromoEventPage() {
               value={featured.countdownLabel || ''}
               onChange={(v) => updateFeatured({ countdownLabel: v })}
             />
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Section animation (Birthday / promo deals)
+              </label>
+              <select
+                value={normalizePromoAnimation(featured.animation)}
+                onChange={(e) =>
+                  updateFeatured({
+                    animation: e.target.value as FeaturedCollectionConfig['animation'],
+                  })
+                }
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              >
+                {PROMO_ANIMATION_OPTIONS.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} — {a.desc}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-3 rounded-xl border border-[#BAE6FD] bg-[#F0F9FF] p-3">
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[#0369A1]">
+                Ambient effect
+              </p>
+              <p className="mb-2 text-[11px] text-gray-500">
+                Short burst on the homepage promo strip — plays for a few seconds, then fades out
+                so it does not stay looping.
+              </p>
+              <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {PROMO_AMBIENT_OPTIONS.map((option) => {
+                  const active =
+                    normalizePromoAmbientEffect(featured.ambientEffect) === option.id;
+                  const Icon = PROMO_AMBIENT_ICONS[option.id];
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() =>
+                        updateFeatured({
+                          ambientEffect: option.id as PromoAmbientEffect,
+                        })
+                      }
+                      className={`rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
+                        active
+                          ? 'border-[#0EA5E9] bg-white font-semibold text-[#0369A1] shadow-sm'
+                          : 'border-transparent bg-white/70 hover:border-gray-200 hover:bg-white'
+                      }`}
+                    >
+                      <span className="mb-1 inline-flex h-7 w-7 items-center justify-center rounded-md bg-[#E0F2FE] text-[#0369A1]">
+                        <Icon size={15} strokeWidth={2.25} />
+                      </span>
+                      <span className="block">{option.name}</span>
+                      <span className="mt-0.5 block font-normal text-[10px] text-gray-500">
+                        {option.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Intensity</label>
+              <div className="flex flex-wrap gap-2">
+                {PROMO_AMBIENT_INTENSITY_OPTIONS.map((option) => {
+                  const active =
+                    normalizePromoAmbientIntensity(featured.ambientIntensity) === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() =>
+                        updateFeatured({
+                          ambientIntensity: option.id as PromoAmbientIntensity,
+                        })
+                      }
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        active
+                          ? 'bg-[#0EA5E9] text-white'
+                          : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {option.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="relative mt-3 h-28 overflow-hidden rounded-lg border border-[#BAE6FD] bg-[#38BDF8]/40">
+                <PromoAmbientLayer
+                  effect={featured.ambientEffect}
+                  intensity={featured.ambientIntensity}
+                  accentColor={featured.highlightColor}
+                />
+                <p className="relative z-10 px-3 py-2 text-[10px] font-semibold text-[#0C4A6E]/80">
+                  Effect preview
+                </p>
+              </div>
+            </div>
+
             <div className="mb-2">
               <label className="mb-1 block text-xs font-medium text-gray-600">
                 Section countdown ends at (optional)
@@ -417,7 +586,10 @@ export function AdminPromoEventPage() {
                   </button>
                 ) : null}
               </div>
-              <p className="mt-1 text-[11px] text-gray-400">Leave empty to hide the timer on the homepage.</p>
+              <p className="mt-1 text-[11px] text-gray-400">
+                Sets the live days / hours / mins / secs timer under the Birthday / promo title on
+                the homepage. Leave empty to hide.
+              </p>
             </div>
           </div>
         </div>
@@ -427,7 +599,17 @@ export function AdminPromoEventPage() {
             <h4 className="text-xs font-bold uppercase tracking-wide text-gray-600">
               Featured products ({selectedProducts.length}/{FEATURED_PRODUCT_LIMIT})
             </h4>
-            {(featured.productIds?.length ?? 0) > 0 ? (
+            {usesCatalogDefault ? (
+              <button
+                type="button"
+                onClick={() =>
+                  updateFeatured({ productIds: catalogDefaultProducts.map((product) => product.id) })
+                }
+                className="text-xs font-medium text-[#0EA5E9] hover:underline"
+              >
+                Customize automatic list
+              </button>
+            ) : (
               <button
                 type="button"
                 onClick={() => updateFeatured({ productIds: [] })}
@@ -435,8 +617,15 @@ export function AdminPromoEventPage() {
               >
                 Clear list (use catalog default)
               </button>
-            ) : null}
+            )}
           </div>
+
+          {usesCatalogDefault ? (
+            <p className="mb-3 text-xs text-gray-500">
+              Showing the first active products from the catalog. Customize to lock this list and
+              change its order.
+            </p>
+          ) : null}
 
           {selectedProducts.length > 0 ? (
             <ul className="mb-3 space-y-1.5">
@@ -488,7 +677,7 @@ export function AdminPromoEventPage() {
             </p>
           )}
 
-          {(featured.productIds?.length ?? 0) < FEATURED_PRODUCT_LIMIT ? (
+          {selectedProducts.length < FEATURED_PRODUCT_LIMIT ? (
             <div>
               <input
                 type="search"

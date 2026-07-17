@@ -55,6 +55,8 @@ create table if not exists public.product_tags (
   text_bg_color text,
   subtitle text,
   description text,
+  chip_image_url text,
+  render_mode text,
   sort_order int not null default 0,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),

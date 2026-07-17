@@ -11,6 +11,7 @@ import {
 import { hamelAssets } from '../data/hamelAssets';
 import { PageBanner } from '../components/PageBanner';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { usePageLoading } from '../context/SiteLoadingContext';
 
 function ActionLink({
   href,
@@ -140,6 +141,7 @@ export function PromoLandingPage() {
   const { slug = '' } = useParams();
   const [page, setPage] = useState<PromoPage | null | undefined>(() => getPromoPageBySlug(slug));
   const [loading, setLoading] = useState(true);
+  usePageLoading(loading, `promo:${slug}`);
 
   useEffect(() => {
     let cancelled = false;

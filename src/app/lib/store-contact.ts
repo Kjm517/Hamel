@@ -26,7 +26,7 @@ export function buildMessengerUrl(
   messengerUrl: string,
   opts?: { message?: string; ref?: string }
 ): string {
-  const raw = messengerUrl.trim() || 'https://m.me/fcmtradingservices';
+  const raw = messengerUrl.trim() || 'https://m.me/hameltrading';
   const base = raw.replace(/^http:\/\//i, 'https://');
   const message = opts?.message?.trim();
   const ref = opts?.ref?.trim();

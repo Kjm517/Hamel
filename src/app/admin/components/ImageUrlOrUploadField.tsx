@@ -7,12 +7,19 @@ import {
   uploadToPublicStorage,
 } from '../../lib/storage';
 
+const MAX_IMAGE_UPLOAD_MB = 25;
+const MAX_VIDEO_UPLOAD_MB = 300;
+
 interface ImageUrlOrUploadFieldProps {
   label: string;
   value: string;
   onChange: (url: string) => void;
   placeholder?: string;
   hint?: string;
+  /** Allow MP4 video uploads in addition to images. */
+  allowVideo?: boolean;
+  previewAsVideo?: boolean;
+  onMediaTypeChange?: (type: 'image' | 'video') => void;
   /** Upload files to the API upload endpoint (auto-generated file name). */
   remoteUpload?: {
     getObjectPath?: (file: File) => string;
@@ -25,6 +32,9 @@ export function ImageUrlOrUploadField({
   onChange,
   placeholder = 'https://... or /hamel/...',
   hint,
+  allowVideo = false,
+  previewAsVideo = false,
+  onMediaTypeChange,
   remoteUpload,
 }: ImageUrlOrUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,9 +43,24 @@ export function ImageUrlOrUploadField({
   const [dragOver, setDragOver] = useState(false);
 
   const previewSrc = resolveStorageImageUrl(value) ?? value;
+  const isVideo = previewAsVideo || /\.(mp4)(?:[?#]|$)/i.test(value);
 
   const readFile = async (file: File) => {
     setUploadError(null);
+    const mediaType = file.type === 'video/mp4' ? 'video' : 'image';
+    if (!file.type.startsWith('image/') && !(allowVideo && mediaType === 'video')) {
+      setUploadError(
+        allowVideo
+          ? 'Please choose an image or an MP4 video.'
+          : 'Please choose an image file (PNG, JPG, WebP, etc.).'
+      );
+      return;
+    }
+    const maxUploadMB = mediaType === 'video' ? MAX_VIDEO_UPLOAD_MB : MAX_IMAGE_UPLOAD_MB;
+    if (file.size > maxUploadMB * 1024 * 1024) {
+      setUploadError(`File must be ${maxUploadMB} MB or smaller.`);
+      return;
+    }
     if (remoteUpload) {
       setUploading(true);
       try {
@@ -43,6 +68,7 @@ export function ImageUrlOrUploadField({
           remoteUpload.getObjectPath?.(file) ?? buildTagIconStoragePath(file);
         const publicUrl = await uploadToPublicStorage(file, objectPath);
         onChange(publicUrl);
+        onMediaTypeChange?.(mediaType);
       } catch (e) {
         setUploadError(e instanceof Error ? e.message : 'Upload failed');
       } finally {
@@ -51,14 +77,6 @@ export function ImageUrlOrUploadField({
       return;
     }
 
-    if (!file.type.startsWith('image/')) {
-      setUploadError('Please choose an image file (PNG, JPG, WebP, etc.).');
-      return;
-    }
-    if (file.size > 3 * 1024 * 1024) {
-      setUploadError('Image must be 3 MB or smaller. Use a URL for larger files.');
-      return;
-    }
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') onChange(reader.result);
@@ -92,15 +110,24 @@ export function ImageUrlOrUploadField({
 
       {value ? (
         <div className="mb-2 flex items-start gap-3">
-          <img
-            src={previewSrc}
-            alt=""
-            className="h-16 w-24 shrink-0 rounded-lg border border-gray-200 object-cover"
-          />
+          {isVideo ? (
+            <video
+              src={previewSrc}
+              className="h-16 w-24 shrink-0 rounded-lg border border-gray-200 object-cover"
+              controls
+              muted
+            />
+          ) : (
+            <img
+              src={previewSrc}
+              alt=""
+              className="h-16 w-24 shrink-0 rounded-lg border border-gray-200 object-cover"
+            />
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs text-gray-500" title={value}>
               {isDataUrl
-                ? 'Embedded image (use upload URL for production)'
+                ? 'Embedded media (use upload URL for production)'
                 : isStoragePath
                   ? `Upload: ${value}`
                   : value}
@@ -130,7 +157,7 @@ export function ImageUrlOrUploadField({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={allowVideo ? 'image/*,video/mp4' : 'image/*'}
         className="hidden"
         onChange={onFileInput}
       />
@@ -156,10 +183,14 @@ export function ImageUrlOrUploadField({
       >
         <Upload className="mb-1 h-5 w-5 text-gray-400" />
         <span className="text-xs font-medium text-gray-700">
-          {uploading ? 'Uploading…' : 'Upload image'}
+          {uploading ? 'Uploading…' : allowVideo ? 'Upload image or MP4 video' : 'Upload image'}
         </span>
         <span className="text-[10px] text-gray-500">
-          {remoteUpload ? '→ API uploads · max 3 MB' : 'or drag & drop · max 3 MB'}
+          {remoteUpload
+            ? allowVideo
+              ? `→ API uploads · images max ${MAX_IMAGE_UPLOAD_MB} MB · MP4 max ${MAX_VIDEO_UPLOAD_MB} MB`
+              : `→ API uploads · max ${MAX_IMAGE_UPLOAD_MB} MB`
+            : `or drag & drop · max ${MAX_IMAGE_UPLOAD_MB} MB`}
         </span>
       </div>
 

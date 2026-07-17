@@ -88,6 +88,8 @@ export function SpecialOffersModal({
                       badgeType={offer.badgeType}
                       label={offer.label}
                       cashPerMonth={offer.cashPerMonth}
+                      chipImageUrl={offer.chipImageUrl}
+                      renderMode={offer.renderMode}
                       iconUrl={offer.iconUrl}
                       iconEmoji={offer.iconEmoji}
                       iconBgColor={offer.iconBgColor}

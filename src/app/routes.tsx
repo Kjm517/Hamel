@@ -23,6 +23,9 @@ import { AddEditProductPage } from "./admin/pages/AddEditProductPage";
 import { AdminRequireManager } from "./admin/components/AdminRequireManager";
 import { AdminEmployeesPage } from "./admin/pages/AdminEmployeesPage";
 import { AdminTagsPage } from "./admin/pages/AdminTagsPage";
+import { AdminInstallmentsPage } from "./admin/pages/AdminInstallmentsPage";
+import { AdminPromoPopupPage } from "./admin/pages/AdminPromoPopupPage";
+import { AdminVouchersPage } from "./admin/pages/AdminVouchersPage";
 import { AdminInquiriesPage } from "./admin/pages/AdminInquiriesPage";
 import { AdminCustomersPage } from "./admin/pages/AdminCustomersPage";
 import { AdminMessagesPage } from "./admin/pages/AdminMessagesPage";
@@ -68,6 +71,9 @@ export const router = createBrowserRouter([
               { path: "promo-pages", element: <Navigate to="/admin/pages?tab=promo" replace /> },
               { path: "cool-deals", element: <Navigate to="/admin/pages?tab=cool-deals" replace /> },
               { path: "tags", Component: AdminTagsPage },
+              { path: "installments", Component: AdminInstallmentsPage },
+              { path: "promo-popup", Component: AdminPromoPopupPage },
+              { path: "vouchers", Component: AdminVouchersPage },
               { path: "products", Component: AdminProductsPage },
               { path: "products/new", Component: AddEditProductPage },
               { path: "products/:id/edit", Component: AddEditProductPage },

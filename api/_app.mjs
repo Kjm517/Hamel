@@ -2250,7 +2250,9 @@ var env = {
   geminiModel: () => process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
   messengerPageAccessToken: () => process.env.MESSENGER_PAGE_ACCESS_TOKEN?.trim() || "",
   messengerVerifyToken: () => process.env.MESSENGER_VERIFY_TOKEN?.trim() || "hamel_messenger_verify",
-  messengerPageUsername: () => process.env.MESSENGER_PAGE_USERNAME?.trim() || ""
+  messengerPageUsername: () => process.env.MESSENGER_PAGE_USERNAME?.trim() || "",
+  resendApiKey: () => process.env.RESEND_API_KEY?.trim() || "",
+  resendFrom: () => process.env.RESEND_FROM?.trim() || "Hamel Trading <onboarding@resend.dev>"
 };
 
 // server/node_modules/bcryptjs/index.js
@@ -10847,7 +10849,15 @@ authRoutes.post("/change-password", requireAuth, async (c) => {
 });
 
 // server/src/routes/content.ts
-var ALLOWED_KEYS = /* @__PURE__ */ new Set(["banners", "cool_deals", "promo_pages", "brands_page"]);
+var ALLOWED_KEYS = /* @__PURE__ */ new Set([
+  "banners",
+  "cool_deals",
+  "promo_pages",
+  "brands_page",
+  "installment_plans",
+  "site_promo_popup",
+  "vouchers"
+]);
 var contentRoutes = new Hono2();
 contentRoutes.get("/:key", async (c) => {
   const key = c.req.param("key");
@@ -11055,6 +11065,401 @@ employeeRoutes.delete("/:id", requireManager, async (c) => {
   return c.json({ ok: true });
 });
 
+// server/src/ai/image.ts
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+var MIME_BY_EXT = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif"
+};
+async function resolveImagePayload(imageUrl) {
+  if (!imageUrl?.trim()) return null;
+  const url = imageUrl.trim();
+  const marker = "/uploads/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  const objectPath = url.slice(idx + marker.length).replace(/^\/+/, "");
+  if (!objectPath || objectPath.includes("..")) return null;
+  try {
+    const fullPath = join(env.uploadDir(), objectPath);
+    const buf = await readFile(fullPath);
+    const ext = objectPath.split(".").pop()?.toLowerCase() || "png";
+    const mediaType = MIME_BY_EXT[ext] || "image/jpeg";
+    return { mediaType, base64: buf.toString("base64") };
+  } catch {
+    return null;
+  }
+}
+
+// server/src/ai/providers/claude.ts
+var ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+function createClaudeProvider(opts) {
+  return {
+    name: "claude",
+    async complete(input) {
+      const messages = [];
+      for (const m2 of input.messages) {
+        const image = await resolveImagePayload(m2.imageUrl);
+        if (image && m2.role === "user") {
+          const blocks = [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: image.mediaType,
+                data: image.base64
+              }
+            },
+            { type: "text", text: m2.content || "Please estimate aircon HP for this room photo." }
+          ];
+          messages.push({ role: m2.role, content: blocks });
+        } else {
+          messages.push({ role: m2.role, content: m2.content });
+        }
+      }
+      const res = await fetch(ANTHROPIC_URL, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": opts.apiKey,
+          "anthropic-version": "2023-06-01"
+        },
+        body: JSON.stringify({
+          model: opts.model,
+          max_tokens: 1024,
+          system: input.system,
+          messages
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error?.message || `Claude API error (${res.status})`);
+      }
+      const text = (data.content ?? []).filter((b2) => b2.type === "text" && typeof b2.text === "string").map((b2) => b2.text).join("\n").trim();
+      if (!text) throw new Error("Claude returned an empty response");
+      return { text, provider: "claude", model: opts.model };
+    }
+  };
+}
+
+// server/src/ai/providers/gemini.ts
+function createGeminiProvider(opts) {
+  return {
+    name: "gemini",
+    async complete(input) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(opts.model)}:generateContent?key=${encodeURIComponent(opts.apiKey)}`;
+      const contents = [];
+      for (const msg of input.messages) {
+        const role = msg.role === "assistant" ? "model" : "user";
+        const parts = [{ text: msg.content || "Hello" }];
+        if (msg.role === "user" && msg.imageUrl) {
+          const image = await resolveImagePayload(msg.imageUrl);
+          if (image) {
+            parts.unshift({
+              inline_data: { mime_type: image.mediaType, data: image.base64 }
+            });
+          }
+        }
+        const prev = contents[contents.length - 1];
+        if (prev && prev.role === role) {
+          prev.parts.push(...parts);
+        } else {
+          contents.push({ role, parts });
+        }
+      }
+      if (contents.length === 0) {
+        contents.push({ role: "user", parts: [{ text: "Hello" }] });
+      }
+      const firstUser = contents.find((c) => c.role === "user");
+      if (firstUser) {
+        const textPart = firstUser.parts.find((p2) => "text" in p2);
+        if (textPart) {
+          textPart.text = `${input.system}
+
+---
+Customer message:
+${textPart.text}`;
+        } else {
+          firstUser.parts.unshift({
+            text: `${input.system}
+
+---
+Customer message:`
+          });
+        }
+      }
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 1024
+          }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error?.message || `Gemini API error (${res.status})`);
+      }
+      const text = (data.candidates?.[0]?.content?.parts ?? []).map((p2) => p2.text || "").join("").trim();
+      if (!text) throw new Error("Gemini returned an empty response");
+      return { text, provider: "gemini", model: opts.model };
+    }
+  };
+}
+
+// server/src/ai/index.ts
+function getAiProvider() {
+  const name = env.aiProvider();
+  if (name === "gemini") {
+    const apiKey2 = env.geminiApiKey();
+    if (!apiKey2) {
+      throw new Error("GEMINI_API_KEY is required when AI_PROVIDER=gemini");
+    }
+    return createGeminiProvider({ apiKey: apiKey2, model: env.geminiModel() });
+  }
+  const apiKey = env.anthropicApiKey();
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY is required when AI_PROVIDER=claude");
+  }
+  return createClaudeProvider({ apiKey, model: env.anthropicModel() });
+}
+async function completeChat(input) {
+  return getAiProvider().complete(input);
+}
+
+// server/src/ai/context.ts
+async function loadCatalogProducts(limit = 60) {
+  const sql2 = getSql();
+  const productRows = await sql2`
+    select id, data
+    from products
+    order by id asc
+    limit ${limit}
+  `;
+  return productRows.map((row) => {
+    const d2 = row.data ?? {};
+    return {
+      id: row.id,
+      brand: typeof d2.brand === "string" ? d2.brand : void 0,
+      model: typeof d2.model === "string" ? d2.model : void 0,
+      category: typeof d2.category === "string" ? d2.category : void 0,
+      priceStart: Number(d2.priceStart) || 0,
+      priceEnd: Number(d2.priceEnd) || Number(d2.priceStart) || 0,
+      hp: Array.isArray(d2.hp) ? d2.hp.map(String) : [],
+      features: Array.isArray(d2.features) ? d2.features.map(String) : [],
+      tier: typeof d2.tier === "string" ? d2.tier : void 0,
+      isActive: d2.isActive !== false
+    };
+  });
+}
+async function loadStoreSettings() {
+  const sql2 = getSql();
+  try {
+    const rows = await sql2`
+      select data from site_settings where key = 'store' limit 1
+    `;
+    return rows[0]?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// server/src/ai/lead-score.ts
+function parseQty(raw2) {
+  const n = Number(String(raw2 ?? "").replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+function daysUntil(dateStr) {
+  if (!dateStr?.trim()) return null;
+  const d2 = new Date(dateStr.trim());
+  if (Number.isNaN(d2.getTime())) return null;
+  const today = /* @__PURE__ */ new Date();
+  today.setHours(0, 0, 0, 0);
+  d2.setHours(0, 0, 0, 0);
+  return Math.round((d2.getTime() - today.getTime()) / 864e5);
+}
+function scoreInquiryLead(input) {
+  const reasons = [];
+  let points = 0;
+  const hasPhone = Boolean(input.phone?.trim());
+  const hasAddress = Boolean(input.address?.trim());
+  const hasProduct = Boolean(input.productLabel?.trim() || input.productId?.trim());
+  const hasHp = Boolean(input.hp?.trim());
+  const hasSchedule = Boolean(input.scheduleDate?.trim() || input.scheduleTime?.trim());
+  const qty = parseQty(input.quantity);
+  const notes = (input.notes ?? "").toLowerCase();
+  const until = daysUntil(input.scheduleDate);
+  if (hasPhone) {
+    points += 1;
+    reasons.push("Phone provided");
+  }
+  if (hasAddress) {
+    points += 1;
+    reasons.push("Address provided");
+  }
+  if (hasProduct) {
+    points += 1;
+    reasons.push("Product selected");
+  }
+  if (hasHp) {
+    points += 1;
+    reasons.push("HP specified");
+  }
+  if (hasSchedule) {
+    points += 2;
+    reasons.push("Install schedule set");
+  }
+  if (until != null && until >= 0 && until <= 7) {
+    points += 3;
+    reasons.push("Wants install within 7 days");
+  } else if (until != null && until >= 0 && until <= 14) {
+    points += 1;
+    reasons.push("Wants install within 2 weeks");
+  }
+  if (qty >= 3) {
+    points += 3;
+    reasons.push(`High quantity (${qty} units)`);
+  } else if (qty >= 2) {
+    points += 1;
+    reasons.push(`Multi-unit (${qty})`);
+  }
+  if (input.propertyType?.trim()) {
+    points += 1;
+    reasons.push("Property type noted");
+  }
+  const urgencyKeywords = [
+    "asap",
+    "urgent",
+    "ready to buy",
+    "ready na",
+    "bili na",
+    "buy now",
+    "budget",
+    "cash",
+    "deposit",
+    "today",
+    "tomorrow",
+    "this week"
+  ];
+  if (urgencyKeywords.some((k) => notes.includes(k))) {
+    points += 3;
+    reasons.push("Notes show purchase urgency");
+  }
+  let score = "low";
+  if (points >= 8) score = "high";
+  else if (points >= 4) score = "medium";
+  if (reasons.length === 0) reasons.push("Limited contact or product details");
+  return { score, reasons: reasons.slice(0, 6) };
+}
+
+// server/src/ai/language.ts
+var CEBUANO_HINTS = /\b(unsa|asa|pila|pwede|gusto|ko|ninyo|inyo|nimo|kani|kana|mao|naa|wala|salamat|maayong|adlaw|gabii|kaayo|bay|oy|lagi|gyud|jud|naa'y|palihog|tabangi|tagalugtaw)\b/i;
+var TAGALOG_HINTS = /\b(po|opo|ho|ano|saan|magkano|gusto|ko|natin|ninyo|kayo|ito|iyan|yan|meron|may|wala|salamat|magandang|umaga|gabi|pwede|puwede|ba|nga|lang|naman|talaga|kasi|para|hindi|oo|sige|pakiusap|tulong|aircon|unit)\b/i;
+function detectChatLocale(text) {
+  const t = text.trim();
+  if (!t) return "en";
+  const cebHits = (t.match(CEBUANO_HINTS) || []).length;
+  const tlHits = (t.match(TAGALOG_HINTS) || []).length;
+  const hasLatinOnly = /^[\x00-\x7F\s.,!?'"()\-₱0-9]+$/.test(t);
+  if (cebHits >= 2 && cebHits > tlHits) return "ceb";
+  if (cebHits >= 1 && /gyud|jud|kaayo|palihog|maayong/i.test(t)) return "ceb";
+  if (tlHits >= 2 || /\b(po|opo|magkano|hindi|sige)\b/i.test(t)) return "tl";
+  if (!hasLatinOnly && tlHits >= 1) return "tl";
+  return "en";
+}
+function localeLabel(locale) {
+  if (locale === "tl") return "Tagalog / Taglish";
+  if (locale === "ceb") return "Cebuano / Bisaya";
+  return "English";
+}
+
+// server/src/ai/prompt.ts
+function money(n) {
+  if (!Number.isFinite(n)) return "N/A";
+  return `\u20B1${Number(n).toLocaleString("en-PH")}`;
+}
+function buildSystemPrompt(opts) {
+  const store = opts.settings?.storeName?.trim() || "Hamel Trading";
+  const active = opts.products.filter((p2) => p2.isActive !== false).slice(0, 40);
+  const catalogLines = active.map((p2) => {
+    const hp = Array.isArray(p2.hp) && p2.hp.length ? p2.hp.join("/") : "N/A";
+    const feats = Array.isArray(p2.features) ? p2.features.slice(0, 4).join(", ") : "";
+    return `- [${p2.id}] ${p2.brand ?? ""} ${p2.model ?? ""} | ${p2.category ?? "AC"} | HP: ${hp} | ${money(p2.priceStart)}\u2013${money(p2.priceEnd)}${feats ? ` | ${feats}` : ""}`;
+  });
+  const contactBits = [
+    opts.settings?.address ? `Address: ${opts.settings.address}` : null,
+    opts.settings?.phoneDisplay ? `Phone: ${opts.settings.phoneDisplay}` : null,
+    opts.settings?.whatsappNumber ? `WhatsApp: ${opts.settings.whatsappNumber}` : null,
+    opts.settings?.messengerUrl ? `Messenger: ${opts.settings.messengerUrl}` : null,
+    opts.settings?.contactEmail ? `Email: ${opts.settings.contactEmail}` : null,
+    opts.settings?.businessHours ? `Hours: ${opts.settings.businessHours}` : null
+  ].filter(Boolean).join("\n");
+  const localeHint = opts.preferredLocale ? `Detected customer language: ${localeLabel(opts.preferredLocale)}. Reply primarily in that language (or natural Taglish/Bisaya mix if they use it), while keeping Hamel's friendly dealer tone.` : `Detect the customer's language each turn (English, Tagalog/Taglish, or Cebuano/Bisaya) and reply in the same language. Keep a consistent friendly Hamel tone.`;
+  const memoryBlock = opts.customerMemory?.trim() ? `
+Known customer context (from their account / past chats \u2014 use gently, do not invent):
+${opts.customerMemory.trim()}
+` : "";
+  return `You are the AI shopping assistant for ${store}, an authorized aircon dealer in Metro Cebu, Philippines.
+
+Goals:
+- Help customers choose the right aircon (HP/room size, brand, budget, inverter vs non-inverter).
+- Answer about pricing ranges, installments, installation, delivery, warranty, and maintenance.
+- Be concise, friendly, and practical.
+- ${localeHint}
+- Prefer recommending products from the live catalog below. Use exact brand/model names and price ranges from the catalog.
+- Use store contact / hours from settings when asked. Do not invent stock, exact final quotes, warranty years, or unofficial discounts.
+- For firm quotes, site visits, or payment processing, invite them to inquire / talk to a human (Messenger, WhatsApp, or Contact page).
+- If unsure, say so briefly and offer handoff to the sales team.
+
+Room / HP estimates:
+- If the customer shares room dimensions (sqm, length\xD7width) or a room photo, give a practical HP range (e.g. 0.5\u20131.0 HP, 1.0\u20131.5 HP) with clear caveats (sun exposure, ceiling height, people, open areas).
+- Rough guide (Philippines residential, typical ceiling): ~10\u201312 sqm \u2192 0.5\u20131.0 HP; ~12\u201318 sqm \u2192 1.0\u20131.5 HP; ~18\u201325 sqm \u2192 1.5\u20132.0 HP; larger / multi-zone \u2192 suggest multiple units or site survey.
+- Photos: comment on visible room size cues only; never claim exact BTU from a photo alone. Always invite a free site check for a firm recommendation.
+- Then suggest 1\u20132 matching catalog products in that HP band when available.
+
+Store contact:
+${contactBits || "Use the website Contact page / Messenger / WhatsApp for human help."}
+${memoryBlock}
+Live catalog (id | product | category | HP | price range):
+${catalogLines.length ? catalogLines.join("\n") : "(No products loaded \u2014 give general aircon advice and ask them to browse /products.)"}
+
+Reply format:
+- Use light Markdown: **bold** for product names, bullet lists with - or *
+- Short paragraphs or bullets
+- No markdown tables
+- End with a helpful follow-up question when useful`;
+}
+function buildInquiryReplyDraftPrompt(opts) {
+  const base = buildSystemPrompt({
+    products: opts.products,
+    settings: opts.settings
+  });
+  const i = opts.inquiry;
+  return `${base}
+
+You are now drafting a short reply that a Hamel sales admin can send to this customer (Messenger / SMS / email). Write in the customer's likely language (Taglish OK for PH customers). Be warm, specific to their inquiry, and invite next steps (confirm schedule, site visit, or quote). Do not invent prices beyond catalog ranges. Do not include internal lead-score jargon.
+
+Inquiry details:
+- Name: ${i.customer_name ?? ""}
+- Product: ${i.product_label ?? "\u2014"}
+- HP: ${i.hp ?? "\u2014"}
+- Qty: ${i.quantity ?? "\u2014"}
+- Phone: ${i.phone ?? "\u2014"}
+- Address: ${i.address ?? "\u2014"}
+- Property: ${[i.property_type, i.floor].filter(Boolean).join(", ") || "\u2014"}
+- Schedule: ${[i.schedule_date, i.schedule_time].filter(Boolean).join(", ") || "\u2014"}
+- Notes: ${i.notes ?? "\u2014"}
+- Source: ${i.source ?? "\u2014"}
+
+Output only the customer-facing message body (no subject line, no "Draft:" prefix).`;
+}
+
 // server/src/routes/inquiries.ts
 async function upsertCustomer(input) {
   const sql2 = getSql();
@@ -11094,8 +11499,78 @@ inquiryRoutes.post("/", async (c) => {
     phone: body.phone,
     address: body.address
   });
+  const lead = scoreInquiryLead({
+    productLabel: body.productLabel,
+    productId: body.productId,
+    quantity: body.quantity,
+    phone: body.phone,
+    address: body.address,
+    propertyType: body.propertyType,
+    scheduleDate: body.scheduleDate,
+    scheduleTime: body.scheduleTime,
+    hp: body.hp,
+    notes: body.notes
+  });
   const sql2 = getSql();
-  const rows = customerId ? await sql2`
+  const leadReasonsJson = JSON.stringify(lead.reasons);
+  const insertWithLead = async () => {
+    if (customerId) {
+      return await sql2`
+        insert into inquiries (
+          status, customer_name, product_label, product_id, quantity,
+          phone, address, property_type, floor, schedule_date, schedule_time,
+          hp, notes, source, customer_id, lead_score, lead_reasons
+        ) values (
+          'pending',
+          ${customerName},
+          ${body.productLabel ?? null},
+          ${body.productId ?? null},
+          ${body.quantity ?? null},
+          ${body.phone ?? null},
+          ${body.address ?? null},
+          ${body.propertyType ?? null},
+          ${body.floor ?? null},
+          ${body.scheduleDate ?? null},
+          ${body.scheduleTime ?? null},
+          ${body.hp ?? null},
+          ${body.notes ?? null},
+          ${body.source ?? "storefront"},
+          ${customerId}::uuid,
+          ${lead.score},
+          ${leadReasonsJson}::jsonb
+        )
+        returning id::text as id
+      `;
+    }
+    return await sql2`
+      insert into inquiries (
+        status, customer_name, product_label, product_id, quantity,
+        phone, address, property_type, floor, schedule_date, schedule_time,
+        hp, notes, source, lead_score, lead_reasons
+      ) values (
+        'pending',
+        ${customerName},
+        ${body.productLabel ?? null},
+        ${body.productId ?? null},
+        ${body.quantity ?? null},
+        ${body.phone ?? null},
+        ${body.address ?? null},
+        ${body.propertyType ?? null},
+        ${body.floor ?? null},
+        ${body.scheduleDate ?? null},
+        ${body.scheduleTime ?? null},
+        ${body.hp ?? null},
+        ${body.notes ?? null},
+        ${body.source ?? "storefront"},
+        ${lead.score},
+        ${leadReasonsJson}::jsonb
+      )
+      returning id::text as id
+    `;
+  };
+  const insertLegacy = async () => {
+    if (customerId) {
+      return await sql2`
         insert into inquiries (
           status, customer_name, product_label, product_id, quantity,
           phone, address, property_type, floor, schedule_date, schedule_time,
@@ -11118,72 +11593,165 @@ inquiryRoutes.post("/", async (c) => {
           ${customerId}::uuid
         )
         returning id::text as id
-      ` : await sql2`
-        insert into inquiries (
-          status, customer_name, product_label, product_id, quantity,
-          phone, address, property_type, floor, schedule_date, schedule_time,
-          hp, notes, source
-        ) values (
-          'pending',
-          ${customerName},
-          ${body.productLabel ?? null},
-          ${body.productId ?? null},
-          ${body.quantity ?? null},
-          ${body.phone ?? null},
-          ${body.address ?? null},
-          ${body.propertyType ?? null},
-          ${body.floor ?? null},
-          ${body.scheduleDate ?? null},
-          ${body.scheduleTime ?? null},
-          ${body.hp ?? null},
-          ${body.notes ?? null},
-          ${body.source ?? "storefront"}
-        )
-        returning id::text as id
       `;
-  return c.json({ ok: true, id: rows[0]?.id, customerId });
+    }
+    return await sql2`
+      insert into inquiries (
+        status, customer_name, product_label, product_id, quantity,
+        phone, address, property_type, floor, schedule_date, schedule_time,
+        hp, notes, source
+      ) values (
+        'pending',
+        ${customerName},
+        ${body.productLabel ?? null},
+        ${body.productId ?? null},
+        ${body.quantity ?? null},
+        ${body.phone ?? null},
+        ${body.address ?? null},
+        ${body.propertyType ?? null},
+        ${body.floor ?? null},
+        ${body.scheduleDate ?? null},
+        ${body.scheduleTime ?? null},
+        ${body.hp ?? null},
+        ${body.notes ?? null},
+        ${body.source ?? "storefront"}
+      )
+      returning id::text as id
+    `;
+  };
+  let rows;
+  try {
+    rows = await insertWithLead();
+  } catch {
+    rows = await insertLegacy();
+  }
+  return c.json({
+    ok: true,
+    id: rows[0]?.id,
+    customerId,
+    leadScore: lead.score,
+    leadReasons: lead.reasons
+  });
 });
 inquiryRoutes.get("/", requireAuth, async (c) => {
   const limit = Math.min(Number(c.req.query("limit") || 50), 200);
   const status = c.req.query("status")?.trim();
+  const leadScore = c.req.query("leadScore")?.trim();
   const sql2 = getSql();
-  const rows = status ? await sql2`
-        select
-          id::text as id, status, customer_name, product_label, product_id, quantity,
-          phone, address, property_type, floor, schedule_date, schedule_time,
-          hp, notes, source, customer_id::text as customer_id,
-          created_at::text as created_at, updated_at::text as updated_at
-        from inquiries
-        where status = ${status}
-        order by created_at desc
-        limit ${limit}
-      ` : await sql2`
-        select
-          id::text as id, status, customer_name, product_label, product_id, quantity,
-          phone, address, property_type, floor, schedule_date, schedule_time,
-          hp, notes, source, customer_id::text as customer_id,
-          created_at::text as created_at, updated_at::text as updated_at
-        from inquiries
-        order by created_at desc
-        limit ${limit}
-      `;
-  return c.json({ inquiries: rows });
+  try {
+    const rows = status && leadScore ? await sql2`
+            select
+              id::text as id, status, customer_name, product_label, product_id, quantity,
+              phone, address, property_type, floor, schedule_date, schedule_time,
+              hp, notes, source, customer_id::text as customer_id,
+              lead_score, lead_reasons, ai_reply_draft,
+              ai_reply_draft_at::text as ai_reply_draft_at,
+              created_at::text as created_at, updated_at::text as updated_at
+            from inquiries
+            where status = ${status} and lead_score = ${leadScore}
+            order by
+              case lead_score when 'high' then 0 when 'hot' then 0 when 'medium' then 1 when 'warm' then 1 else 2 end,
+              created_at desc
+            limit ${limit}
+          ` : status ? await sql2`
+              select
+                id::text as id, status, customer_name, product_label, product_id, quantity,
+                phone, address, property_type, floor, schedule_date, schedule_time,
+                hp, notes, source, customer_id::text as customer_id,
+                lead_score, lead_reasons, ai_reply_draft,
+                ai_reply_draft_at::text as ai_reply_draft_at,
+                created_at::text as created_at, updated_at::text as updated_at
+              from inquiries
+              where status = ${status}
+              order by
+                case lead_score when 'high' then 0 when 'hot' then 0 when 'medium' then 1 when 'warm' then 1 else 2 end,
+                created_at desc
+              limit ${limit}
+            ` : leadScore ? await sql2`
+                select
+                  id::text as id, status, customer_name, product_label, product_id, quantity,
+                  phone, address, property_type, floor, schedule_date, schedule_time,
+                  hp, notes, source, customer_id::text as customer_id,
+                  lead_score, lead_reasons, ai_reply_draft,
+                  ai_reply_draft_at::text as ai_reply_draft_at,
+                  created_at::text as created_at, updated_at::text as updated_at
+                from inquiries
+                where lead_score = ${leadScore}
+                order by
+                  case lead_score when 'high' then 0 when 'hot' then 0 when 'medium' then 1 when 'warm' then 1 else 2 end,
+                  created_at desc
+                limit ${limit}
+              ` : await sql2`
+                select
+                  id::text as id, status, customer_name, product_label, product_id, quantity,
+                  phone, address, property_type, floor, schedule_date, schedule_time,
+                  hp, notes, source, customer_id::text as customer_id,
+                  lead_score, lead_reasons, ai_reply_draft,
+                  ai_reply_draft_at::text as ai_reply_draft_at,
+                  created_at::text as created_at, updated_at::text as updated_at
+                from inquiries
+                order by
+                  case lead_score when 'high' then 0 when 'hot' then 0 when 'medium' then 1 when 'warm' then 1 else 2 end,
+                  created_at desc
+                limit ${limit}
+              `;
+    return c.json({ inquiries: rows });
+  } catch {
+    const rows = status ? await sql2`
+          select
+            id::text as id, status, customer_name, product_label, product_id, quantity,
+            phone, address, property_type, floor, schedule_date, schedule_time,
+            hp, notes, source, customer_id::text as customer_id,
+            created_at::text as created_at, updated_at::text as updated_at
+          from inquiries
+          where status = ${status}
+          order by created_at desc
+          limit ${limit}
+        ` : await sql2`
+          select
+            id::text as id, status, customer_name, product_label, product_id, quantity,
+            phone, address, property_type, floor, schedule_date, schedule_time,
+            hp, notes, source, customer_id::text as customer_id,
+            created_at::text as created_at, updated_at::text as updated_at
+          from inquiries
+          order by created_at desc
+          limit ${limit}
+        `;
+    return c.json({ inquiries: rows });
+  }
 });
 inquiryRoutes.get("/:id", requireAuth, async (c) => {
   const id = c.req.param("id");
   const sql2 = getSql();
-  const rows = await sql2`
-    select
-      id::text as id, status, customer_name, product_label, product_id, quantity,
-      phone, address, property_type, floor, schedule_date, schedule_time,
-      hp, notes, source, customer_id::text as customer_id,
-      created_at::text as created_at, updated_at::text as updated_at
-    from inquiries
-    where id = ${id}::uuid
-    limit 1
-  `;
-  if (!rows[0]) return c.json({ error: "Not found" }, 404);
-  return c.json({ inquiry: rows[0] });
+  try {
+    const rows = await sql2`
+      select
+        id::text as id, status, customer_name, product_label, product_id, quantity,
+        phone, address, property_type, floor, schedule_date, schedule_time,
+        hp, notes, source, customer_id::text as customer_id,
+        lead_score, lead_reasons, ai_reply_draft,
+        ai_reply_draft_at::text as ai_reply_draft_at,
+        created_at::text as created_at, updated_at::text as updated_at
+      from inquiries
+      where id = ${id}::uuid
+      limit 1
+    `;
+    if (!rows[0]) return c.json({ error: "Not found" }, 404);
+    return c.json({ inquiry: rows[0] });
+  } catch {
+    const rows = await sql2`
+      select
+        id::text as id, status, customer_name, product_label, product_id, quantity,
+        phone, address, property_type, floor, schedule_date, schedule_time,
+        hp, notes, source, customer_id::text as customer_id,
+        created_at::text as created_at, updated_at::text as updated_at
+      from inquiries
+      where id = ${id}::uuid
+      limit 1
+    `;
+    if (!rows[0]) return c.json({ error: "Not found" }, 404);
+    return c.json({ inquiry: rows[0] });
+  }
 });
 inquiryRoutes.patch("/:id", requireAuth, async (c) => {
   const id = c.req.param("id");
@@ -11203,6 +11771,28 @@ inquiryRoutes.patch("/:id", requireAuth, async (c) => {
       where id = ${id}::uuid
     `;
   }
+  if (body.leadScore !== void 0) {
+    const raw2 = String(body.leadScore).toLowerCase();
+    const score = raw2 === "high" || raw2 === "hot" ? "high" : raw2 === "medium" || raw2 === "warm" ? "medium" : raw2 === "low" || raw2 === "cold" ? "low" : null;
+    if (!score) return c.json({ error: "leadScore must be high, medium, or low" }, 400);
+    try {
+      await sql2`
+        update inquiries
+        set lead_score = ${score},
+            lead_reasons = ${JSON.stringify(["Set manually by admin"])}::jsonb,
+            updated_at = now()
+        where id = ${id}::uuid
+      `;
+    } catch (err) {
+      return c.json(
+        {
+          error: err instanceof Error ? err.message : "Could not save priority \u2014 run sql/008_ai_features.sql in Neon."
+        },
+        500
+      );
+    }
+    return c.json({ ok: true, leadScore: score, leadReasons: ["Set manually by admin"] });
+  }
   return c.json({ ok: true });
 });
 inquiryRoutes.patch("/:id/complete", requireAuth, async (c) => {
@@ -11214,6 +11804,115 @@ inquiryRoutes.patch("/:id/complete", requireAuth, async (c) => {
     where id = ${id}::uuid
   `;
   return c.json({ ok: true });
+});
+inquiryRoutes.post("/:id/score", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const sql2 = getSql();
+  const rows = await sql2`
+    select product_label, product_id, quantity, phone, address, property_type,
+           schedule_date, schedule_time, hp, notes
+    from inquiries where id = ${id}::uuid limit 1
+  `;
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  const row = rows[0];
+  const lead = scoreInquiryLead({
+    productLabel: row.product_label,
+    productId: row.product_id,
+    quantity: row.quantity,
+    phone: row.phone,
+    address: row.address,
+    propertyType: row.property_type,
+    scheduleDate: row.schedule_date,
+    scheduleTime: row.schedule_time,
+    hp: row.hp,
+    notes: row.notes
+  });
+  try {
+    await sql2`
+      update inquiries
+      set lead_score = ${lead.score},
+          lead_reasons = ${JSON.stringify(lead.reasons)}::jsonb,
+          updated_at = now()
+      where id = ${id}::uuid
+    `;
+  } catch (err) {
+    return c.json(
+      {
+        error: err instanceof Error ? err.message : "Could not save lead score \u2014 run sql/008_ai_features.sql in Neon.",
+        leadScore: lead.score,
+        leadReasons: lead.reasons
+      },
+      500
+    );
+  }
+  return c.json({ ok: true, leadScore: lead.score, leadReasons: lead.reasons });
+});
+inquiryRoutes.post("/:id/draft-reply", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const sql2 = getSql();
+  let inquiry = null;
+  try {
+    const rows = await sql2`
+      select
+        id::text as id, status, customer_name, product_label, product_id, quantity,
+        phone, address, property_type, floor, schedule_date, schedule_time,
+        hp, notes, source, customer_id::text as customer_id,
+        lead_score, lead_reasons, ai_reply_draft,
+        ai_reply_draft_at::text as ai_reply_draft_at,
+        created_at::text as created_at, updated_at::text as updated_at
+      from inquiries where id = ${id}::uuid limit 1
+    `;
+    inquiry = rows[0] ?? null;
+  } catch {
+    const rows = await sql2`
+      select
+        id::text as id, status, customer_name, product_label, product_id, quantity,
+        phone, address, property_type, floor, schedule_date, schedule_time,
+        hp, notes, source, customer_id::text as customer_id,
+        created_at::text as created_at, updated_at::text as updated_at
+      from inquiries where id = ${id}::uuid limit 1
+    `;
+    inquiry = rows[0] ?? null;
+  }
+  if (!inquiry) return c.json({ error: "Not found" }, 404);
+  const [products, settings] = await Promise.all([
+    loadCatalogProducts(60),
+    loadStoreSettings()
+  ]);
+  const system = buildInquiryReplyDraftPrompt({
+    inquiry,
+    products,
+    settings
+  });
+  try {
+    const result = await completeChat({
+      system,
+      messages: [
+        {
+          role: "user",
+          content: "Draft a short customer reply for this inquiry now. Output only the message body."
+        }
+      ]
+    });
+    try {
+      await sql2`
+        update inquiries
+        set ai_reply_draft = ${result.text},
+            ai_reply_draft_at = now(),
+            updated_at = now()
+        where id = ${id}::uuid
+      `;
+    } catch {
+    }
+    return c.json({
+      draft: result.text,
+      provider: result.provider,
+      model: result.model
+    });
+  } catch (err) {
+    const message2 = err instanceof Error ? err.message : "Draft failed";
+    return c.json({ error: message2 }, 500);
+  }
 });
 
 // server/src/routes/messages.ts
@@ -11286,6 +11985,14 @@ eventRoutes.post("/", async (c) => {
   return c.json({ ok: true });
 });
 var analyticsRoutes = new Hono2();
+analyticsRoutes.delete("/events", requireAuth, requireManager, async (c) => {
+  const sql2 = getSql();
+  const deleted = await sql2`
+    delete from site_events
+    returning id
+  `;
+  return c.json({ ok: true, deleted: deleted.length });
+});
 analyticsRoutes.get("/summary", requireAuth, async (c) => {
   try {
     let fillDays2 = function(rows, days = 14) {
@@ -11857,7 +12564,8 @@ productTagRoutes.get("/", async (c) => {
   const rows = await sql2`
     select
       id, name, style, placement, auto_rule, icon_url, icon_emoji,
-      icon_bg_color, text_bg_color, subtitle, description, sort_order, is_active
+      icon_bg_color, text_bg_color, subtitle, description,
+      chip_image_url, render_mode, sort_order, is_active
     from product_tags
     order by sort_order asc, name asc
   `;
@@ -11884,14 +12592,19 @@ productTagRoutes.put("/", requireAuth, async (c) => {
     const textBg = tag2.textBgColor != null ? String(tag2.textBgColor) : tag2.text_bg_color != null ? String(tag2.text_bg_color) : null;
     const subtitle = tag2.subtitle != null ? String(tag2.subtitle) : null;
     const description = tag2.description != null && String(tag2.description).trim() ? String(tag2.description).trim() : null;
+    const chipImageUrl = tag2.chipImageUrl != null ? String(tag2.chipImageUrl) : tag2.chip_image_url != null ? String(tag2.chip_image_url) : null;
+    const renderModeRaw = tag2.renderMode != null ? String(tag2.renderMode) : tag2.render_mode != null ? String(tag2.render_mode) : chipImageUrl ? "image" : "composed";
+    const renderMode = renderModeRaw === "image" ? "image" : "composed";
     const sortOrder = i + 1;
     await sql2`
       insert into product_tags (
         id, name, style, placement, auto_rule, icon_url, icon_emoji,
-        icon_bg_color, text_bg_color, subtitle, description, sort_order, is_active, updated_at
+        icon_bg_color, text_bg_color, subtitle, description,
+        chip_image_url, render_mode, sort_order, is_active, updated_at
       ) values (
         ${id}, ${name}, ${style}, ${placement}, ${autoRule}, ${iconUrl}, ${iconEmoji},
-        ${iconBg}, ${textBg}, ${subtitle}, ${description}, ${sortOrder}, true, now()
+        ${iconBg}, ${textBg}, ${subtitle}, ${description},
+        ${chipImageUrl}, ${renderMode}, ${sortOrder}, true, now()
       )
       on conflict (id) do update set
         name = excluded.name,
@@ -11904,6 +12617,8 @@ productTagRoutes.put("/", requireAuth, async (c) => {
         text_bg_color = excluded.text_bg_color,
         subtitle = excluded.subtitle,
         description = excluded.description,
+        chip_image_url = excluded.chip_image_url,
+        render_mode = excluded.render_mode,
         sort_order = excluded.sort_order,
         is_active = true,
         updated_at = now()
@@ -11950,161 +12665,13 @@ productTagRoutes.post("/reset", requireAuth, async (c) => {
   const rows = await sql2`
     select
       id, name, style, placement, auto_rule, icon_url, icon_emoji,
-      icon_bg_color, text_bg_color, subtitle, description, sort_order, is_active
+      icon_bg_color, text_bg_color, subtitle, description,
+      chip_image_url, render_mode, sort_order, is_active
     from product_tags
     order by sort_order asc
   `;
   return c.json({ tags: rows });
 });
-
-// server/src/ai/providers/claude.ts
-var ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-function createClaudeProvider(opts) {
-  return {
-    name: "claude",
-    async complete(input) {
-      const res = await fetch(ANTHROPIC_URL, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": opts.apiKey,
-          "anthropic-version": "2023-06-01"
-        },
-        body: JSON.stringify({
-          model: opts.model,
-          max_tokens: 1024,
-          system: input.system,
-          messages: input.messages.map((m2) => ({
-            role: m2.role,
-            content: m2.content
-          }))
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error?.message || `Claude API error (${res.status})`);
-      }
-      const text = (data.content ?? []).filter((b2) => b2.type === "text" && typeof b2.text === "string").map((b2) => b2.text).join("\n").trim();
-      if (!text) throw new Error("Claude returned an empty response");
-      return { text, provider: "claude", model: opts.model };
-    }
-  };
-}
-
-// server/src/ai/providers/gemini.ts
-function createGeminiProvider(opts) {
-  return {
-    name: "gemini",
-    async complete(input) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(opts.model)}:generateContent?key=${encodeURIComponent(opts.apiKey)}`;
-      const contents = [];
-      for (const msg of input.messages) {
-        const role = msg.role === "assistant" ? "model" : "user";
-        const prev = contents[contents.length - 1];
-        if (prev && prev.role === role) {
-          prev.parts[0].text += `
-
-${msg.content}`;
-        } else {
-          contents.push({ role, parts: [{ text: msg.content }] });
-        }
-      }
-      if (contents.length === 0) {
-        contents.push({ role: "user", parts: [{ text: "Hello" }] });
-      }
-      const firstUser = contents.find((c) => c.role === "user");
-      if (firstUser) {
-        firstUser.parts[0].text = `${input.system}
-
----
-Customer message:
-${firstUser.parts[0].text}`;
-      }
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          contents,
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 1024
-          }
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error?.message || `Gemini API error (${res.status})`);
-      }
-      const text = (data.candidates?.[0]?.content?.parts ?? []).map((p2) => p2.text || "").join("").trim();
-      if (!text) throw new Error("Gemini returned an empty response");
-      return { text, provider: "gemini", model: opts.model };
-    }
-  };
-}
-
-// server/src/ai/index.ts
-function getAiProvider() {
-  const name = env.aiProvider();
-  if (name === "gemini") {
-    const apiKey2 = env.geminiApiKey();
-    if (!apiKey2) {
-      throw new Error("GEMINI_API_KEY is required when AI_PROVIDER=gemini");
-    }
-    return createGeminiProvider({ apiKey: apiKey2, model: env.geminiModel() });
-  }
-  const apiKey = env.anthropicApiKey();
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY is required when AI_PROVIDER=claude");
-  }
-  return createClaudeProvider({ apiKey, model: env.anthropicModel() });
-}
-async function completeChat(input) {
-  return getAiProvider().complete(input);
-}
-
-// server/src/ai/prompt.ts
-function money(n) {
-  if (!Number.isFinite(n)) return "N/A";
-  return `\u20B1${Number(n).toLocaleString("en-PH")}`;
-}
-function buildSystemPrompt(opts) {
-  const store = opts.settings?.storeName?.trim() || "Hamel Trading";
-  const active = opts.products.filter((p2) => p2.isActive !== false).slice(0, 40);
-  const catalogLines = active.map((p2) => {
-    const hp = Array.isArray(p2.hp) && p2.hp.length ? p2.hp.join("/") : "N/A";
-    const feats = Array.isArray(p2.features) ? p2.features.slice(0, 4).join(", ") : "";
-    return `- [${p2.id}] ${p2.brand ?? ""} ${p2.model ?? ""} | ${p2.category ?? "AC"} | HP: ${hp} | ${money(p2.priceStart)}\u2013${money(p2.priceEnd)}${feats ? ` | ${feats}` : ""}`;
-  });
-  const contactBits = [
-    opts.settings?.address ? `Address: ${opts.settings.address}` : null,
-    opts.settings?.phoneDisplay ? `Phone: ${opts.settings.phoneDisplay}` : null,
-    opts.settings?.whatsappNumber ? `WhatsApp: ${opts.settings.whatsappNumber}` : null,
-    opts.settings?.messengerUrl ? `Messenger: ${opts.settings.messengerUrl}` : null,
-    opts.settings?.contactEmail ? `Email: ${opts.settings.contactEmail}` : null,
-    opts.settings?.businessHours ? `Hours: ${opts.settings.businessHours}` : null
-  ].filter(Boolean).join("\n");
-  return `You are the AI shopping assistant for ${store}, an authorized aircon dealer in Metro Cebu, Philippines.
-
-Goals:
-- Help customers choose the right aircon (HP/room size, brand, budget, inverter vs non-inverter).
-- Answer about pricing ranges, installments, installation, delivery, warranty, and maintenance.
-- Be concise, friendly, and practical. Taglish is OK when the customer writes in Tagalog/Taglish.
-- Prefer recommending products from the live catalog below. Use exact brand/model names and price ranges from the catalog.
-- Never invent stock, exact final quotes, or unofficial discounts. For firm quotes, site visits, or payment processing, invite them to inquire / talk to a human (Messenger, WhatsApp, or Contact page).
-- If unsure, say so briefly and offer handoff to the sales team.
-
-Store contact:
-${contactBits || "Use the website Contact page / Messenger / WhatsApp for human help."}
-
-Live catalog (id | product | category | HP | price range):
-${catalogLines.length ? catalogLines.join("\n") : "(No products loaded \u2014 give general aircon advice and ask them to browse /products.)"}
-
-Reply format:
-- Use light Markdown: **bold** for product names, bullet lists with - or *
-- Short paragraphs or bullets
-- No markdown tables
-- End with a helpful follow-up question when useful`;
-}
 
 // server/src/routes/chat.ts
 var chatRoutes = new Hono2();
@@ -12113,10 +12680,15 @@ function normalizeMessages(raw2) {
   const out = [];
   for (const item of raw2) {
     const content = String(item.content ?? item.text ?? "").trim();
-    if (!content) continue;
+    const imageUrl = String(item.imageUrl ?? item.image_url ?? "").trim() || void 0;
+    if (!content && !imageUrl) continue;
     const roleRaw = String(item.role ?? item.sender ?? "").toLowerCase();
     const role = roleRaw === "assistant" || roleRaw === "ai" ? "assistant" : "user";
-    out.push({ role, content });
+    out.push({
+      role,
+      content: content || (imageUrl ? "Please estimate aircon HP for this room photo." : ""),
+      imageUrl
+    });
   }
   return out.slice(-16);
 }
@@ -12124,56 +12696,39 @@ chatRoutes.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const history = normalizeMessages(body.messages);
   const latest = String(body.message ?? "").trim();
-  if (latest) {
+  const latestImage = String(body.imageUrl ?? "").trim() || void 0;
+  if (latest || latestImage) {
     const last = history[history.length - 1];
-    if (!(last && last.role === "user" && last.content === latest)) {
-      history.push({ role: "user", content: latest });
+    const same = last && last.role === "user" && last.content === (latest || last.content) && (last.imageUrl || void 0) === latestImage;
+    if (!same) {
+      history.push({
+        role: "user",
+        content: latest || "Please estimate aircon HP for this room photo.",
+        imageUrl: latestImage
+      });
     }
   }
   if (!history.length || history[history.length - 1]?.role !== "user") {
     return c.json({ error: "message is required" }, 400);
   }
-  const sql2 = getSql();
-  const productRows = await sql2`
-    select id, data
-    from products
-    order by id asc
-    limit 60
-  `;
-  const products = productRows.map((row) => {
-    const d2 = row.data ?? {};
-    return {
-      id: row.id,
-      brand: typeof d2.brand === "string" ? d2.brand : void 0,
-      model: typeof d2.model === "string" ? d2.model : void 0,
-      category: typeof d2.category === "string" ? d2.category : void 0,
-      priceStart: Number(d2.priceStart) || 0,
-      priceEnd: Number(d2.priceEnd) || Number(d2.priceStart) || 0,
-      hp: Array.isArray(d2.hp) ? d2.hp.map(String) : [],
-      features: Array.isArray(d2.features) ? d2.features.map(String) : [],
-      tier: typeof d2.tier === "string" ? d2.tier : void 0,
-      isActive: d2.isActive !== false
-    };
-  });
-  let settings = null;
-  try {
-    const rows = await sql2`
-      select data from site_settings where key = 'store' limit 1
-    `;
-    settings = rows[0]?.data ?? null;
-  } catch {
-    settings = null;
-  }
+  const [products, settings] = await Promise.all([
+    loadCatalogProducts(60),
+    loadStoreSettings()
+  ]);
+  const lastUserText = history[history.length - 1]?.content ?? "";
+  const preferredLocale = detectChatLocale(lastUserText);
   const system = buildSystemPrompt({
     products,
-    settings
+    settings,
+    preferredLocale
   });
   try {
     const result = await completeChat({ system, messages: history });
     return c.json({
       reply: result.text,
       provider: result.provider,
-      model: result.model
+      model: result.model,
+      locale: preferredLocale
     });
   } catch (err) {
     const message2 = err instanceof Error ? err.message : "AI chat failed";
@@ -12213,24 +12768,38 @@ settingsRoutes.put("/:key", requireAuth, async (c) => {
 // server/src/routes/uploads.ts
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-var MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
-async function saveUploadedImage(file, requestedPath, defaultPrefix) {
-  if (!file.type.startsWith("image/")) {
-    throw Object.assign(new Error("Please choose an image file (PNG, JPG, WebP, etc.)."), {
+import { join as join2 } from "node:path";
+var MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
+var MAX_VIDEO_UPLOAD_BYTES = 300 * 1024 * 1024;
+async function saveUploadedMedia(file, requestedPath, defaultPrefix, allowVideo = false) {
+  if (!file.type.startsWith("image/") && !(allowVideo && file.type === "video/mp4")) {
+    throw Object.assign(new Error("Please choose an image or MP4 video."), {
       status: 400
     });
   }
+  const maxUploadBytes = file.type === "video/mp4" ? MAX_VIDEO_UPLOAD_BYTES : MAX_IMAGE_UPLOAD_BYTES;
+  const maxUploadMB = file.type === "video/mp4" ? 300 : 25;
+  if (file.size > maxUploadBytes) {
+    throw Object.assign(new Error(`File must be ${maxUploadMB} MB or smaller.`), { status: 400 });
+  }
   const buffer = Buffer.from(await file.arrayBuffer());
-  if (buffer.byteLength > MAX_UPLOAD_BYTES) {
-    throw Object.assign(new Error("Image must be 3 MB or smaller."), { status: 400 });
+  if (buffer.byteLength > maxUploadBytes) {
+    throw Object.assign(new Error(`File must be ${maxUploadMB} MB or smaller.`), { status: 400 });
   }
   const ext = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() ?? "png" : "png";
-  const safeExt = ["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext) ? ext : "png";
+  const safeExt = [
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "gif",
+    "svg",
+    ...allowVideo ? ["mp4"] : []
+  ].includes(ext) ? ext : "png";
   const objectPath = requestedPath || `${defaultPrefix}/${(file.name.replace(/\.[^.]+$/, "") || "image").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 48)}-${randomUUID().slice(0, 8)}.${safeExt}`;
   const uploadDir = env.uploadDir();
-  const fullPath = join(uploadDir, objectPath);
-  await mkdir(join(fullPath, ".."), { recursive: true });
+  const fullPath = join2(uploadDir, objectPath);
+  await mkdir(join2(fullPath, ".."), { recursive: true });
   await writeFile(fullPath, buffer);
   const url = `${env.publicBaseUrl()}/uploads/${objectPath.replace(/\\/g, "/")}`;
   return { url, path: objectPath };
@@ -12244,7 +12813,12 @@ uploadRoutes.post("/", requireAuth, async (c) => {
   }
   const requestedPath = typeof body.path === "string" && body.path.trim() ? body.path.trim().replace(/^\/+/, "") : null;
   try {
-    const result = await saveUploadedImage(file, requestedPath, "tag-icons");
+    const result = await saveUploadedMedia(
+      file,
+      requestedPath,
+      "tag-icons",
+      requestedPath?.startsWith("promo-popups/") ?? false
+    );
     return c.json(result);
   } catch (err) {
     const status = err && typeof err === "object" && "status" in err ? Number(err.status) : 500;
@@ -12254,6 +12828,7 @@ uploadRoutes.post("/", requireAuth, async (c) => {
     );
   }
 });
+var PUBLIC_UPLOAD_PREFIXES = ["reviews/", "chat-rooms/"];
 uploadRoutes.post("/public", async (c) => {
   const body = await c.req.parseBody();
   const file = body.file;
@@ -12261,15 +12836,19 @@ uploadRoutes.post("/public", async (c) => {
     return c.json({ error: "file is required" }, 400);
   }
   let requestedPath = typeof body.path === "string" && body.path.trim() ? body.path.trim().replace(/^\/+/, "") : null;
-  if (requestedPath && !requestedPath.startsWith("reviews/")) {
-    return c.json({ error: "Public uploads must use the reviews/ path." }, 400);
+  if (requestedPath && !PUBLIC_UPLOAD_PREFIXES.some((prefix) => requestedPath.startsWith(prefix))) {
+    return c.json(
+      { error: "Public uploads must use the reviews/ or chat-rooms/ path." },
+      400
+    );
   }
   if (!requestedPath) {
     requestedPath = null;
   }
+  const defaultPrefix = requestedPath?.startsWith("chat-rooms/") ? "chat-rooms" : "reviews";
   try {
-    const result = await saveUploadedImage(file, requestedPath, "reviews");
-    if (!result.path.startsWith("reviews/")) {
+    const result = await saveUploadedMedia(file, requestedPath, defaultPrefix);
+    if (!PUBLIC_UPLOAD_PREFIXES.some((prefix) => result.path.startsWith(prefix))) {
       return c.json({ error: "Invalid upload path." }, 400);
     }
     return c.json(result);

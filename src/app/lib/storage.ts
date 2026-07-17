@@ -1,6 +1,7 @@
 import { apiFetch, getApiBase } from './api';
 
-const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_VIDEO_UPLOAD_BYTES = 300 * 1024 * 1024;
 
 /** Public URL for a relative upload path. */
 export function getPublicStorageUrl(objectPath: string): string {
@@ -88,11 +89,12 @@ export async function checkStorageBucket(): Promise<{ ok: true } | { ok: false; 
 }
 
 export async function uploadToPublicStorage(file: File, objectPath?: string): Promise<string> {
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Please choose an image file (PNG, JPG, WebP, etc.).');
+  if (!file.type.startsWith('image/') && file.type !== 'video/mp4') {
+    throw new Error('Please choose an image or MP4 video.');
   }
-  if (file.size > MAX_UPLOAD_BYTES) {
-    throw new Error('Image must be 3 MB or smaller.');
+  const maxUploadBytes = file.type === 'video/mp4' ? MAX_VIDEO_UPLOAD_BYTES : MAX_IMAGE_UPLOAD_BYTES;
+  if (file.size > maxUploadBytes) {
+    throw new Error(`File must be ${file.type === 'video/mp4' ? 300 : 25} MB or smaller.`);
   }
 
   const form = new FormData();

@@ -1,7 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { Link } from 'react-router';
-import type { Product } from '../data/products';
+import type { InstallmentOption, Product } from '../data/products';
+import { calcInstallment } from '../data/products';
+import {
+  loadInstallmentPlans,
+  resolveInstallmentOptionsForPrice,
+} from '../data/installment-plans';
 import { PromoChip, CornerTag } from './PromoBadge';
 import { PromoCountdownInline } from './PromoCountdownBanner';
 import { brandLogoFor } from '../data/hamelAssets';
@@ -11,6 +16,8 @@ import { useProductTags } from '../context/ProductTagsContext';
 import {
   cornerTagBgColor,
   cornerTagTextColor,
+  cornerTagVariant,
+  formatCornerTagLabel,
   resolveProductCornerTags,
 } from '../lib/product-corner-tags';
 import {
@@ -20,7 +27,6 @@ import {
   productHasPromos,
   resolveProductPromos,
 } from '../lib/product-promos';
-import { calcInstallment } from '../data/products';
 
 interface ProductCardProps {
   product: Product;
@@ -51,11 +57,32 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
   const [offersOpen, setOffersOpen] = useState(false);
   const [offerFocus, setOfferFocus] = useState(0);
   const [installmentsOpen, setInstallmentsOpen] = useState(false);
+  const [installmentOptions, setInstallmentOptions] = useState<InstallmentOption[]>(() =>
+    resolveInstallmentOptionsForPrice(product.priceStart, product.installmentOptions)
+  );
   const discountedStart = getDiscountedPrice(product, product.priceStart);
   const discountedEnd = getDiscountedPrice(product, product.priceEnd);
   const hasDiscount = discountedStart < product.priceStart;
 
-  const installmentOptions = product.installmentOptions ?? [];
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      void loadInstallmentPlans().then((cfg) => {
+        if (!cancelled) {
+          setInstallmentOptions(
+            resolveInstallmentOptionsForPrice(discountedStart, product.installmentOptions, cfg)
+          );
+        }
+      });
+    };
+    refresh();
+    window.addEventListener('hamel-installment-plans-updated', refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('hamel-installment-plans-updated', refresh);
+    };
+  }, [discountedStart, product.installmentOptions]);
+
   const hasInstallments = installmentOptions.length > 0;
   const lowestMonthly = (() => {
     if (!hasInstallments) return null;
@@ -65,7 +92,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
 
   const priceColor = getPriceColor(product.tier, productHasPromos(product));
   const tierLabel = getTierLabel(product.tier);
-  const resolvedPromos = resolveProductPromos(product, tagCatalog).slice(0, 3);
+  const resolvedPromos = resolveProductPromos(product, tagCatalog).slice(0, 4);
   const cornerTags = resolveProductCornerTags(product, tagCatalog);
   const countdownEndsAt = getPromoCountdownEndsAt(product);
   const disabled = Boolean(onPick && pickDisabled);
@@ -86,25 +113,35 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
             alt={product.model}
             className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
           />
-
-          {/* Top-right corner tags — equal width per card (widest label wins) */}
-          {cornerTags.length > 0 && (
-            <div className="absolute top-2 right-2 inline-flex max-w-[calc(100%-1rem)] flex-col items-stretch gap-1">
-              {cornerTags.map((tag) => (
-                <CornerTag
-                  key={tag.id}
-                  label={tag.name}
-                  color={cornerTagTextColor(tag)}
-                  bgColor={cornerTagBgColor(tag)}
-                />
-              ))}
-            </div>
-          )}
-
         </div>
 
         {/* Product Info — fixed blocks + flex spacer so CTA sits on one baseline */}
         <div className="flex min-h-0 flex-1 flex-col p-4">
+          {/* TAG-D: pill tags above title (−20% solid + INVERTER outline) */}
+          {cornerTags.length > 0 && (
+            <div className="mb-2 flex min-h-[22px] shrink-0 flex-wrap gap-1.5">
+              {cornerTags.map((tag) => {
+                const variant = cornerTagVariant(tag);
+                const bg = cornerTagBgColor(tag);
+                return (
+                  <CornerTag
+                    key={tag.id}
+                    variant={variant}
+                    label={formatCornerTagLabel(product, tag)}
+                    color={variant === 'outline' ? bg : cornerTagTextColor(tag)}
+                    bgColor={
+                      variant === 'outline'
+                        ? bg === '#EA580C' || bg === '#EF4444'
+                          ? '#0EA5E9'
+                          : bg
+                        : bg
+                    }
+                  />
+                );
+              })}
+            </div>
+          )}
+
           {/* Brand */}
           <div className="mb-1.5 flex h-8 shrink-0 items-center">
             {(() => {
@@ -131,12 +168,12 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
             {product.model}
           </h3>
 
-          {/* HP Options — Abenson-style soft selection chips */}
-          <div className="mb-3 flex h-14 shrink-0 flex-wrap content-start gap-1.5">
+          {/* HP Options — compact single-line chips (max 4) */}
+          <div className="mb-2 flex h-5 shrink-0 flex-nowrap items-center gap-0.5 overflow-hidden">
             {product.hp.slice(0, 4).map((hp) => (
               <span
                 key={hp}
-                className="rounded-full border border-[#BFDBFE] bg-[#EFF6FF] px-2.5 py-1 text-xs font-semibold text-[#0369A1]"
+                className="shrink-0 rounded border border-[#BFDBFE] bg-[#EFF6FF] px-1 py-px text-[9px] font-semibold leading-none text-[#0369A1]"
               >
                 {hp}
               </span>
@@ -174,6 +211,38 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
                   : `₱${product.priceStart.toLocaleString()} – ₱${product.priceEnd.toLocaleString()}`}
             </div>
           </div>
+
+          {/* Compact promo stickers — one row, maximum four */}
+          {resolvedPromos.length > 0 && (
+            <div className="mb-2 flex h-8 shrink-0 flex-nowrap items-center gap-1 overflow-hidden">
+              {resolvedPromos.map((promo, i) => (
+                <PromoChip
+                  key={i}
+                  size="card"
+                  badgeType={promo.badgeType}
+                  label={promo.label}
+                  cashPerMonth={promo.cashPerMonth}
+                  chipImageUrl={promo.chipImageUrl}
+                  renderMode={promo.renderMode}
+                  iconUrl={promo.iconUrl}
+                  iconEmoji={promo.iconEmoji}
+                  iconBgColor={promo.iconBgColor}
+                  textBgColor={promo.textBgColor}
+                  subtitle={promo.subtitle}
+                  onClick={
+                    onPick || disabled
+                      ? undefined
+                      : (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOfferFocus(i);
+                          setOffersOpen(true);
+                        }
+                  }
+                />
+              ))}
+            </div>
+          )}
 
           {/* Tier / countdown — own row so it never fights installment for width */}
           <div className="mb-1.5 flex min-h-5 shrink-0 flex-wrap items-center gap-1">
@@ -223,34 +292,6 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
           </div>
 
           <div className="min-h-0 flex-1" aria-hidden />
-
-          {/* Promo chips — compact wrap so 2–3 chips don’t cover the card */}
-          <div className="mb-3 flex max-h-[68px] shrink-0 flex-wrap content-end gap-1.5 overflow-hidden">
-            {resolvedPromos.map((promo, i) => (
-              <PromoChip
-                key={i}
-                size="card"
-                badgeType={promo.badgeType}
-                label={promo.label}
-                cashPerMonth={promo.cashPerMonth}
-                iconUrl={promo.iconUrl}
-                iconEmoji={promo.iconEmoji}
-                iconBgColor={promo.iconBgColor}
-                textBgColor={promo.textBgColor}
-                subtitle={promo.subtitle}
-                onClick={
-                  onPick || disabled
-                    ? undefined
-                    : (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setOfferFocus(i);
-                        setOffersOpen(true);
-                      }
-                }
-              />
-            ))}
-          </div>
 
           {/* CTA */}
           <div

@@ -16,6 +16,7 @@ import {
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { hamelAssets, hamelBrandLogos } from '../../data/hamelAssets';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
+import { BannerLinkWrapper, resolveBannerLinkHref } from '../../lib/banner-link';
 import {
   type CoolDealsCardGridSection,
   type CoolDealsCardItem,
@@ -58,8 +59,10 @@ function SectionHeading({
   );
 }
 
-function VoucherCard({ title, color, imageUrl, body }: CoolDealsCardItem) {
-  return (
+function VoucherCard(card: CoolDealsCardItem) {
+  const { title, color, imageUrl, body } = card;
+  const clickable = Boolean(resolveBannerLinkHref(card));
+  const content = (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full">
       <div className="h-2" style={{ backgroundColor: color }} />
       <div className="p-5 flex flex-col flex-1">
@@ -73,14 +76,28 @@ function VoucherCard({ title, color, imageUrl, body }: CoolDealsCardItem) {
       </div>
     </div>
   );
+
+  return (
+    <BannerLinkWrapper
+      fields={card}
+      className={`h-full rounded-2xl ${clickable ? 'cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0EA5E9]' : ''}`}
+      ariaLabel={title}
+    >
+      {content}
+    </BannerLinkWrapper>
+  );
 }
 
 function DealCard({ card }: { card: CoolDealsDealCardItem }) {
-  const { href } = card;
+  const clickable = Boolean(resolveBannerLinkHref(card));
   return (
-    <Link to={href} className="block rounded-2xl overflow-hidden hover:opacity-95 transition-opacity">
+    <BannerLinkWrapper
+      fields={card}
+      className={`rounded-2xl overflow-hidden ${clickable ? 'cursor-pointer transition-transform hover:-translate-y-1 hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0EA5E9]' : ''}`}
+      ariaLabel={card.title}
+    >
       <DealTileSurface card={card} />
-    </Link>
+    </BannerLinkWrapper>
   );
 }
 
@@ -122,8 +139,16 @@ function ProductMatrixSection({
         <SectionHeading title={section.headingTitle} subtitle={section.headingSubtitle} />
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 md:p-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {section.columns.map((col) => (
-              <div key={col.id} className="text-center">
+            {section.columns.map((col) => {
+              const clickable = Boolean(resolveBannerLinkHref(col));
+              return (
+              <BannerLinkWrapper
+                key={col.id}
+                fields={col}
+                className={`h-full rounded-xl ${clickable ? 'cursor-pointer transition-transform hover:-translate-y-1 hover:bg-[#F0F9FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0EA5E9]' : ''}`}
+                ariaLabel={col.name}
+              >
+              <div className="h-full text-center">
                 <div className="h-24 md:h-28 rounded-lg bg-gray-50 overflow-hidden mb-3 mx-1">
                   <ImageWithFallback src={col.imageUrl} alt={col.name} className="w-full h-full object-cover" />
                 </div>
@@ -138,7 +163,9 @@ function ProductMatrixSection({
                   ))}
                 </ul>
               </div>
-            ))}
+              </BannerLinkWrapper>
+              );
+            })}
           </div>
           {(section.footnote || section.mechanicsLinkText) && (
             <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-gray-500">

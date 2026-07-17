@@ -127,22 +127,24 @@ export function PromoCountdownInline({ endsAt }: { endsAt: string }) {
   );
 }
 
-function CircleUnit({ value, label }: { value: number; label: string }) {
+function RectUnit({ value, label }: { value: number; label: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5">
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-extrabold tabular-nums text-[#0C4A6E] shadow-sm sm:h-11 sm:w-11 sm:text-base">
+    <div className="flex min-w-[2.75rem] flex-col items-center justify-center rounded-lg bg-[#7DD3FC] px-1.5 py-1 shadow-sm sm:min-w-[3.25rem] sm:px-2 sm:py-1.5">
+      <span className="text-sm font-black leading-none text-white tabular-nums sm:text-base">
         {String(value).padStart(2, '0')}
-      </div>
-      <span className="text-[9px] font-semibold uppercase tracking-wide text-white/85">{label}</span>
+      </span>
+      <span className="mt-0.5 text-[8px] font-bold lowercase leading-none tracking-wide text-white/95 sm:text-[9px]">
+        {label}
+      </span>
     </div>
   );
 }
 
-/** Abenson-style section countdown next to promo event title. */
+/** Compact countdown beside the promo-event title. */
 export function FeaturedEventCountdown({
   endsAt,
   label = 'ENDS IN',
-  labelColor = '#FFFFFF',
+  labelColor = '#0C4A6E',
 }: {
   endsAt: string;
   label?: string;
@@ -158,15 +160,20 @@ export function FeaturedEventCountdown({
   if (parts.totalMs <= 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: labelColor }}>
-        {label}
-      </span>
-      <div className="flex items-end gap-1.5 sm:gap-2">
-        <CircleUnit value={parts.days} label="days" />
-        <CircleUnit value={parts.hours} label="hours" />
-        <CircleUnit value={parts.minutes} label="mins" />
-        <CircleUnit value={parts.seconds} label="secs" />
+    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+      {label ? (
+        <span
+          className="text-[9px] font-extrabold uppercase tracking-widest sm:text-[10px]"
+          style={{ color: labelColor }}
+        >
+          {label}
+        </span>
+      ) : null}
+      <div className="flex items-center gap-1" aria-live="polite">
+        <RectUnit value={parts.days} label="days" />
+        <RectUnit value={parts.hours} label="hours" />
+        <RectUnit value={parts.minutes} label="mins" />
+        <RectUnit value={parts.seconds} label="secs" />
       </div>
     </div>
   );

@@ -5,28 +5,46 @@ import { Hono } from 'hono';
 import { env } from '../env';
 import { requireAuth, type AuthVariables } from '../middleware/auth';
 
-const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_VIDEO_UPLOAD_BYTES = 300 * 1024 * 1024;
 
-async function saveUploadedImage(
+async function saveUploadedMedia(
   file: File,
   requestedPath: string | null,
-  defaultPrefix: string
+  defaultPrefix: string,
+  allowVideo = false
 ): Promise<{ url: string; path: string }> {
-  if (!file.type.startsWith('image/')) {
-    throw Object.assign(new Error('Please choose an image file (PNG, JPG, WebP, etc.).'), {
+  if (!file.type.startsWith('image/') && !(allowVideo && file.type === 'video/mp4')) {
+    throw Object.assign(new Error('Please choose an image or MP4 video.'), {
       status: 400,
     });
   }
 
+  const maxUploadBytes = file.type === 'video/mp4' ? MAX_VIDEO_UPLOAD_BYTES : MAX_IMAGE_UPLOAD_BYTES;
+  const maxUploadMB = file.type === 'video/mp4' ? 300 : 25;
+  if (file.size > maxUploadBytes) {
+    throw Object.assign(new Error(`File must be ${maxUploadMB} MB or smaller.`), { status: 400 });
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer());
-  if (buffer.byteLength > MAX_UPLOAD_BYTES) {
-    throw Object.assign(new Error('Image must be 3 MB or smaller.'), { status: 400 });
+  if (buffer.byteLength > maxUploadBytes) {
+    throw Object.assign(new Error(`File must be ${maxUploadMB} MB or smaller.`), { status: 400 });
   }
 
   const ext = file.name.includes('.')
     ? (file.name.split('.').pop()?.toLowerCase() ?? 'png')
     : 'png';
-  const safeExt = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext) ? ext : 'png';
+  const safeExt = [
+    'png',
+    'jpg',
+    'jpeg',
+    'webp',
+    'gif',
+    'svg',
+    ...(allowVideo ? ['mp4'] : []),
+  ].includes(ext)
+    ? ext
+    : 'png';
   const objectPath =
     requestedPath ||
     `${defaultPrefix}/${(file.name.replace(/\.[^.]+$/, '') || 'image')
@@ -58,7 +76,12 @@ uploadRoutes.post('/', requireAuth, async (c) => {
       : null;
 
   try {
-    const result = await saveUploadedImage(file, requestedPath, 'tag-icons');
+    const result = await saveUploadedMedia(
+      file,
+      requestedPath,
+      'tag-icons',
+      requestedPath?.startsWith('promo-popups/') ?? false
+    );
     return c.json(result);
   } catch (err) {
     const status =
@@ -72,7 +95,9 @@ uploadRoutes.post('/', requireAuth, async (c) => {
   }
 });
 
-/** Public image upload for storefront review photos (reviews/ only). */
+const PUBLIC_UPLOAD_PREFIXES = ['reviews/', 'chat-rooms/'] as const;
+
+/** Public image upload for storefront reviews and chat room photos. */
 uploadRoutes.post('/public', async (c) => {
   const body = await c.req.parseBody();
   const file = body.file;
@@ -86,16 +111,25 @@ uploadRoutes.post('/public', async (c) => {
       ? body.path.trim().replace(/^\/+/, '')
       : null;
 
-  if (requestedPath && !requestedPath.startsWith('reviews/')) {
-    return c.json({ error: 'Public uploads must use the reviews/ path.' }, 400);
+  if (
+    requestedPath &&
+    !PUBLIC_UPLOAD_PREFIXES.some((prefix) => requestedPath!.startsWith(prefix))
+  ) {
+    return c.json(
+      { error: 'Public uploads must use the reviews/ or chat-rooms/ path.' },
+      400
+    );
   }
   if (!requestedPath) {
     requestedPath = null;
   }
 
+  const defaultPrefix =
+    requestedPath?.startsWith('chat-rooms/') ? 'chat-rooms' : 'reviews';
+
   try {
-    const result = await saveUploadedImage(file, requestedPath, 'reviews');
-    if (!result.path.startsWith('reviews/')) {
+    const result = await saveUploadedMedia(file, requestedPath, defaultPrefix);
+    if (!PUBLIC_UPLOAD_PREFIXES.some((prefix) => result.path.startsWith(prefix))) {
       return c.json({ error: 'Invalid upload path.' }, 400);
     }
     return c.json(result);

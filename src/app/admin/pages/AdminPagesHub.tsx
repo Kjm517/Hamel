@@ -34,8 +34,8 @@ const PAGES = [
   },
   {
     id: 'brands',
-    label: 'Brands page',
-    desc: 'Brand logos and cards customers see on the Brands page',
+    label: 'Brands admin',
+    desc: 'Toggleable brand tiles + storefront brand filter',
     icon: Building2,
     preview: '/brands',
   },

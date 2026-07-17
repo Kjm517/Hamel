@@ -10,6 +10,8 @@ import {
   enrichProductForAdmin,
   type AdminProductRow,
 } from '../data/admin-demo';
+import { useBrandsPage } from '../../hooks/useBrandsPage';
+import { deriveProductBrandChoices } from '../../data/brands-page';
 
 function formatPriceRange(p: AdminProductRow) {
   const fmt = (n: number) =>
@@ -28,6 +30,11 @@ const PAGE_SIZE = 5;
 export function AdminProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [brandFilter, setBrandFilter] = useState('all');
+  const brandsConfig = useBrandsPage({ trackPageLoading: false });
+  const brandChoices = useMemo(() => {
+    const fromAdmin = deriveProductBrandChoices(brandsConfig);
+    return fromAdmin.length > 0 ? fromAdmin : PRODUCT_BRANDS;
+  }, [brandsConfig]);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [products, setProducts] = useState<AdminProductRow[]>([]);
@@ -154,7 +161,7 @@ export function AdminProductsPage() {
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="all">All Brands</option>
-            {PRODUCT_BRANDS.map((b) => (
+            {brandChoices.map((b) => (
               <option key={b} value={b}>
                 {b}
               </option>

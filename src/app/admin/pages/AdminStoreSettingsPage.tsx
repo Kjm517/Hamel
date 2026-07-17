@@ -80,6 +80,14 @@ export function AdminStoreSettingsPage() {
           />
           Show AI chat on storefront
         </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={form.showCoolDealsNavIcon !== false}
+            onChange={(e) => setForm({ ...form, showCoolDealsNavIcon: e.target.checked })}
+          />
+          Show % icon beside Cool Deals in the main menu
+        </label>
         <button
           type="submit"
           disabled={saving}

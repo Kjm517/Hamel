@@ -1,4 +1,4 @@
-import { X, Send, Tag, CreditCard, CheckCircle2, Copy, Check } from 'lucide-react';
+import { X, Send, Tag, CreditCard, CheckCircle2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { createInquiry } from '../admin/lib/inquiries-api';
 import { trackEvent } from '../admin/lib/ops-api';
@@ -10,6 +10,22 @@ import type { Product } from '../data/products';
 import { promoCodes, installmentPlans, calcInstallment } from '../data/products';
 import { hamelAssets } from '../data/hamelAssets';
 import { ChatMarkdown } from './ChatMarkdown';
+import { SelectOrEnterVoucher } from './SelectOrEnterVoucher';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
+import {
+  computeVoucherDiscount,
+  recordVoucherRedemption,
+  type StoreVoucher,
+} from '../data/vouchers';
 import {
   validateInquiryAddress,
   validateInquiryBeforeSubmit,
@@ -99,12 +115,13 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
   const [subStep, setSubStep] = useState<'main' | 'time' | 'date' | 'hp-recommendation'>('main');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [inquiryId, setInquiryId] = useState<string | null>(null);
   const [messengerAutoSend, setMessengerAutoSend] = useState(false);
+  const [messengerConsentOpen, setMessengerConsentOpen] = useState(false);
 
   // Promo code UI state
   const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<StoreVoucher | null>(null);
   const [promoStatus, setPromoStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [promoDetails, setPromoDetails] = useState<{ label: string } | null>(null);
 
@@ -514,8 +531,13 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
     setIsTyping(true);
     setShowQuickReplies(false);
 
+    const voucherLine = appliedVoucher
+      ? `Voucher: ${appliedVoucher.code} (${appliedVoucher.label})`
+      : data.promoCode
+        ? `Promo: ${data.promoCode} (${data.promoDiscount})`
+        : '';
     const notes = [
-      data.promoCode ? `Promo: ${data.promoCode} (${data.promoDiscount})` : '',
+      voucherLine,
       data.installmentMonths
         ? `Payment: ${data.installmentMonths}${data.installmentMonthlyAmount ? ` @ ${data.installmentMonthlyAmount}` : ''}`
         : '',
@@ -544,6 +566,9 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
       createdId = res.id;
       setInquiryId(res.id);
       void trackEvent('chat_open', window.location.pathname, { productId: product.id });
+      if (appliedVoucher) {
+        void recordVoucherRedemption(appliedVoucher.id);
+      }
     } catch {
       // still show confirmation + messaging options
     }
@@ -551,7 +576,13 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
     setIsTyping(false);
     setSubmitted(true);
     addMessage(
-      `Thank you for your Hamel Trading inquiry! Here are your order details:\n\n**Name:** ${data.name}\n**Phone:** ${data.contactNumber}\n**Address:** ${data.address}\n**Property:** ${data.propertyType}, ${data.floor}\n**Order:** ${data.quantity} × ${product.brand} ${product.model} (${data.hp})\n**Schedule:** ${data.scheduleDate}, ${data.scheduleTime}\n**Payment:** ${data.installmentMonths || 'To confirm with team'}${data.promoCode ? `\n**Promo:** ${data.promoCode} (${data.promoDiscount})` : ''}\n\nOur team will follow up shortly. You can also continue on Messenger or WhatsApp below.`,
+      `Thank you for your Hamel Trading inquiry! Here are your order details:\n\n**Name:** ${data.name}\n**Phone:** ${data.contactNumber}\n**Address:** ${data.address}\n**Property:** ${data.propertyType}, ${data.floor}\n**Order:** ${data.quantity} × ${product.brand} ${product.model} (${data.hp})\n**Schedule:** ${data.scheduleDate}, ${data.scheduleTime}\n**Payment:** ${data.installmentMonths || 'To confirm with team'}${
+        appliedVoucher
+          ? `\n**Voucher:** ${appliedVoucher.code} (${appliedVoucher.label})`
+          : data.promoCode
+            ? `\n**Promo:** ${data.promoCode} (${data.promoDiscount})`
+            : ''
+      }\n\nOur team will follow up shortly. You can also continue on Messenger or WhatsApp below.`,
       'ai',
       'confirmation'
     );
@@ -613,15 +644,14 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
           }
         }
       })();
+      onClose();
       return;
     }
 
-    const ok = await copyTextToClipboard(message);
-    if (ok) {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2500);
-    }
+    // Messenger may not preserve a prefilled message on every platform; copy it as a safe fallback.
+    await copyTextToClipboard(message);
     openUrlBlank(messengerUrl({ message, ref: id ? `inquiry_${id}` : undefined }));
+    onClose();
   };
 
   const getQuickReplies = (): string[] => {
@@ -801,20 +831,37 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
         {/* Confirm / send to Hamel Trading */}
         {(showSendButtons || showPostSubmitButtons) && (
           <div className="px-4 pb-4 space-y-3">
-            {showSendButtons && (
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => void finalizeInquiry(formData as InquiryFormData)}
-                className="w-full py-3 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-60"
-                style={{ backgroundColor: '#0EA5E9' }}
-              >
-                {submitting ? 'Sending to Hamel Trading…' : 'Yes — send to Hamel Trading'}
-              </button>
-            )}
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
+              <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
+                <span>Subtotal</span>
+                <span className="font-semibold text-gray-900">
+                  ₱{product.priceStart.toLocaleString()}
+                </span>
+              </div>
+              <SelectOrEnterVoucher
+                subtotal={product.priceStart}
+                applied={appliedVoucher}
+                onApply={setAppliedVoucher}
+                productId={product.id}
+              />
+              {appliedVoucher ? (
+                <div className="mt-2 flex items-center justify-between border-t border-dashed border-gray-200 pt-2 text-sm">
+                  <span className="font-bold text-gray-900">Est. total</span>
+                  <span className="font-black text-[#2563EB]">
+                    ₱
+                    {Math.max(
+                      0,
+                      product.priceStart -
+                        computeVoucherDiscount(appliedVoucher, product.priceStart).amount
+                    ).toLocaleString()}
+                  </span>
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
-              onClick={() => void openWithDetails('messenger')}
+              disabled={submitting}
+              onClick={() => setMessengerConsentOpen(true)}
               className="w-full py-3 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity"
               style={{ backgroundColor: '#0EA5E9' }}
             >
@@ -824,53 +871,48 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
                   alt=""
                   className="h-5 w-5 rounded-sm bg-white object-contain p-0.5"
                 />
-                <span>Continue on Messenger</span>
+                <span>
+                  {showSendButtons ? 'Send inquiry & continue in Messenger' : 'Continue in Messenger'}
+                </span>
               </div>
               <div className="text-xs mt-1 opacity-80">
-                {messengerAutoSend
-                  ? 'Page sends your details automatically — no need to type Hi'
-                  : copied
-                    ? 'Details ready — tap Send in Messenger (or paste if empty)'
-                    : 'Message opens with your details ready'}
+                Review what will be shared before continuing
               </div>
             </button>
-            <button
-              type="button"
-              onClick={() => void openWithDetails('whatsapp')}
-              className="w-full py-3 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors"
-            >
-              <div className="flex items-center justify-center gap-2">
-                <img
-                  src={hamelAssets.social.whatsapp}
-                  alt=""
-                  className="h-5 w-5 rounded-sm bg-white object-contain p-0.5"
-                />
-                <span>Continue on WhatsApp</span>
-              </div>
-              <div className="text-xs mt-1 opacity-80">Message opens with your details ready</div>
-            </button>
-            {showPostSubmitButtons ? (
-              <button
-                type="button"
-                onClick={async () => {
-                  const ok = await copyTextToClipboard(buildInquiryMessage(product, formData));
-                  if (ok) {
-                    setCopied(true);
-                    window.setTimeout(() => setCopied(false), 2500);
-                  }
-                }}
-                className="flex w-full items-center justify-center gap-2 py-2 text-xs font-semibold text-gray-600 hover:text-[#0EA5E9]"
-              >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-                {copied ? 'Inquiry details copied' : 'Copy inquiry details'}
-              </button>
-            ) : (
-              <p className="text-xs text-gray-500 text-center">
-                Your complete order details will be saved for the Hamel team.
-              </p>
-            )}
+            <p className="text-xs text-gray-500 text-center">
+              Your complete order details will be saved for the Hamel team.
+            </p>
           </div>
         )}
+
+        <AlertDialog open={messengerConsentOpen} onOpenChange={setMessengerConsentOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Send details to Messenger?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Hamel Trading will save your inquiry and open Messenger with your selected product,
+                name, phone number, address, schedule, and payment preference ready for the team.
+                {messengerAutoSend
+                  ? ' Once your Messenger conversation opens, the Hamel page can send your inquiry confirmation there.'
+                  : ' Messenger will open with your details ready to review and send.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={submitting}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setMessengerConsentOpen(false);
+                  void openWithDetails('messenger');
+                }}
+                className="bg-[#0EA5E9] text-white hover:bg-[#0284C7]"
+              >
+                {submitting ? 'Sending…' : 'Send & open Messenger'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Installment Picker UI */}
         {showInstallmentPicker && !showSendButtons && !showPostSubmitButtons && (

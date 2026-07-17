@@ -14,7 +14,7 @@ export function CoolDealsHeroBanner({ config }: CoolDealsHeroBannerProps) {
     (config.badge || config.title || config.titleHighlight || config.subtitle);
 
   const inner = (
-    <div className={`relative w-full overflow-hidden ${PAGE_BANNER_HEIGHTS.md}`}>
+    <div className={`relative w-full overflow-hidden hamel-anim-fade ${PAGE_BANNER_HEIGHTS.md}`}>
       <ImageWithFallback
         src={config.bannerImageUrl}
         alt={config.title || 'Cool Deals promotion'}

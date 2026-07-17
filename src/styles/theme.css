@@ -220,4 +220,428 @@
     width: 0;
     height: 0;
   }
+
+  @keyframes hamel-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes hamel-slide-up {
+    from { opacity: 0; transform: translateY(28px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes hamel-bounce-in {
+    0% { opacity: 0; transform: scale(0.72); }
+    55% { opacity: 1; transform: scale(1.08); }
+    75% { transform: scale(0.96); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes hamel-confetti-pop {
+    0% { opacity: 0; transform: scale(0.88) rotate(-3deg); }
+    45% { opacity: 1; transform: scale(1.06) rotate(1.5deg); }
+    70% { transform: scale(0.98) rotate(-0.5deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0); }
+  }
+  @keyframes hamel-confetti-dots {
+    0% { opacity: 0; transform: translateY(-10px) scale(0.5) rotate(0deg); }
+    15% { opacity: 1; }
+    55% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(52px) scale(1.05) rotate(28deg); }
+  }
+  @keyframes hamel-countdown-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.35); }
+    50% { transform: scale(1.03); box-shadow: 0 0 0 10px rgba(14, 165, 233, 0); }
+  }
+  @keyframes hamel-mascot-wiggle {
+    0% { opacity: 0; transform: translateY(16px) rotate(-6deg); }
+    40% { opacity: 1; transform: translateY(0) rotate(5deg); }
+    60% { transform: rotate(-4deg); }
+    80% { transform: rotate(3deg); }
+    100% { opacity: 1; transform: rotate(0); }
+  }
+  @keyframes hamel-zoom-in {
+    from { opacity: 0; transform: scale(0.55); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes hamel-card-flip {
+    from { opacity: 0; transform: perspective(900px) rotateY(-85deg); }
+    to { opacity: 1; transform: perspective(900px) rotateY(0); }
+  }
+  @keyframes hamel-slide-side {
+    from { opacity: 0; transform: translateX(-48px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes hamel-attention-shake {
+    0%, 100% { transform: translateX(0); }
+    15% { transform: translateX(-7px) rotate(-1deg); }
+    30% { transform: translateX(7px) rotate(1deg); }
+    45% { transform: translateX(-5px); }
+    60% { transform: translateX(5px); }
+    75% { transform: translateX(-2px); }
+  }
+  @keyframes hamel-glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.45), 0 12px 28px rgba(0,0,0,0.08); }
+    50% { box-shadow: 0 0 28px 8px rgba(14, 165, 233, 0.35), 0 12px 28px rgba(0,0,0,0.08); }
+  }
+  @keyframes hamel-shine-sweep {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes hamel-pulse-soft {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
+
+  .hamel-anim-fade { animation: hamel-fade-in 0.45s ease-out both; }
+  .hamel-anim-slide-up { animation: hamel-slide-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .hamel-anim-bounce-in { animation: hamel-bounce-in 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  .hamel-anim-confetti-burst {
+    position: relative;
+    overflow: visible;
+    animation: hamel-confetti-pop 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .hamel-anim-confetti-burst::before,
+  .hamel-anim-confetti-burst::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 2;
+    animation: hamel-confetti-dots 1.55s ease-out both;
+  }
+  .hamel-anim-confetti-burst::before {
+    top: 6px;
+    left: 16%;
+    background: #F59E0B;
+    box-shadow:
+      28px -6px 0 #EF4444,
+      52px 4px 0 #22C55E,
+      14px 18px 0 #A855F7,
+      -10px 10px 0 #0EA5E9;
+  }
+  .hamel-anim-confetti-burst::after {
+    top: 2px;
+    right: 18%;
+    background: #0EA5E9;
+    animation-delay: 0.18s;
+    box-shadow:
+      -24px -4px 0 #F59E0B,
+      -48px 8px 0 #EC4899,
+      -8px 20px 0 #38BDF8,
+      12px 12px 0 #84CC16;
+  }
+  .hamel-anim-countdown-pulse {
+    animation: hamel-fade-in 0.35s ease-out both, hamel-countdown-pulse 1.2s ease-in-out 0.35s 3;
+  }
+  .hamel-anim-mascot-wiggle {
+    animation: hamel-mascot-wiggle 0.75s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  }
+  .hamel-anim-zoom-in {
+    animation: hamel-zoom-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .hamel-anim-card-flip {
+    transform-origin: center;
+    animation: hamel-card-flip 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .hamel-anim-slide-side {
+    animation: hamel-slide-side 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .hamel-anim-attention-shake {
+    animation: hamel-fade-in 0.25s ease-out both, hamel-attention-shake 0.55s ease-in-out 0.2s 1;
+  }
+  .hamel-anim-glow-pulse {
+    animation: hamel-fade-in 0.35s ease-out both, hamel-glow-pulse 1.4s ease-in-out 0.3s 3;
+  }
+  .hamel-anim-shine-sweep {
+    position: relative;
+    overflow: hidden;
+    animation: hamel-fade-in 0.4s ease-out both;
+  }
+  .hamel-anim-shine-sweep::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      110deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 65%
+    );
+    background-size: 200% 100%;
+    animation: hamel-shine-sweep 1.4s linear 0.2s 2;
+    pointer-events: none;
+  }
+
+  /* Legacy class names still referenced in older builds */
+  .hamel-anim-pulse { animation: hamel-fade-in 0.35s ease-out both, hamel-pulse-soft 1.8s ease-in-out 0.35s 2; }
+  .hamel-anim-shimmer {
+    animation: hamel-fade-in 0.4s ease-out both;
+    background-image: linear-gradient(110deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%);
+    background-size: 200% 100%;
+    animation-name: hamel-fade-in, hamel-shine-sweep;
+    animation-duration: 0.4s, 1.6s;
+    animation-timing-function: ease-out, linear;
+    animation-iteration-count: 1, 2;
+  }
+  .hamel-anim-confetti { animation: hamel-confetti-pop 0.75s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  /* LOAD-B · Walking penguin loading screen */
+  @keyframes hamel-load-waddle {
+    0%, 100% { transform: rotate(-7deg); }
+    50% { transform: rotate(7deg); }
+  }
+  @keyframes hamel-load-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+  @keyframes hamel-load-shadow {
+    0%, 100% { transform: scaleX(1); opacity: 0.28; }
+    50% { transform: scaleX(0.68); opacity: 0.16; }
+  }
+  @keyframes hamel-load-ground {
+    from { background-position: 0 0; }
+    to { background-position: -56px 0; }
+  }
+  @keyframes hamel-load-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; visibility: hidden; }
+  }
+  @keyframes hamel-load-msg-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hamel-load-msg {
+    animation: hamel-load-msg-in 0.35s ease-out both;
+    min-height: 1.4em;
+  }
+  @keyframes hamel-load-b-shadow {
+    0%, 100% { transform: scaleX(1); opacity: 0.35; }
+    50% { transform: scaleX(0.7); opacity: 0.2; }
+  }
+
+  .hamel-load-screen {
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 42%, rgba(125, 211, 252, 0.35) 0%, transparent 70%),
+      linear-gradient(165deg, #F0F9FF 0%, #E0F2FE 48%, #F8FBFF 100%);
+  }
+  .hamel-load-glow {
+    position: absolute;
+    width: min(420px, 80vw);
+    height: min(420px, 80vw);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.7) 0%, transparent 68%);
+    pointer-events: none;
+  }
+  .hamel-load-b-shadow {
+    animation: hamel-load-b-shadow 0.7s ease-in-out infinite;
+  }
+
+  /*
+   * Dance strip: 9600×1600 → 6 × 1600 frames, transparent PNG.
+   * Centered in place (no travel).
+   */
+  @keyframes hamel-penguin-dance {
+    from { background-position: 0 0; }
+    to { background-position: -840px 0; } /* 140 × 6 */
+  }
+  .hamel-load-dance-sprite {
+    width: 140px;
+    height: 140px;
+    background-image: var(--hamel-dance-sheet);
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-size: 840px 140px;
+    animation: hamel-penguin-dance 0.9s steps(6) infinite;
+    image-rendering: auto;
+  }
+
+  /* Promo event ambient overlays (balloons, breeze, frost, etc.) */
+  @keyframes hamel-fx-float-up {
+    0% { transform: translate3d(0, 0, 0) rotate(-8deg); opacity: 0; }
+    8% { opacity: 1; }
+    100% { transform: translate3d(24px, calc(-100% - 520px), 0) rotate(12deg); opacity: 0; }
+  }
+  @keyframes hamel-fx-drift {
+    0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+    8% { opacity: 0.9; }
+    100% { transform: translate3d(110vw, -24px, 0) rotate(32deg); opacity: 0; }
+  }
+  @keyframes hamel-fx-fall {
+    0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+    10% { opacity: 1; }
+    100% { transform: translate3d(28px, 560px, 0) rotate(200deg); opacity: 0; }
+  }
+  @keyframes hamel-fx-twinkle {
+    0%, 100% { opacity: 0.2; transform: scale(0.75); }
+    50% { opacity: 1; transform: scale(1.25); }
+  }
+  @keyframes hamel-fx-mist-drift {
+    0% { transform: translate3d(-8%, 0, 0); }
+    50% { transform: translate3d(10%, -10%, 0); }
+    100% { transform: translate3d(-4%, 6%, 0); }
+  }
+  @keyframes hamel-fx-bubble-rise {
+    0% { transform: translate3d(0, 0, 0) scale(0.75); opacity: 0; }
+    12% { opacity: 0.75; }
+    100% { transform: translate3d(16px, -480px, 0) scale(1.15); opacity: 0; }
+  }
+
+  .hamel-fx-balloon {
+    bottom: -48px;
+    will-change: transform, opacity;
+    animation-name: hamel-fx-float-up;
+    animation-timing-function: linear;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+  }
+  .hamel-fx-balloon-body {
+    display: block;
+    width: var(--fx-size, 36px);
+    height: calc(var(--fx-size, 36px) * 1.2);
+    border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%;
+    background: radial-gradient(circle at 30% 28%, rgba(255,255,255,0.65), transparent 42%), var(--fx-color, #93C5FD);
+    box-shadow: inset -4px -6px 10px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0,0,0,0.12);
+  }
+  .hamel-fx-balloon-string {
+    display: block;
+    width: 1px;
+    height: 34px;
+    margin: 0 auto;
+    background: rgba(60, 60, 60, 0.5);
+  }
+
+  .hamel-fx-leaf {
+    will-change: transform, opacity;
+    animation-name: hamel-fx-drift;
+    animation-timing-function: linear;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+  }
+
+  .hamel-fx-mist {
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.7), transparent 70%);
+    filter: blur(12px);
+    will-change: transform;
+    animation-name: hamel-fx-mist-drift;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: 2;
+  }
+
+  .hamel-fx-mist-icon {
+    will-change: transform, opacity;
+    animation-name: hamel-fx-mist-drift;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: 2;
+    filter: drop-shadow(0 2px 6px rgba(12, 74, 110, 0.25));
+  }
+
+  .hamel-fx-cool-mist .hamel-fx-veil,
+  .hamel-fx-frost .hamel-fx-veil {
+    background:
+      radial-gradient(ellipse at 18% 18%, rgba(255, 255, 255, 0.42), transparent 48%),
+      radial-gradient(ellipse at 82% 72%, rgba(186, 230, 253, 0.48), transparent 52%),
+      linear-gradient(180deg, rgba(224, 242, 254, 0.22), transparent 55%);
+    animation: hamel-fx-mist-drift 4s ease-in-out 2;
+  }
+  .hamel-fx-cool-mist .hamel-fx-veil-strong {
+    background:
+      radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, 0.28), transparent 55%),
+      radial-gradient(ellipse at 30% 85%, rgba(125, 211, 252, 0.3), transparent 50%);
+    animation: hamel-fx-mist-drift 3.5s ease-in-out 2 reverse;
+  }
+  .hamel-fx-frost .hamel-fx-veil {
+    background:
+      linear-gradient(180deg, rgba(224, 242, 254, 0.35), transparent 42%),
+      radial-gradient(ellipse at 70% 10%, rgba(255, 255, 255, 0.4), transparent 40%);
+  }
+
+  .hamel-fx-frost,
+  .hamel-fx-snow,
+  .hamel-fx-confetti {
+    top: -24px;
+    will-change: transform, opacity;
+    animation-name: hamel-fx-fall;
+    animation-timing-function: linear;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+  }
+
+  .hamel-fx-sparkle {
+    will-change: transform, opacity;
+    animation-name: hamel-fx-twinkle;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: 3;
+  }
+
+  .hamel-fx-bubble {
+    bottom: -24px;
+    border: 1.5px solid rgba(255, 255, 255, 0.85);
+    background: radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.65), rgba(125, 211, 252, 0.15));
+    will-change: transform, opacity;
+    animation-name: hamel-fx-bubble-rise;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+  }
+
+  .hamel-fx-burst {
+    transition: opacity 0.7s ease;
+  }
+  .hamel-fx-fading {
+    opacity: 0;
+  }
+}
+
+/* 5 × 5 Hamel-wave spritesheet (25 frames). */
+.hamel-wave {
+  width: 256px;
+  height: 256px;
+  background: url('/hamel/mascot/Hamel-wave.png') 0 0 / 500% 500% no-repeat;
+  animation: hamel-wave-grid 2.5s steps(1, end) infinite;
+}
+
+.hamel-wave-small {
+  width: 112px;
+  height: 112px;
+}
+
+@keyframes hamel-wave-grid {
+  0% { background-position: 0% 0%; }
+  4% { background-position: 25% 0%; }
+  8% { background-position: 50% 0%; }
+  12% { background-position: 75% 0%; }
+  16% { background-position: 100% 0%; }
+  20% { background-position: 0% 25%; }
+  24% { background-position: 25% 25%; }
+  28% { background-position: 50% 25%; }
+  32% { background-position: 75% 25%; }
+  36% { background-position: 100% 25%; }
+  40% { background-position: 0% 50%; }
+  44% { background-position: 25% 50%; }
+  48% { background-position: 50% 50%; }
+  52% { background-position: 75% 50%; }
+  56% { background-position: 100% 50%; }
+  60% { background-position: 0% 75%; }
+  64% { background-position: 25% 75%; }
+  68% { background-position: 50% 75%; }
+  72% { background-position: 75% 75%; }
+  76% { background-position: 100% 75%; }
+  80% { background-position: 0% 100%; }
+  84% { background-position: 25% 100%; }
+  88% { background-position: 50% 100%; }
+  92% { background-position: 75% 100%; }
+  96%, 100% { background-position: 100% 100%; }
+}
+
+@keyframes hamel-admin-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
