@@ -12,6 +12,7 @@ export function AdminProfilePage() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +28,7 @@ export function AdminProfilePage() {
     setFullName(employee.fullName);
     setPhone(employee.phone ?? '');
     setAvatarUrl(employee.avatarUrl ?? '');
+    setAvatarBroken(false);
   }, [employee]);
 
   const onSaveProfile = async (e: FormEvent) => {
@@ -35,10 +37,16 @@ export function AdminProfilePage() {
     setSaving(true);
     setError(null);
     try {
+      const storedAvatar = (() => {
+        const raw = avatarUrl.trim();
+        if (!raw) return null;
+        // Prefer the public URL from upload (Cloudinary HTTPS). Only compact local /uploads URLs.
+        return normalizeStoragePathForDb(raw) ?? raw;
+      })();
       await updateMyProfile({
         fullName: fullName.trim(),
         phone: phone.trim(),
-        avatarUrl: normalizeStoragePathForDb(avatarUrl) ?? (avatarUrl.trim() || null),
+        avatarUrl: storedAvatar,
       });
       await refreshEmployee();
       setSaved(true);
@@ -105,11 +113,12 @@ export function AdminProfilePage() {
         <h3 className="mb-[18px] text-[15.5px] font-bold text-[#1e2a38]">Profile details</h3>
 
         <div className="mb-5 flex items-center gap-4">
-          {avatarSrc ? (
+          {avatarSrc && !avatarBroken ? (
             <img
               src={avatarSrc}
               alt=""
               className="h-[68px] w-[68px] shrink-0 rounded-full object-cover"
+              onError={() => setAvatarBroken(true)}
             />
           ) : (
             <span className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-[#0ea5e9] text-2xl font-extrabold text-white">
@@ -120,8 +129,11 @@ export function AdminProfilePage() {
             <ImageUrlOrUploadField
               label="Upload photo"
               value={avatarUrl}
-              onChange={setAvatarUrl}
-              hint="PNG, JPG, or WebP up to 25 MB."
+              onChange={(next) => {
+                setAvatarBroken(false);
+                setAvatarUrl(next);
+              }}
+              hint="PNG, JPG, or WebP up to 25 MB. Upload, then click Save profile."
               remoteUpload={{
                 getObjectPath: (file) => {
                   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';

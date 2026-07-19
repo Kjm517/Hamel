@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Upload, X } from 'lucide-react';
 import {
   buildTagIconStoragePath,
@@ -44,6 +44,11 @@ export function ImageUrlOrUploadField({
 
   const previewSrc = resolveStorageImageUrl(value) ?? value;
   const isVideo = previewAsVideo || /\.(mp4)(?:[?#]|$)/i.test(value);
+  const [previewBroken, setPreviewBroken] = useState(false);
+
+  useEffect(() => {
+    setPreviewBroken(false);
+  }, [value]);
 
   const readFile = async (file: File) => {
     setUploadError(null);
@@ -117,11 +122,16 @@ export function ImageUrlOrUploadField({
               controls
               muted
             />
+          ) : previewBroken ? (
+            <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-1 text-center text-[10px] font-medium text-amber-800">
+              Missing file — re-upload
+            </div>
           ) : (
             <img
               src={previewSrc}
               alt=""
               className="h-16 w-24 shrink-0 rounded-lg border border-gray-200 object-cover"
+              onError={() => setPreviewBroken(true)}
             />
           )}
           <div className="min-w-0 flex-1">
@@ -132,6 +142,11 @@ export function ImageUrlOrUploadField({
                   ? `Upload: ${value}`
                   : value}
             </p>
+            {previewBroken ? (
+              <p className="mt-1 text-xs text-amber-700">
+                This path is saved but the file is not available. Upload again, then Save profile.
+              </p>
+            ) : null}
             <button
               type="button"
               onClick={() => onChange('')}

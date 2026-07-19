@@ -33,6 +33,16 @@ export function resolveStorageImageUrl(value: string | undefined): string | unde
 export function normalizeStoragePathForDb(value: string | undefined): string | null {
   if (!value?.trim()) return null;
   const v = value.trim();
+
+  // Keep remote CDN URLs (Cloudinary, etc.) as absolute — never strip them to a local path.
+  if (/^https?:\/\//i.test(v)) {
+    const isLocalUpload =
+      /\/uploads\//i.test(v) &&
+      (/localhost|127\.0\.0\.1/i.test(v) ||
+        (typeof window !== 'undefined' && v.startsWith(`${window.location.origin}/uploads/`)));
+    if (!isLocalUpload) return v;
+  }
+
   const base = getApiBase();
   const prefixes = [
     `${base}/uploads/`,
@@ -112,11 +122,15 @@ export async function uploadToPublicStorage(file: File, objectPath?: string): Pr
   form.append('file', file);
   if (objectPath) form.append('path', objectPath.replace(/^\//, ''));
 
-  const res = await apiFetch<{ url: string }>('/api/uploads', {
+  const res = await apiFetch<{ url?: string; path?: string }>('/api/uploads', {
     method: 'POST',
     formData: form,
   });
-  return res.url;
+  const url = res.url?.trim();
+  if (!url) {
+    throw new Error('Upload succeeded but no public URL was returned.');
+  }
+  return url;
 }
 
 /** @deprecated Use checkStorageBucket — kept for AdminTagsPage import compatibility */

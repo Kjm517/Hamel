@@ -59,6 +59,17 @@ async function saveUploadedMedia(
       contentType: file.type || (safeExt === 'mp4' ? 'video/mp4' : `image/${safeExt}`),
       fileName: file.name || objectPath,
     });
+    // Mirror to local disk so /uploads/<path> (and admin path normalization) still work in dev.
+    if (!process.env.VERCEL) {
+      try {
+        const uploadDir = env.uploadDir();
+        const fullPath = join(uploadDir, objectPath);
+        await mkdir(join(fullPath, '..'), { recursive: true });
+        await writeFile(fullPath, buffer);
+      } catch {
+        // Non-fatal — Cloudinary URL remains the source of truth.
+      }
+    }
     return { ...result, storage: 'cloudinary' };
   }
 
