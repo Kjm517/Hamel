@@ -55,19 +55,17 @@ function TagChipUploadGuide() {
   return (
     <div className={adminUi.tip}>
       <div>
-        <p className="mb-2 text-sm font-semibold">TAG D — full chip image (Abenson-style)</p>
+        <p className="mb-2 text-sm font-semibold">Full chip image</p>
         <ul className="space-y-1.5 text-xs leading-relaxed">
           <li>
-            <span className="font-medium">Recommended:</span> PNG with transparent edges, about{' '}
-            <strong>320×56</strong> or <strong>240×48</strong> px. The whole graphic is the chip.
+            Best as a PNG with a transparent background, around <strong>320×56</strong> px. The
+            whole image is the sticker.
           </li>
           <li>
-            <span className="font-medium">Composed mode:</span> uses icon + colors below (legacy).
-            Switch to <strong>Image chip</strong> when you upload a full graphic.
+            Prefer <strong>Image chip</strong> when you have a ready graphic. Composed mode builds
+            a simpler sticker from icon + colors.
           </li>
-          <li>
-            Max file size 25 MB. Folder: <span className="font-mono">{DEFAULT_STORAGE_BUCKET}</span>.
-          </li>
+          <li>Max file size 25 MB.</li>
         </ul>
       </div>
     </div>
@@ -79,8 +77,8 @@ function TagIconUploadGuide() {
     <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700">
       <p className="mb-2 text-sm font-semibold">Small icon (composed chips only)</p>
       <ul className="space-y-1.5 text-xs leading-relaxed">
-        <li>64×64 or 128×128 px square PNG. Shows ~18×18 on cards.</li>
-        <li>Ignored when chip mode is Image.</li>
+        <li>Square PNG, about 64×64 or 128×128. Shows small on the card.</li>
+        <li>Not used when the chip is an uploaded image.</li>
       </ul>
     </div>
   );
@@ -214,8 +212,8 @@ export function AdminTagsPage() {
         <div>
           <p className={adminUi.pageIntro}>
             {tab === 'promo'
-              ? 'Abenson-style sticker chips under the price — upload a full graphic (best) or use the playful composed sticker. Assign up to 4 per product.'
-              : 'Pill tags above the product title (TAG-D): solid for discounts (−20%), outline for specs (INVERTER).'}
+              ? 'These stickers show under the price on product cards. Upload your own image, or use the built-in style. You can put up to 4 on each product.'
+              : 'Small labels above the product name, like −15% or INVERTER. Solid fills for deals, outline for specs.'}
           </p>
           <div className="mt-3 flex gap-2">
             <button
@@ -382,14 +380,14 @@ export function AdminTagsPage() {
                   className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
                 >
                   <option value="composed">Composed (icon + text)</option>
-                  <option value="image">Image chip (TAG D / Abenson-style)</option>
+                  <option value="image">Image chip (uploaded graphic)</option>
                 </select>
               </label>
               )}
               {!isCornerForm && <TagChipUploadGuide />}
               {!isCornerForm && (
               <ImageUrlOrUploadField
-                label="Full chip image (TAG D)"
+                label="Full chip image"
                 value={form.chipImageUrl ?? ''}
                 onChange={(url) =>
                   setForm((f) => ({
@@ -648,7 +646,7 @@ export function AdminTagsPage() {
                     <td className="px-6 py-3.5 text-xs text-slate-600">
                       {(tag.renderMode ?? (tag.chipImageUrl ? 'image' : 'composed')) ===
                       'image'
-                        ? 'Image (TAG D)'
+                        ? 'Image'
                         : 'Composed'}
                     </td>
                   )}

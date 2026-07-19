@@ -262,8 +262,8 @@ export function AddEditProductPage() {
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className={adminUi.pageIntro}>
           {isEdit
-            ? 'Update catalog details, pricing, promos, and media for this product.'
-            : 'Fill in catalog details, pricing, and media to publish a new product.'}
+            ? 'Update photos, pricing, stock, and promos for this unit.'
+            : 'Add a new aircon to the catalog — photos, price, and specs.'}
         </p>
         <Link
           to="/admin/products"
@@ -400,7 +400,7 @@ export function AddEditProductPage() {
               </div>
             </Field>
             {product.hp.length > 0 ? (
-              <Field label="Price per HP (updates storefront when customer selects HP)">
+              <Field label="Price per HP (shown when the customer picks a size)">
                 <div className="space-y-2">
                   {product.hp.map((hp) => (
                     <div key={hp} className="flex items-center gap-3">
@@ -735,7 +735,7 @@ export function AddEditProductPage() {
                           className={inputClass}
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                          Live countdown on the product page (Abenson-style). Leave empty to hide.
+                          Optional countdown on the product page. Leave blank to hide it.
                         </p>
                       </Field>
                     </>

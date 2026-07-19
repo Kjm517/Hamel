@@ -14,6 +14,7 @@ import { MarketplaceBannerGrid } from '../../components/MarketplaceBannerGrid';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
 import { PromoSideBannerEditor } from '../components/PromoSideBannerEditor';
 import { BannerLinkDestinationField } from '../components/BannerLinkDestinationField';
+import { AmbientEffectFields } from '../../components/AmbientEffectFields';
 import { hexForColorInput } from '../../lib/color-utils';
 import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
@@ -289,8 +290,8 @@ export function AdminBannersPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-[560px]">
           <p className="m-0 text-[14px] leading-relaxed text-[#7a8899]">
-            Homepage hero carousel, page headers, promos, and the Cool Deals hero. Each banner
-            links to a promo page or a site route.
+            Edit the homepage slides, page headers, side promos, and Cool Deals banner. Set where
+            each one links when customers click.
           </p>
           {swapSource && (
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white">
@@ -596,6 +597,13 @@ export function AdminBannersPage() {
               <BannerLinkDestinationField
                 fields={banners.coolDealsBanner}
                 onChange={(patch) => updateCoolDealsBanner(patch)}
+              />
+
+              <AmbientEffectFields
+                value={banners.coolDealsBanner}
+                accentColor={banners.coolDealsBanner.highlightColor}
+                hint="Plays over the Cool Deals hero banner. Set how many seconds it stays, or Continuous."
+                onChange={updateCoolDealsBanner}
               />
 
               {banners.coolDealsBanner.bannerImageUrl && (

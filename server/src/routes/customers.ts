@@ -73,3 +73,13 @@ customerRoutes.patch('/:id', async (c) => {
   `;
   return c.json({ ok: true });
 });
+
+customerRoutes.delete('/:id', async (c) => {
+  const id = c.req.param('id');
+  const sql = getSql();
+  const rows = (await sql`
+    delete from customers where id = ${id}::uuid returning id::text as id
+  `) as { id: string }[];
+  if (!rows[0]) return c.json({ error: 'Not found' }, 404);
+  return c.json({ ok: true, id: rows[0].id });
+});

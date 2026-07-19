@@ -36,3 +36,9 @@ export async function fetchCustomers(limit = 100): Promise<CustomerRow[]> {
     inquiryCount: Number(c.inquiry_count ?? 0),
   }));
 }
+
+export async function deleteCustomer(id: string): Promise<void> {
+  await apiFetch(`/api/customers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}

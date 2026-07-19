@@ -144,8 +144,8 @@ export function AdminVouchersPage() {
       {confirmDialog}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <p className={adminUi.pageIntro}>
-          Platform vouchers for product detail and inquiry. Set the discount, who can claim, and
-          how many customers can apply each code.
+          Discount codes for the product page and inquiry flow. Set the amount, who can use them,
+          and how many redemptions are allowed.
         </p>
         <button type="button" onClick={addVoucher} className={adminUi.btnPrimary}>
           <Plus className="h-[17px] w-[17px]" strokeWidth={2.2} />
@@ -509,11 +509,11 @@ export function AdminVouchersPage() {
           {saving ? 'Saving…' : 'Save vouchers'}
         </button>
         <p className="text-xs text-[#9aa7b5]">
-          Tip: open a{' '}
+          After saving, open a{' '}
           <Link to="/admin/products" className="font-semibold text-[#0EA5E9] hover:underline">
             product
           </Link>{' '}
-          to see which vouchers apply to it.
+          to check which codes apply.
         </p>
       </div>
     </div>

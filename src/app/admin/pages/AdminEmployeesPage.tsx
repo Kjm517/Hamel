@@ -186,8 +186,7 @@ export function AdminEmployeesPage() {
       {confirmDialog}
       <div className="mb-[18px] flex flex-wrap items-center justify-between gap-3">
         <p className={adminUi.pageIntro}>
-          Add or remove people who can sign in to the admin panel. Only Managers and Admins can
-          manage this list.
+          Who can log in to this admin. Managers and Admins can add or remove people here.
         </p>
         <button type="button" onClick={openCreate} className={`${adminUi.btnPrimary} shrink-0`}>
           <Plus className="h-[17px] w-[17px]" strokeWidth={2.2} />
@@ -198,8 +197,8 @@ export function AdminEmployeesPage() {
       <div className={`${adminUi.tip} mb-[18px]`}>
         <Info className="mt-px h-[18px] w-[18px] shrink-0 text-[#0ea5e9]" strokeWidth={2} />
         <p className="m-0">
-          <strong>Passwords:</strong> set a temporary password when adding a member so they can
-          sign in with their email or username. They can change it later from their profile.
+          When you add someone, give them a temporary password so they can sign in. They can change
+          it later under My profile.
         </p>
       </div>
 

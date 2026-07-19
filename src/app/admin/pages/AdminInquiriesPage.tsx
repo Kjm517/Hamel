@@ -189,7 +189,7 @@ export function AdminInquiriesPage() {
       {confirmDialog}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <p className={adminUi.pageIntro}>
-          Live inquiries with lead scoring and AI reply drafts.
+          Customer inquiries from the site. Review priority, update status, or draft a reply.
         </p>
         <div className="flex flex-wrap gap-2">
           <select
@@ -226,7 +226,7 @@ export function AdminInquiriesPage() {
 
       {!loading && rows.length === 0 && (
         <p className="text-sm text-[#9aa7b5]">
-          No inquiries yet. Submit one from the storefront AI chat.
+          No inquiries yet. They’ll show up here when someone asks from the website.
         </p>
       )}
 

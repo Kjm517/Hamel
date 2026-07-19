@@ -28,7 +28,7 @@ export function AdminPromotionsPage() {
   return (
     <div className="space-y-5">
       <p className={adminUi.pageIntro}>
-        Products with active promo tags in catalog data. Edit a product to change promos.
+        Products that currently have promo stickers. Open a product to change them.
       </p>
       <input
         value={q}

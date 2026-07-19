@@ -475,14 +475,12 @@ export function DashboardPage() {
               <div className="mt-0.5 text-[12.5px] leading-snug text-[#38607a]">
                 {lowStockCount > 0 ? (
                   <>
-                    {lowStockCount} product{lowStockCount === 1 ? '' : 's'}{' '}
-                    {lowStockCount === 1 ? 'is' : 'are'} low on stock. Update inventory to keep
-                    listings live.
+                    {lowStockCount} product{lowStockCount === 1 ? '' : 's'} running low on stock.
+                    Restock before customers ask.
                   </>
                 ) : (
                   <>
-                    Keep listings fresh — review pending inquiries and publish new products this
-                    week.
+                    Check pending inquiries when you can, and add new units when stock comes in.
                   </>
                 )}
               </div>

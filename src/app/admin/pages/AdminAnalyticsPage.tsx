@@ -55,7 +55,7 @@ function ChartCard({
       </div>
       {empty ? (
         <div className="flex h-56 items-center justify-center text-sm text-[#9aa7b5]">
-          No data yet — browse the storefront to generate pageviews.
+          No data yet. Visit the site a few times to start seeing traffic.
         </div>
       ) : (
         <div className="h-64 w-full">{children}</div>
@@ -119,7 +119,9 @@ export function AdminAnalyticsPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <p className={adminUi.pageIntro}>Live metrics from Neon + pageview beacons.</p>
+        <p className={adminUi.pageIntro}>
+          Site traffic and how often customers open chat.
+        </p>
         <button
           type="button"
           onClick={() => setResetOpen(true)}

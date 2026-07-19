@@ -74,7 +74,7 @@ export function HomepageTab() {
       {confirmDialog}
       <PageEditorIntro
         title="Home page"
-        description="Update the big sliding pictures at the top and up to three optional offer tiles on the right."
+        description="Hero slides at the top, plus up to three offer tiles on the side."
         saveMode="manual"
         previewHref="/"
         showDragTip

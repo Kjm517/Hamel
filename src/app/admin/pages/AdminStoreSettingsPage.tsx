@@ -39,7 +39,7 @@ export function AdminStoreSettingsPage() {
   return (
     <div className="mx-auto max-w-[680px]">
       <p className="mb-[18px] text-[14px] leading-relaxed text-[#7a8899]">
-        Store contact details and feature flags used on the storefront.
+        Store name, contact info, and which site features are turned on.
       </p>
 
       {error && (
@@ -116,12 +116,12 @@ export function AdminStoreSettingsPage() {
         </div>
 
         <h3 className="mb-3.5 mt-6 text-[15.5px] font-bold text-[#1e2a38]">
-          Storefront features
+          Site options
         </h3>
         <div className="flex flex-col gap-1">
           <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[#eef3f8] px-3.5 py-3">
             <span className="text-[13.5px] font-semibold text-[#1e2a38]">
-              Show AI chat on storefront
+              Show AI chat on the website
             </span>
             <AdminToggle
               checked={form.showAiChat}

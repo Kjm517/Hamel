@@ -109,6 +109,8 @@ export function HomePage() {
         <PromoAmbientLayer
           effect={featuredCollection.ambientEffect}
           intensity={featuredCollection.ambientIntensity}
+          durationSec={featuredCollection.ambientDurationSec}
+          direction={featuredCollection.ambientDirection}
           accentColor={featuredCollection.highlightColor}
         />
         <div className="relative z-10 max-w-7xl mx-auto px-4">

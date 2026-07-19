@@ -22,35 +22,35 @@ const PAGES = [
   {
     id: 'home',
     label: 'Home page',
-    desc: 'Big sliding pictures and the two offers on the right',
+    desc: 'Hero slides and the side offer tiles',
     icon: Home,
     preview: '/',
   },
   {
     id: 'headers',
     label: 'Other page headers',
-    desc: 'Top banner on Products, Brands, Why Hamel, and Contact',
+    desc: 'Top banner for Products, Brands, Why Hamel, and Contact',
     icon: Layout,
     preview: '/products',
   },
   {
     id: 'brands',
     label: 'Brands admin',
-    desc: 'Toggleable brand tiles + storefront brand filter',
+    desc: 'Brand cards shown on the site and in the product filter',
     icon: Building2,
     preview: '/brands',
   },
   {
     id: 'cool-deals',
     label: 'Cool Deals page',
-    desc: 'Top banner and deal sections on the Cool Deals page',
+    desc: 'Banner and deal blocks for /cool-deals',
     icon: Snowflake,
     preview: '/cool-deals',
   },
   {
     id: 'promo',
     label: 'Custom pages',
-    desc: 'Add and design your own pages — sales, campaigns, or info',
+    desc: 'Extra pages for campaigns or store info',
     icon: FileText,
     preview: undefined,
   },
@@ -101,8 +101,7 @@ export function AdminPagesHub() {
     <div className="mx-auto max-w-5xl space-y-[18px]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <p className={adminUi.pageIntro}>
-          Choose a page to update, or create a brand-new page and design it yourself. For the full
-          homepage carousel and page-header banner tools, use{' '}
+          Pick a page below to edit. For the homepage carousel and other big banners, go to{' '}
           <Link to="/admin/banners" className="font-semibold text-[#0ea5e9] hover:underline">
             Banners
           </Link>
@@ -127,7 +126,7 @@ export function AdminPagesHub() {
               const showingFocusedCustomPage = id === 'promo' && focusedLabel;
               const shownLabel = showingFocusedCustomPage ? focusedLabel : label;
               const shownDesc = showingFocusedCustomPage
-                ? 'Your custom page — edit settings and content below'
+                ? 'Editing this page below'
                 : desc;
               return (
                 <div

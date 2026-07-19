@@ -160,7 +160,7 @@ export function BrandsTab() {
       {confirmDialog}
       <PageEditorIntro
         title="Brands admin"
-        description="Add a new brand and it appears as a selectable, toggleable tile — and instantly on the storefront brand filter. Type a name and hit Add brand."
+        description="Add brands customers can browse. New ones show up on the brands page and in the product filter."
         saveMode="auto"
         previewHref="/products"
         showDragTip

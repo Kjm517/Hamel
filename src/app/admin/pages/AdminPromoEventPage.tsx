@@ -24,15 +24,7 @@ import {
   PROMO_ANIMATION_OPTIONS,
   normalizePromoAnimation,
 } from '../../lib/promo-animations';
-import {
-  PROMO_AMBIENT_INTENSITY_OPTIONS,
-  PROMO_AMBIENT_OPTIONS,
-  normalizePromoAmbientEffect,
-  normalizePromoAmbientIntensity,
-  type PromoAmbientEffect,
-  type PromoAmbientIntensity,
-} from '../../lib/promo-ambient-effects';
-import { PromoAmbientLayer, PROMO_AMBIENT_ICONS } from '../../components/PromoAmbientLayer';
+import { AmbientEffectFields } from '../../components/AmbientEffectFields';
 import { adminUi } from '../lib/admin-ui';
 import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
@@ -121,6 +113,8 @@ const EVENT_PRESETS: Array<
     subtitle: 'Beat the heat with our top-selling cooling solutions.',
     ambientEffect: 'cool-mist',
     ambientIntensity: 'medium',
+    ambientDurationSec: 10,
+    ambientDirection: 'down',
   },
   {
     label: 'Hot Deals',
@@ -132,6 +126,8 @@ const EVENT_PRESETS: Array<
     subtitle: 'Limited-time savings on best-selling aircons.',
     ambientEffect: 'sparkles',
     ambientIntensity: 'medium',
+    ambientDurationSec: 10,
+    ambientDirection: 'down',
   },
   {
     label: 'Birthday Sale',
@@ -143,6 +139,8 @@ const EVENT_PRESETS: Array<
     subtitle: 'Celebrate with exclusive bundles and vouchers.',
     ambientEffect: 'balloons',
     ambientIntensity: 'medium',
+    ambientDurationSec: 15,
+    ambientDirection: 'up',
   },
   {
     label: 'Winter Sale',
@@ -154,6 +152,8 @@ const EVENT_PRESETS: Array<
     subtitle: 'Cooler prices for the season — shop selected models.',
     ambientEffect: 'snow',
     ambientIntensity: 'medium',
+    ambientDurationSec: 12,
+    ambientDirection: 'down',
   },
 ];
 
@@ -283,8 +283,8 @@ export function AdminPromoEventPage() {
       {confirmDialog}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className={adminUi.pageIntro}>
-          Control the homepage strip (Cool Summer, Birthday Sale, Winter Sale…) — title, colors,
-          products, countdown, and See-All link.
+          The featured sale strip on the homepage. Change the title, colors, products, countdown,
+          and the “See all” button.
         </p>
         <Link
           to="/"
@@ -463,76 +463,12 @@ export function AdminPromoEventPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-[#bae6fd] bg-[#f0f9ff] p-[13px]">
-              <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.05em] text-[#0369a1]">
-                Ambient effect
-              </div>
-              <p className="mb-2 text-[11px] text-[#7a8899]">
-                Short burst on the homepage promo strip — plays briefly, then fades out.
-              </p>
-              <div className="mb-3 flex flex-wrap gap-1.5">
-                {PROMO_AMBIENT_OPTIONS.map((option) => {
-                  const active =
-                    normalizePromoAmbientEffect(featured.ambientEffect) === option.id;
-                  const Icon = PROMO_AMBIENT_ICONS[option.id];
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() =>
-                        updateFeatured({
-                          ambientEffect: option.id as PromoAmbientEffect,
-                        })
-                      }
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
-                        active
-                          ? 'bg-[#0ea5e9] font-semibold text-white'
-                          : 'bg-white/80 font-medium text-[#516171] ring-1 ring-[#bae6fd] hover:bg-white'
-                      }`}
-                      title={option.desc}
-                    >
-                      <Icon size={13} strokeWidth={2.25} />
-                      {option.name}
-                    </button>
-                  );
-                })}
-              </div>
-              <label className="mb-1 block text-xs font-medium text-[#516171]">Intensity</label>
-              <div className="mb-3 flex flex-wrap gap-2">
-                {PROMO_AMBIENT_INTENSITY_OPTIONS.map((option) => {
-                  const active =
-                    normalizePromoAmbientIntensity(featured.ambientIntensity) === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() =>
-                        updateFeatured({
-                          ambientIntensity: option.id as PromoAmbientIntensity,
-                        })
-                      }
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        active
-                          ? 'bg-[#0EA5E9] text-white'
-                          : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {option.name}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="relative h-28 overflow-hidden rounded-lg border border-[#BAE6FD] bg-[#38BDF8]/40">
-                <PromoAmbientLayer
-                  effect={featured.ambientEffect}
-                  intensity={featured.ambientIntensity}
-                  accentColor={featured.highlightColor}
-                />
-                <p className="relative z-10 px-3 py-2 text-[10px] font-semibold text-[#0C4A6E]/80">
-                  Effect preview
-                </p>
-              </div>
-            </div>
+            <AmbientEffectFields
+              value={featured}
+              accentColor={featured.highlightColor}
+              hint="Plays over the homepage promo strip when visitors land. Set how many seconds it stays, or Continuous."
+              onChange={updateFeatured}
+            />
           </div>
         </div>
 

@@ -450,9 +450,9 @@ export function PromoPagesTab() {
   const introTitle = focusPage ? displayName(focusPage) : 'Custom pages';
   const introDescription = focusPage
     ? focusPage.linkMode === 'url'
-      ? `Link settings for “${displayName(focusPage)}”. Changes save automatically and can appear in the website menu.`
-      : `Design “${displayName(focusPage)}” section by section — photo banner, text, buttons, and FAQs.`
-    : 'Add a new page, then build it section by section — photo banner, text, buttons, and FAQs. No coding needed.';
+      ? `Where “${displayName(focusPage)}” should send people. Saves as you go, and can show in the site menu.`
+      : `Edit “${displayName(focusPage)}” — add a banner, text, buttons, or FAQs.`
+    : 'Create a page, then add sections like a banner, text, buttons, or FAQs.';
 
   return (
     <div className="space-y-5">

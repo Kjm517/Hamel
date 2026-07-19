@@ -137,7 +137,7 @@ export function AdminCoolDealsPage() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Cool Deals page</h2>
           <p className="text-gray-600">
-            Reorder sections or add new blocks. Hero banner is under{' '}
+            Reorder or add deal sections here. The top banner is edited under{' '}
             <Link to="/admin/banners" className="text-[#0EA5E9] font-semibold hover:underline">
               Banners
             </Link>

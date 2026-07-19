@@ -379,8 +379,8 @@ export function AdminPromoPopupPage() {
       {confirmDialog}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className={`${adminUi.pageIntro} max-w-[640px]`}>
-          Create voucher offers, product spotlights, and store announcements. Choose when each
-          shows — first visit, every visit, homepage only, or selected pages.
+          Pop-ups for deals, product highlights, or store notices. Set how often they appear and
+          which pages they show on.
         </p>
         <button
           type="button"

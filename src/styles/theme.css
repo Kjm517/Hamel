@@ -457,30 +457,59 @@
     image-rendering: auto;
   }
 
-  /* Promo event ambient overlays (balloons, breeze, frost, etc.) */
-  @keyframes hamel-fx-float-up {
-    0% { transform: translate3d(0, 0, 0) rotate(-8deg); opacity: 0; }
+  /* Promo event ambient overlays — vertical travel across the section. */
+  @keyframes hamel-fx-travel-up {
+    0% { transform: translate3d(0, 0, 0) rotate(-6deg); opacity: 0; }
     8% { opacity: 1; }
-    100% { transform: translate3d(24px, calc(-100% - 520px), 0) rotate(12deg); opacity: 0; }
+    88% { opacity: 1; }
+    100% { transform: translate3d(22px, -720px, 0) rotate(14deg); opacity: 0; }
+  }
+  @keyframes hamel-fx-travel-down {
+    0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+    8% { opacity: 1; }
+    50% { transform: translate3d(18px, 360px, 0) rotate(90deg); opacity: 1; }
+    100% { transform: translate3d(-16px, 720px, 0) rotate(220deg); opacity: 0; }
+  }
+  @keyframes hamel-fx-float-up {
+    0% { transform: translate3d(0, 40px, 0) rotate(-8deg); opacity: 0; }
+    10% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { transform: translate3d(28px, -560px, 0) rotate(12deg); opacity: 0; }
   }
   @keyframes hamel-fx-drift {
     0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
     8% { opacity: 0.9; }
     100% { transform: translate3d(110vw, -24px, 0) rotate(32deg); opacity: 0; }
   }
+  /* Use large px distances — % is relative to the particle itself (too tiny to see). */
   @keyframes hamel-fx-fall {
-    0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+    0% { transform: translate3d(0, -40px, 0) rotate(0deg); opacity: 0; }
+    8% { opacity: 1; }
+    100% { transform: translate3d(48px, 640px, 0) rotate(260deg); opacity: 0; }
+  }
+  @keyframes hamel-fx-frost-fall {
+    0% { transform: translate3d(0, -48px, 0) rotate(0deg) scale(0.85); opacity: 0; }
     10% { opacity: 1; }
-    100% { transform: translate3d(28px, 560px, 0) rotate(200deg); opacity: 0; }
+    100% { transform: translate3d(28px, 620px, 0) rotate(160deg) scale(1.1); opacity: 0; }
+  }
+  @keyframes hamel-fx-snow-fall {
+    0% { transform: translate3d(0, -56px, 0) rotate(0deg); opacity: 0; }
+    10% { opacity: 1; }
+    45% { transform: translate3d(36px, 280px, 0) rotate(100deg); opacity: 1; }
+    100% { transform: translate3d(-28px, 680px, 0) rotate(240deg); opacity: 0; }
   }
   @keyframes hamel-fx-twinkle {
     0%, 100% { opacity: 0.2; transform: scale(0.75); }
     50% { opacity: 1; transform: scale(1.25); }
   }
   @keyframes hamel-fx-mist-drift {
-    0% { transform: translate3d(-8%, 0, 0); }
-    50% { transform: translate3d(10%, -10%, 0); }
-    100% { transform: translate3d(-4%, 6%, 0); }
+    0% { transform: translate3d(-12px, 0, 0); }
+    50% { transform: translate3d(14px, -10px, 0); }
+    100% { transform: translate3d(-8px, 8px, 0); }
+  }
+  @keyframes hamel-fx-veil-breathe {
+    0%, 100% { opacity: 0.85; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.04); }
   }
   @keyframes hamel-fx-bubble-rise {
     0% { transform: translate3d(0, 0, 0) scale(0.75); opacity: 0; }
@@ -493,97 +522,158 @@
     will-change: transform, opacity;
     animation-name: hamel-fx-float-up;
     animation-timing-function: linear;
-    animation-iteration-count: 1;
-    animation-fill-mode: forwards;
+    animation-iteration-count: infinite;
+    animation-fill-mode: both;
   }
-  .hamel-fx-balloon-body {
-    display: block;
-    width: var(--fx-size, 36px);
-    height: calc(var(--fx-size, 36px) * 1.2);
-    border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%;
-    background: radial-gradient(circle at 30% 28%, rgba(255,255,255,0.65), transparent 42%), var(--fx-color, #93C5FD);
-    box-shadow: inset -4px -6px 10px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0,0,0,0.12);
+
+  /* Particle wrappers must stay invisible — no border/bg/shadow (avoids moving “boxes”). */
+  .hamel-fx-leaf,
+  .hamel-fx-mist-icon,
+  .hamel-fx-flake,
+  .hamel-fx-crystal,
+  .hamel-fx-sparkle,
+  .hamel-fx-bubble,
+  .hamel-fx-balloon,
+  .hamel-fx-confetti,
+  .hamel-fx-heart,
+  .hamel-fx-petal,
+  .hamel-fx-starfall,
+  .hamel-fx-streamer,
+  .hamel-fx-sun,
+  .hamel-fx-firefly {
+    border: none !important;
+    outline: none !important;
+    filter: none;
   }
-  .hamel-fx-balloon-string {
+  .hamel-fx-leaf,
+  .hamel-fx-mist-icon,
+  .hamel-fx-flake,
+  .hamel-fx-crystal,
+  .hamel-fx-sparkle,
+  .hamel-fx-bubble,
+  .hamel-fx-balloon,
+  .hamel-fx-heart,
+  .hamel-fx-petal,
+  .hamel-fx-starfall,
+  .hamel-fx-streamer,
+  .hamel-fx-sun,
+  .hamel-fx-firefly {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .hamel-fx-confetti {
+    box-shadow: none !important;
+  }
+  .hamel-fx-leaf svg,
+  .hamel-fx-mist-icon svg,
+  .hamel-fx-flake svg,
+  .hamel-fx-crystal svg,
+  .hamel-fx-sparkle svg,
+  .hamel-fx-bubble svg,
+  .hamel-fx-balloon svg,
+  .hamel-fx-heart svg,
+  .hamel-fx-petal svg,
+  .hamel-fx-starfall svg,
+  .hamel-fx-streamer svg,
+  .hamel-fx-sun svg,
+  .hamel-fx-firefly svg,
+  .hamel-fx-confetti svg {
     display: block;
-    width: 1px;
-    height: 34px;
-    margin: 0 auto;
-    background: rgba(60, 60, 60, 0.5);
+    overflow: visible;
   }
 
   .hamel-fx-leaf {
     will-change: transform, opacity;
     animation-name: hamel-fx-drift;
     animation-timing-function: linear;
-    animation-iteration-count: 1;
-    animation-fill-mode: forwards;
-  }
-
-  .hamel-fx-mist {
-    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.7), transparent 70%);
-    filter: blur(12px);
-    will-change: transform;
-    animation-name: hamel-fx-mist-drift;
-    animation-timing-function: ease-in-out;
-    animation-iteration-count: 2;
+    animation-iteration-count: infinite;
+    animation-fill-mode: both;
   }
 
   .hamel-fx-mist-icon {
     will-change: transform, opacity;
     animation-name: hamel-fx-mist-drift;
     animation-timing-function: ease-in-out;
-    animation-iteration-count: 2;
-    filter: drop-shadow(0 2px 6px rgba(12, 74, 110, 0.25));
+    animation-iteration-count: infinite;
   }
 
   .hamel-fx-cool-mist .hamel-fx-veil,
-  .hamel-fx-frost .hamel-fx-veil {
+  .hamel-fx-frost .hamel-fx-veil,
+  .hamel-fx-snow .hamel-fx-veil {
+    /* Oversized so soft edges stay clipped — never animate translate on a full inset layer (shows a moving box). */
+    inset: -25%;
+    width: 150%;
+    height: 150%;
     background:
       radial-gradient(ellipse at 18% 18%, rgba(255, 255, 255, 0.42), transparent 48%),
       radial-gradient(ellipse at 82% 72%, rgba(186, 230, 253, 0.48), transparent 52%),
       linear-gradient(180deg, rgba(224, 242, 254, 0.22), transparent 55%);
-    animation: hamel-fx-mist-drift 4s ease-in-out 2;
+    animation: hamel-fx-veil-breathe 6s ease-in-out infinite;
   }
-  .hamel-fx-cool-mist .hamel-fx-veil-strong {
+  .hamel-fx-cool-mist .hamel-fx-veil-strong,
+  .hamel-fx-snow .hamel-fx-veil-strong {
+    inset: -25%;
+    width: 150%;
+    height: 150%;
     background:
       radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, 0.28), transparent 55%),
       radial-gradient(ellipse at 30% 85%, rgba(125, 211, 252, 0.3), transparent 50%);
-    animation: hamel-fx-mist-drift 3.5s ease-in-out 2 reverse;
+    animation: hamel-fx-veil-breathe 5s ease-in-out infinite reverse;
   }
   .hamel-fx-frost .hamel-fx-veil {
     background:
-      linear-gradient(180deg, rgba(224, 242, 254, 0.35), transparent 42%),
-      radial-gradient(ellipse at 70% 10%, rgba(255, 255, 255, 0.4), transparent 40%);
+      linear-gradient(180deg, rgba(224, 242, 254, 0.45), transparent 48%),
+      radial-gradient(ellipse at 70% 10%, rgba(255, 255, 255, 0.5), transparent 42%);
+  }
+  .hamel-fx-snow .hamel-fx-veil {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 50%),
+      radial-gradient(ellipse at 40% 0%, rgba(224, 242, 254, 0.35), transparent 45%);
+  }
+  .hamel-fx-sunshine .hamel-fx-veil-warm {
+    inset: -20%;
+    width: 140%;
+    height: 140%;
+    background:
+      radial-gradient(ellipse at 70% 20%, rgba(253, 224, 71, 0.28), transparent 45%),
+      radial-gradient(ellipse at 20% 80%, rgba(251, 191, 36, 0.18), transparent 50%);
+    animation: hamel-fx-veil-breathe 5.5s ease-in-out infinite;
   }
 
-  .hamel-fx-frost,
-  .hamel-fx-snow,
-  .hamel-fx-confetti {
-    top: -24px;
+  /* Particle classes only — do not reuse effect container names (hamel-fx-frost / snow). */
+  .hamel-fx-confetti,
+  .hamel-fx-flake,
+  .hamel-fx-crystal {
+    top: -28px;
     will-change: transform, opacity;
-    animation-name: hamel-fx-fall;
     animation-timing-function: linear;
-    animation-iteration-count: 1;
-    animation-fill-mode: forwards;
+    animation-iteration-count: infinite;
+    animation-fill-mode: both;
+  }
+  .hamel-fx-confetti {
+    animation-name: hamel-fx-fall;
+  }
+  .hamel-fx-flake {
+    animation-name: hamel-fx-snow-fall;
+  }
+  .hamel-fx-crystal {
+    animation-name: hamel-fx-frost-fall;
   }
 
   .hamel-fx-sparkle {
     will-change: transform, opacity;
     animation-name: hamel-fx-twinkle;
     animation-timing-function: ease-in-out;
-    animation-iteration-count: 3;
+    animation-iteration-count: infinite;
   }
 
   .hamel-fx-bubble {
     bottom: -24px;
-    border: 1.5px solid rgba(255, 255, 255, 0.85);
-    background: radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.65), rgba(125, 211, 252, 0.15));
     will-change: transform, opacity;
     animation-name: hamel-fx-bubble-rise;
     animation-timing-function: ease-out;
-    animation-iteration-count: 1;
-    animation-fill-mode: forwards;
+    animation-iteration-count: infinite;
+    animation-fill-mode: both;
   }
 
   .hamel-fx-burst {
@@ -591,6 +681,51 @@
   }
   .hamel-fx-fading {
     opacity: 0;
+  }
+
+  /* Direction: force all particles to travel full height bottom↔top. */
+  .hamel-fx-dir-up .hamel-fx-balloon,
+  .hamel-fx-dir-up .hamel-fx-bubble,
+  .hamel-fx-dir-up .hamel-fx-leaf,
+  .hamel-fx-dir-up .hamel-fx-mist-icon,
+  .hamel-fx-dir-up .hamel-fx-flake,
+  .hamel-fx-dir-up .hamel-fx-crystal,
+  .hamel-fx-dir-up .hamel-fx-confetti,
+  .hamel-fx-dir-up .hamel-fx-sparkle,
+  .hamel-fx-dir-up .hamel-fx-heart,
+  .hamel-fx-dir-up .hamel-fx-petal,
+  .hamel-fx-dir-up .hamel-fx-starfall,
+  .hamel-fx-dir-up .hamel-fx-streamer,
+  .hamel-fx-dir-up .hamel-fx-sun,
+  .hamel-fx-dir-up .hamel-fx-firefly {
+    top: auto !important;
+    bottom: -56px;
+    animation-name: hamel-fx-travel-up !important;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-fill-mode: both;
+  }
+
+  .hamel-fx-dir-down .hamel-fx-balloon,
+  .hamel-fx-dir-down .hamel-fx-bubble,
+  .hamel-fx-dir-down .hamel-fx-leaf,
+  .hamel-fx-dir-down .hamel-fx-mist-icon,
+  .hamel-fx-dir-down .hamel-fx-flake,
+  .hamel-fx-dir-down .hamel-fx-crystal,
+  .hamel-fx-dir-down .hamel-fx-confetti,
+  .hamel-fx-dir-down .hamel-fx-sparkle,
+  .hamel-fx-dir-down .hamel-fx-heart,
+  .hamel-fx-dir-down .hamel-fx-petal,
+  .hamel-fx-dir-down .hamel-fx-starfall,
+  .hamel-fx-dir-down .hamel-fx-streamer,
+  .hamel-fx-dir-down .hamel-fx-sun,
+  .hamel-fx-dir-down .hamel-fx-firefly {
+    top: -56px;
+    bottom: auto !important;
+    animation-name: hamel-fx-travel-down !important;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-fill-mode: both;
   }
 }
 

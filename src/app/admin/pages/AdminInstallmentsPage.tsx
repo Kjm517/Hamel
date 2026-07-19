@@ -106,11 +106,11 @@ export function AdminInstallmentsPage() {
       <div className="mb-[18px] flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-[560px]">
           <p className={adminUi.pageIntro}>
-            Bank plans feed the storefront installment modal — months offered, interest, and
-            minimum spend. Toggle a plan on or off live.
+            Card installment options customers see on the site: banks, months, rates, and minimum
+            spend. Turn a plan off anytime.
           </p>
           <p className="mt-2 text-[13.5px] font-bold text-[#0369a1]">
-            {activeCount} of {draft.plans.length} plans active on storefront
+            {activeCount} of {draft.plans.length} plans shown on the site
           </p>
         </div>
         <button

@@ -49,7 +49,7 @@ export function PageHeadersTab() {
       {confirmDialog}
       <PageEditorIntro
         title="Other page headers"
-        description="Each of these pages has a large photo banner at the top. Pick a page, change the photo and text, then save."
+        description="Top banner photo and text for Products, Brands, Why Hamel, and Contact. Pick a page, edit, then save."
         saveMode="manual"
         previewHref={`/${active === 'why-hamel' ? 'why-hamel' : active}`}
       />

@@ -24,6 +24,7 @@ import { getBanners, saveBanners, defaultBanners, type CoolDealsBannerConfig } f
 import { PAGE_BANNER_HEIGHTS } from '../../../components/PageBanner';
 import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
 import { BannerLinkDestinationField } from '../../components/BannerLinkDestinationField';
+import { AmbientEffectFields } from '../../../components/AmbientEffectFields';
 import { SortableList } from '../../components/SortableList';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { AdminColorField } from '../../components/AdminColorField';
@@ -109,7 +110,7 @@ export function CoolDealsTab() {
       {confirmDialog}
       <PageEditorIntro
         title="Cool Deals page"
-        description="First update the top banner photo, then arrange the sections customers see below it."
+        description="Set the top banner, then reorder or edit the deal sections underneath."
         saveMode="auto"
         previewHref="/cool-deals"
         showDragTip
@@ -120,6 +121,12 @@ export function CoolDealsTab() {
         <p className="text-xs text-gray-500">This is the large photo at the top of the Cool Deals page.</p>
         <ImageUrlOrUploadField label="Banner photo" value={hero.bannerImageUrl} onChange={(v) => setHero((h) => ({ ...h, bannerImageUrl: v }))} />
         <BannerLinkDestinationField fields={hero} onChange={(p) => setHero((h) => ({ ...h, ...p }))} />
+        <AmbientEffectFields
+          value={hero}
+          accentColor={hero.highlightColor}
+          hint="Plays over the Cool Deals hero banner. Set how many seconds it stays, or Continuous."
+          onChange={(patch) => setHero((h) => ({ ...h, ...patch }))}
+        />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={Boolean(hero.showTextOverlay)} onChange={(e) => setHero((h) => ({ ...h, showTextOverlay: e.target.checked }))} />
           Show text on top of banner

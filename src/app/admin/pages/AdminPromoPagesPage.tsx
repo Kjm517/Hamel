@@ -118,11 +118,11 @@ export function AdminPromoPagesPage() {
       {confirmDialog}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <p className="m-0 max-w-[520px] text-[14px] leading-relaxed text-[#7a8899]">
-          Full promotion details at{' '}
+          Campaign landing pages at{' '}
           <span className="rounded-[5px] bg-[#eef3f8] px-1.5 py-px font-mono text-[12.5px] text-[#0369a1]">
             /promo/your-slug
-          </span>{' '}
-          — link them from homepage banners.
+          </span>
+          . Point banners here when you want a full promo page.
         </p>
         <div className="flex shrink-0 gap-2.5">
           <button

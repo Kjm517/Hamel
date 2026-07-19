@@ -3,12 +3,16 @@ import { fetchContent, getCachedContent, saveContent } from '../lib/content-api'
 import { hamelAssets, hamelHeroSlides, hamelPromoBanners } from './hamelAssets';
 import type { PromoAnimationStyle } from '../lib/promo-animations';
 import type {
+  PromoAmbientDirection,
   PromoAmbientEffect,
   PromoAmbientIntensity,
 } from '../lib/promo-ambient-effects';
 import {
   normalizePromoAmbientEffect,
   normalizePromoAmbientIntensity,
+  normalizePromoAmbientDurationSec,
+  normalizePromoAmbientDirection,
+  DEFAULT_AMBIENT_DURATION_SEC,
 } from '../lib/promo-ambient-effects';
 
 export type PageKey = 'home' | 'products' | 'brands' | 'why-hamel' | 'contact';
@@ -43,6 +47,10 @@ export interface FeaturedCollectionConfig {
   ambientEffect?: PromoAmbientEffect;
   /** How strong the ambient overlay feels. */
   ambientIntensity?: PromoAmbientIntensity;
+  /** Seconds the effect stays before fade. 0 = continuous. */
+  ambientDurationSec?: number;
+  /** Vertical travel: bottom→top or top→bottom. */
+  ambientDirection?: PromoAmbientDirection;
 }
 
 /** Cool Deals page hero — full-width banner image + optional text overlay. */
@@ -63,6 +71,10 @@ export interface CoolDealsBannerConfig {
   ctaHref?: string;
   linkExternal?: boolean;
   ctaExternal?: boolean;
+  ambientEffect?: PromoAmbientEffect;
+  ambientIntensity?: PromoAmbientIntensity;
+  ambientDurationSec?: number;
+  ambientDirection?: PromoAmbientDirection;
 }
 
 export interface PromoBannerItem {
@@ -127,6 +139,8 @@ const defaultFeaturedCollection: FeaturedCollectionConfig = {
   animation: 'fade',
   ambientEffect: 'none',
   ambientIntensity: 'medium',
+  ambientDurationSec: DEFAULT_AMBIENT_DURATION_SEC,
+  ambientDirection: 'down',
 };
 
 const FEATURED_PRODUCT_LIMIT = 5;
@@ -155,6 +169,11 @@ function mergeFeaturedCollection(
     animation: parsed?.animation || defaultFeaturedCollection.animation || 'fade',
     ambientEffect: normalizePromoAmbientEffect(parsed?.ambientEffect),
     ambientIntensity: normalizePromoAmbientIntensity(parsed?.ambientIntensity),
+    ambientDurationSec: normalizePromoAmbientDurationSec(parsed?.ambientDurationSec),
+    ambientDirection: normalizePromoAmbientDirection(
+      parsed?.ambientDirection,
+      parsed?.ambientEffect
+    ),
   };
 }
 
@@ -176,6 +195,10 @@ const defaultCoolDealsBanner: CoolDealsBannerConfig = {
   highlightColor: '#0EA5E9',
   bannerImageUrl: hamelAssets.promo.saleBanner,
   showTextOverlay: false,
+  ambientEffect: 'none',
+  ambientIntensity: 'medium',
+  ambientDurationSec: DEFAULT_AMBIENT_DURATION_SEC,
+  ambientDirection: 'down',
 };
 
 export const defaultBanners: BannerStore = {
@@ -265,6 +288,13 @@ function mergeCoolDealsBanner(parsed?: LegacyCoolDealsBanner): CoolDealsBannerCo
   if (parsed?.showTextOverlay === undefined && parsed?.imageOnly !== undefined) {
     base.showTextOverlay = !parsed.imageOnly;
   }
+  base.ambientEffect = normalizePromoAmbientEffect(parsed?.ambientEffect);
+  base.ambientIntensity = normalizePromoAmbientIntensity(parsed?.ambientIntensity);
+  base.ambientDurationSec = normalizePromoAmbientDurationSec(parsed?.ambientDurationSec);
+  base.ambientDirection = normalizePromoAmbientDirection(
+    parsed?.ambientDirection,
+    parsed?.ambientEffect
+  );
   return base;
 }
 

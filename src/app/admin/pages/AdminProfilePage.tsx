@@ -133,7 +133,7 @@ export function AdminProfilePage() {
                 setAvatarBroken(false);
                 setAvatarUrl(next);
               }}
-              hint="PNG, JPG, or WebP up to 25 MB. Upload, then click Save profile."
+              hint="PNG, JPG, or WebP, up to 25 MB. Upload a photo, then save."
               remoteUpload={{
                 getObjectPath: (file) => {
                   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -200,7 +200,7 @@ export function AdminProfilePage() {
         className="rounded-2xl border border-[#e8eef4] bg-white p-6 shadow-[0_1px_2px_rgba(30,42,56,0.03)]"
       >
         <h3 className="m-0 mb-1 text-[15.5px] font-bold text-[#1e2a38]">Change password</h3>
-        <p className="mb-4 text-[12.5px] text-[#9aa7b5]">Must be at least 8 characters.</p>
+        <p className="mb-4 text-[12.5px] text-[#9aa7b5]">Use at least 8 characters.</p>
 
         {pwError && (
           <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

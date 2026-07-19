@@ -2,6 +2,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { PAGE_BANNER_HEIGHTS } from './PageBanner';
 import type { CoolDealsBannerConfig } from '../data/banners';
 import { BannerLinkWrapper } from '../lib/banner-link';
+import { PromoAmbientLayer } from './PromoAmbientLayer';
 
 interface CoolDealsHeroBannerProps {
   config: CoolDealsBannerConfig;
@@ -19,6 +20,13 @@ export function CoolDealsHeroBanner({ config }: CoolDealsHeroBannerProps) {
         src={config.bannerImageUrl}
         alt={config.title || 'Cool Deals promotion'}
         className="absolute inset-0 h-full w-full object-cover object-center"
+      />
+      <PromoAmbientLayer
+        effect={config.ambientEffect}
+        intensity={config.ambientIntensity}
+        durationSec={config.ambientDurationSec}
+        direction={config.ambientDirection}
+        accentColor={config.highlightColor}
       />
       {hasOverlay && (
         <>

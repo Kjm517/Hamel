@@ -54,14 +54,12 @@ export function PageEditorIntro({
               : 'bg-amber-50 text-amber-900'
           }`}
         >
-          {saveMode === 'auto'
-            ? 'Saves automatically as you edit'
-            : 'Remember to click Save changes when you finish'}
+          {saveMode === 'auto' ? 'Auto-saves while you edit' : 'Click Save when you’re done'}
         </span>
         {showDragTip ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-900">
             <GripVertical size={12} />
-            Drag the handle to change order
+            Drag to reorder
           </span>
         ) : null}
       </div>

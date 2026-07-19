@@ -15,6 +15,7 @@ type NotificationItem = {
 };
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const CLEARED_AT_KEY = 'hamel_admin_notifications_cleared_at';
 
 function kindIcon(kind: NotificationItem['kind']) {
   if (kind === 'inquiry') return ClipboardList;
@@ -28,10 +29,22 @@ function kindStyle(kind: NotificationItem['kind']) {
   return 'bg-[#e0f2fe] text-[#0369a1]';
 }
 
+function getClearedAt(): number {
+  try {
+    const raw = localStorage.getItem(CLEARED_AT_KEY);
+    if (!raw) return 0;
+    const t = new Date(raw).getTime();
+    return Number.isFinite(t) ? t : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function AdminNotificationsBell() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [clearedAt, setClearedAt] = useState(() => getClearedAt());
   const rootRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
@@ -44,6 +57,7 @@ export function AdminNotificationsBell() {
       ]);
 
       const weekAgo = Date.now() - WEEK_MS;
+      const dismissBefore = clearedAt;
       const next: NotificationItem[] = [];
 
       for (const message of messages.filter((m) => m.status === 'unread')) {
@@ -84,7 +98,14 @@ export function AdminNotificationsBell() {
       next.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      setItems(next.slice(0, 12));
+
+      const visible = next.filter((item) => {
+        const created = new Date(item.createdAt).getTime();
+        if (!Number.isFinite(created)) return true;
+        return created > dismissBefore;
+      });
+
+      setItems(visible.slice(0, 12));
     } finally {
       setLoading(false);
     }
@@ -96,7 +117,7 @@ export function AdminNotificationsBell() {
       void load();
     }, 60_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [clearedAt]);
 
   useEffect(() => {
     if (!open) return;
@@ -114,6 +135,17 @@ export function AdminNotificationsBell() {
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [open]);
+
+  const clearNotifications = () => {
+    const now = new Date().toISOString();
+    try {
+      localStorage.setItem(CLEARED_AT_KEY, now);
+    } catch {
+      // ignore quota / private mode
+    }
+    setClearedAt(new Date(now).getTime());
+    setItems([]);
+  };
 
   const count = items.length;
   const messageCount = items.filter((i) => i.kind === 'message').length;
@@ -151,6 +183,15 @@ export function AdminNotificationsBell() {
                   Messages, pending inquiries &amp; new customers
                 </p>
               </div>
+              {count > 0 ? (
+                <button
+                  type="button"
+                  onClick={clearNotifications}
+                  className="shrink-0 rounded-lg px-2 py-1 text-[12px] font-bold text-[#516171] transition hover:bg-[#f1f5f9] hover:text-[#0ea5e9]"
+                >
+                  Clear
+                </button>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap gap-1.5 px-[18px] pb-3 text-[11.5px] font-bold">
