@@ -48,18 +48,23 @@ function normalizeAutoRule(value: string | null | undefined): CornerTagAutoRule 
 }
 
 function resolveTagIconUrl(row: ProductTagRow): string | undefined {
-  if (row.icon_url) {
-    return resolveStorageImageUrl(row.icon_url);
+  if (!row.icon_url?.trim()) {
+    // Do not invent /uploads/<default>.png URLs — those files exist only on local
+    // disk and break on Vercel. Prefer emoji / built-in SVG badges instead.
+    return undefined;
   }
-  // Do not invent /uploads/<default>.png URLs — those files exist only on local
-  // disk and break on Vercel. Prefer emoji / built-in SVG badges instead.
-  return undefined;
+  const raw = row.icon_url.trim();
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return resolveStorageImageUrl(raw);
 }
 
 function rowToTag(row: ProductTagRow): ProductTag {
+  // API may already return absolute Cloudinary URLs (production).
   const iconUrl = resolveTagIconUrl(row);
   const chipImageUrl = row.chip_image_url
-    ? resolveStorageImageUrl(row.chip_image_url)
+    ? /^https?:\/\//i.test(row.chip_image_url.trim())
+      ? row.chip_image_url.trim()
+      : resolveStorageImageUrl(row.chip_image_url)
     : undefined;
   const placement = normalizePlacement(row.placement, row.id);
   const defaults = getDefaultTagById(row.id);

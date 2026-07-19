@@ -12,6 +12,7 @@
     "clear:reviews": "tsx scripts/clear-reviews.ts",
     "sync:review-stats": "tsx scripts/sync-review-stats.ts",
     "backfill:promo-ends": "tsx scripts/backfill-promo-ends-at.ts",
+    "backfill:tag-media": "tsx scripts/backfill-tag-media-cloudinary.ts",
     "db:migrate": "tsx scripts/run-sql.ts"
   },
   "dependencies": {

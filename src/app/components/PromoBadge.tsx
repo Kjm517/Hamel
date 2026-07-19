@@ -3,7 +3,7 @@
  * graphic promo overlays seen on product cards in Philippine e-commerce sites.
  */
 
-import { useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react';
 
 export type BadgeType = 'cash-deal' | 'free-install' | 'discount' | 'flash-sale' | 'bundle';
 
@@ -434,6 +434,16 @@ export function PromoChip({
   const textBg = textBgColor ?? colors.textBg;
   const lines = chipLines({ badgeType, label, cashPerMonth, subtitle });
   const fullTitle = subtitle ? `${label} — ${subtitle}` : label;
+
+  // Tags load async from the API after first paint. Reset failure flags when URLs
+  // change so we don't stay stuck on the composed fallback after a transient 404.
+  useEffect(() => {
+    setChipImageFailed(false);
+  }, [chipImageUrl]);
+  useEffect(() => {
+    setIconFailed(false);
+  }, [iconUrl]);
+
   const useImageChip =
     Boolean(chipImageUrl) &&
     !chipImageFailed &&
@@ -457,7 +467,7 @@ export function PromoChip({
     return (
       <span
         {...interactiveProps}
-        className={`inline-flex shrink-0 bg-transparent leading-none [mix-blend-mode:darken] ${
+        className={`inline-flex shrink-0 bg-transparent leading-none ${
           onClick ? 'cursor-pointer transition hover:opacity-90' : ''
         }`}
         style={{
@@ -466,9 +476,10 @@ export function PromoChip({
         title={fullTitle}
       >
         <img
+          key={chipImageUrl}
           src={chipImageUrl}
           alt={label}
-          className="pointer-events-none h-full w-auto max-w-[92px] bg-transparent object-contain object-left"
+          className="pointer-events-none h-full w-auto max-w-[120px] bg-transparent object-contain object-left"
           draggable={false}
           onError={() => setChipImageFailed(true)}
         />

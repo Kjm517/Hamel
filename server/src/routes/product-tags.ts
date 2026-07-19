@@ -1,8 +1,21 @@
 import { Hono } from 'hono';
 import { getSql } from '../db';
 import { requireAuth, type AuthVariables } from '../middleware/auth';
+import { resolvePublicMediaUrl } from '../storage/public-url';
 
 export const productTagRoutes = new Hono<{ Variables: AuthVariables }>();
+
+function withResolvedMedia<T extends Record<string, unknown>>(row: T): T {
+  return {
+    ...row,
+    icon_url: resolvePublicMediaUrl(
+      typeof row.icon_url === 'string' ? row.icon_url : null
+    ),
+    chip_image_url: resolvePublicMediaUrl(
+      typeof row.chip_image_url === 'string' ? row.chip_image_url : null
+    ),
+  };
+}
 
 const DEFAULT_TAGS = [
   {
@@ -92,15 +105,15 @@ const DEFAULT_TAGS = [
 
 productTagRoutes.get('/', async (c) => {
   const sql = getSql();
-  const rows = await sql`
+  const rows = (await sql`
     select
       id, name, style, placement, auto_rule, icon_url, icon_emoji,
       icon_bg_color, text_bg_color, subtitle, description,
       chip_image_url, render_mode, sort_order, is_active
     from product_tags
     order by sort_order asc, name asc
-  `;
-  return c.json({ tags: rows });
+  `) as Record<string, unknown>[];
+  return c.json({ tags: rows.map(withResolvedMedia) });
 });
 
 productTagRoutes.put('/', requireAuth, async (c) => {
@@ -237,13 +250,13 @@ productTagRoutes.post('/reset', requireAuth, async (c) => {
     `;
   }
 
-  const rows = await sql`
+  const rows = (await sql`
     select
       id, name, style, placement, auto_rule, icon_url, icon_emoji,
       icon_bg_color, text_bg_color, subtitle, description,
       chip_image_url, render_mode, sort_order, is_active
     from product_tags
     order by sort_order asc
-  `;
-  return c.json({ tags: rows });
+  `) as Record<string, unknown>[];
+  return c.json({ tags: rows.map(withResolvedMedia) });
 });

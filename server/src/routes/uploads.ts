@@ -5,6 +5,7 @@ import { Hono } from 'hono';
 import { env } from '../env';
 import { requireAuth, type AuthVariables } from '../middleware/auth';
 import { cloudinaryConfigured, uploadBufferToCloudinary } from '../storage/cloudinary';
+import { resolvePublicMediaUrl } from '../storage/public-url';
 
 const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_UPLOAD_BYTES = 300 * 1024 * 1024;
@@ -171,6 +172,26 @@ uploadRoutes.post('/public', async (c) => {
       status === 400 || status === 503 ? (status as 400 | 503) : 500
     );
   }
+});
+
+/**
+ * Resolve a stored object path to a durable public URL (Cloudinary on Vercel).
+ * Used by the Vercel rewrite: /uploads/* → /api/uploads/file?path=*
+ */
+uploadRoutes.get('/file', async (c) => {
+  const raw = c.req.query('path')?.trim() || '';
+  const objectPath = decodeURIComponent(raw).replace(/^\/+/, '');
+  if (!objectPath || objectPath.includes('..')) {
+    return c.json({ error: 'Invalid path' }, 400);
+  }
+  const url = resolvePublicMediaUrl(objectPath);
+  if (!url) return c.json({ error: 'Not found' }, 404);
+  if (/^https?:\/\//i.test(url)) {
+    return c.redirect(url, 302);
+  }
+  // Local/dev: point at the static /uploads mount on this API host.
+  const base = env.publicBaseUrl().replace(/\/$/, '');
+  return c.redirect(`${base}/uploads/${objectPath}`, 302);
 });
 
 uploadRoutes.get('/health', async (c) => {

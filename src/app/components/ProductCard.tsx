@@ -217,7 +217,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
             <div className="mb-2 flex h-8 shrink-0 flex-nowrap items-center gap-1 overflow-hidden">
               {resolvedPromos.map((promo, i) => (
                 <PromoChip
-                  key={i}
+                  key={`${promo.chipImageUrl ?? promo.label}-${promo.badgeType}-${i}`}
                   size="card"
                   badgeType={promo.badgeType}
                   label={promo.label}
