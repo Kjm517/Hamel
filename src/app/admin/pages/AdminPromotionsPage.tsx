@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useCatalog } from '../../context/CatalogContext';
 import type { Product } from '../../data/products';
+import { adminUi } from '../lib/admin-ui';
 
 function hasPromos(p: Product): boolean {
   const promos = (p as Product & { promos?: unknown[] }).promos;
@@ -25,45 +26,44 @@ export function AdminPromotionsPage() {
   }, [products, q]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Promotions</h2>
-        <p className="text-gray-600">
-          Products with active promo tags in catalog data. Edit a product to change promos.
-        </p>
-      </div>
+    <div className="space-y-5">
+      <p className={adminUi.pageIntro}>
+        Products with active promo tags in catalog data. Edit a product to change promos.
+      </p>
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search products…"
-        className="w-full max-w-md rounded-lg border border-gray-200 px-3 py-2 text-sm"
+        className={`${adminUi.input} !mt-0 max-w-md`}
       />
-      {loading && <p className="text-sm text-gray-500">Loading catalog…</p>}
+      {loading && <p className="text-sm text-[#9aa7b5]">Loading catalog…</p>}
       {!loading && rows.length === 0 && (
-        <p className="text-sm text-gray-500">No products with promos yet.</p>
+        <p className="text-sm text-[#9aa7b5]">No products with promos yet.</p>
       )}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-gray-50 text-xs uppercase text-gray-500">
-            <tr>
-              <th className="px-4 py-3">Product</th>
-              <th className="px-4 py-3">Brand</th>
-              <th className="px-4 py-3">Promos</th>
-              <th className="px-4 py-3" />
+      <div className={`${adminUi.card} overflow-hidden`}>
+        <table className="min-w-full text-left text-[13.5px]">
+          <thead>
+            <tr className={adminUi.tableHead}>
+              <th className="px-[18px] py-3">Product</th>
+              <th className="px-3 py-3">Brand</th>
+              <th className="px-3 py-3">Promos</th>
+              <th className="px-[18px] py-3" />
             </tr>
           </thead>
           <tbody>
             {rows.map((p) => {
               const promos = ((p as Product & { promos?: unknown[] }).promos ?? []) as unknown[];
               return (
-                <tr key={p.id} className="border-t border-gray-100">
-                  <td className="px-4 py-3 font-medium text-gray-900">{p.name || p.model}</td>
-                  <td className="px-4 py-3 text-gray-600">{p.brand}</td>
-                  <td className="px-4 py-3">{promos.length}</td>
-                  <td className="px-4 py-3 text-right">
+                <tr key={p.id} className="border-t border-[#f1f5f9]">
+                  <td className="px-[18px] py-3.5 font-semibold text-[#1e2a38]">
+                    {p.name || p.model}
+                  </td>
+                  <td className="px-3 py-3.5 text-[#7a8899]">{p.brand}</td>
+                  <td className="px-3 py-3.5 text-[#1e2a38]">{promos.length}</td>
+                  <td className="px-[18px] py-3.5 text-right">
                     <Link
                       to={`/admin/products/${p.id}/edit`}
-                      className="text-sm font-medium text-[#0EA5E9] hover:underline"
+                      className="text-[13px] font-semibold text-[#0ea5e9] hover:underline"
                     >
                       Edit
                     </Link>

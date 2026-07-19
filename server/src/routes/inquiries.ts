@@ -311,6 +311,16 @@ inquiryRoutes.get('/', requireAuth, async (c) => {
   }
 });
 
+inquiryRoutes.delete('/:id', requireAuth, async (c) => {
+  const id = c.req.param('id');
+  const sql = getSql();
+  const rows = (await sql`
+    delete from inquiries where id = ${id}::uuid returning id::text as id
+  `) as { id: string }[];
+  if (!rows[0]) return c.json({ error: 'Not found' }, 404);
+  return c.json({ ok: true, id: rows[0].id });
+});
+
 inquiryRoutes.get('/:id', requireAuth, async (c) => {
   const id = c.req.param('id');
   const sql = getSql();

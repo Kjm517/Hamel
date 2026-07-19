@@ -15,6 +15,7 @@ import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
 import { PromoSideBannerEditor } from '../components/PromoSideBannerEditor';
 import { BannerLinkDestinationField } from '../components/BannerLinkDestinationField';
 import { hexForColorInput } from '../../lib/color-utils';
+import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 const PAGE_KEYS: PageKey[] = ['home', 'products', 'brands', 'why-hamel', 'contact'];
 
@@ -180,6 +181,7 @@ const newSlideTemplate: BannerConfig = {
 };
 
 export function AdminBannersPage() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const [banners, setBanners] = useState<BannerStore>(() => getBanners());
   const [saved, setSaved] = useState(false);
   const [swapSource, setSwapSource] = useState<PageKey | null>(null);
@@ -210,7 +212,14 @@ export function AdminBannersPage() {
     setSaved(false);
   };
 
-  const removeSlide = (index: number) => {
+  const removeSlide = async (index: number) => {
+    const ok = await confirm({
+      title: 'Remove this hero slide?',
+      description: 'Remember to save banners after removing a slide.',
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setBanners((prev) => ({
       ...prev,
       heroSlides: prev.heroSlides.filter((_, i) => i !== index),
@@ -244,8 +253,14 @@ export function AdminBannersPage() {
     saveTimer.current = setTimeout(() => setSaved(false), 2500);
   };
 
-  const handleReset = () => {
-    if (!confirm('Reset ALL banners to defaults? This cannot be undone.')) return;
+  const handleReset = async () => {
+    const ok = await confirm({
+      title: 'Reset all banners to defaults?',
+      description: 'Homepage hero, page headers, promos, and Cool Deals hero will be restored. This cannot be undone.',
+      confirmLabel: 'Reset',
+      tone: 'danger',
+    });
+    if (!ok) return;
     void resetBanners();
     setBanners({ ...defaultBanners });
     setSaved(false);
@@ -269,59 +284,78 @@ export function AdminBannersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[18px]">
+      {confirmDialog}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Banners</h2>
-          <p className="text-gray-600">Homepage, page headers, promos, and Cool Deals hero</p>
+        <div className="max-w-[560px]">
+          <p className="m-0 text-[14px] leading-relaxed text-[#7a8899]">
+            Homepage hero carousel, page headers, promos, and the Cool Deals hero. Each banner
+            links to a promo page or a site route.
+          </p>
           {swapSource && (
-            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ backgroundColor: '#7C3AED' }}>
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1 text-xs font-semibold text-white">
               <ArrowLeftRight size={12} />
               Swap mode — click another banner to exchange
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2.5">
           <button
             type="button"
             onClick={handleReset}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            className="inline-flex h-[42px] items-center gap-1.5 rounded-[11px] border border-[#e4ebf2] bg-white px-[15px] text-[13.5px] font-semibold text-[#516171] hover:bg-[#f7fafd]"
           >
-            <RotateCcw size={14} />
-            Reset All
+            <RotateCcw size={15} />
+            Reset all
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-semibold hover:opacity-90 transition-all"
-            style={{ backgroundColor: saved ? '#10B981' : '#FFC107', color: saved ? '#FFF' : '#111' }}
+            className="inline-flex h-[42px] items-center gap-1.5 rounded-[11px] bg-gradient-to-b from-[#fbbf24] to-[#f59e0b] px-[18px] text-[13.5px] font-bold text-[#422006] shadow-[0_6px_16px_-8px_rgba(245,158,11,0.75)]"
           >
-            <Save size={14} />
-            {saved ? 'Saved!' : 'Save Changes'}
+            <Save size={16} />
+            {saved ? 'Saved!' : 'Save changes'}
           </button>
         </div>
       </div>
 
       <div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6 text-sm text-blue-800">
-          <strong>Banner navigation:</strong> Under each banner, choose <strong>Page</strong> (a promo landing page you manage in{' '}
-          <Link to="/admin/promo-pages" className="font-semibold underline">Promo Pages</Link>) or <strong>Link</strong> (a site route like /products or any URL).
+        <div className="mb-[18px] flex gap-2.5 rounded-xl border border-[#d6ecfb] bg-[#eff8ff] px-4 py-3 text-[13px] leading-relaxed text-[#38607a]">
+          <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border border-sky-300 text-[11px] font-bold text-[#0ea5e9]">
+            i
+          </span>
+          <p className="m-0">
+            <strong>Banner navigation:</strong> under each banner choose <strong>Page</strong> (a
+            promo landing page from{' '}
+            <Link to="/admin/pages?tab=promo" className="font-semibold text-[#0ea5e9] underline">
+              Promo Pages
+            </Link>
+            ) or <strong>Link</strong> (a route like /products or any URL).
+          </p>
         </div>
 
         {/* ── Homepage marketplace grid (carousel + 2 side banners) ── */}
-        <div className="bg-white rounded-xl border-2 border-[#0EA5E9]/30 overflow-hidden shadow-sm mb-4">
-          <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+        <div className="mb-4 overflow-hidden rounded-2xl border-2 border-[#bfe6fb] bg-white shadow-[0_1px_2px_rgba(30,42,56,0.03)]">
+          <div className="flex items-center justify-between border-b border-[#eef3f8] bg-[#f9fbfd] px-[18px] py-3.5">
             <button
               onClick={() => setHomeGridOpen(!homeGridOpen)}
-              className="flex items-center gap-2 text-left flex-1"
+              className="flex flex-1 items-center gap-2.5 text-left"
             >
-              <Layers size={16} className="text-[#0EA5E9]" />
-              <span className="font-bold text-gray-900 text-sm">Homepage Hero Banners</span>
-              <span className="text-xs text-gray-400 ml-1">carousel + right promos</span>
-              {homeGridOpen ? <ChevronUp size={16} className="text-gray-400 ml-auto" /> : <ChevronDown size={16} className="text-gray-400 ml-auto" />}
+              <Layers size={17} className="text-[#0EA5E9]" />
+              <span className="text-[14px] font-extrabold text-[#1e2a38]">Homepage hero banners</span>
+              <span className="text-xs text-[#9aa7b5]">carousel + right promos</span>
+              {homeGridOpen ? (
+                <ChevronUp size={16} className="ml-auto text-[#9aa7b5]" />
+              ) : (
+                <ChevronDown size={16} className="ml-auto text-[#9aa7b5]" />
+              )}
             </button>
-            <div className="flex items-center gap-2 ml-4 shrink-0">
-              <Link to="/" target="_blank" className="text-xs text-[#0EA5E9] font-semibold hover:underline">
+            <div className="ml-4 flex shrink-0 items-center gap-2">
+              <Link
+                to="/"
+                target="_blank"
+                className="text-xs font-bold text-[#0EA5E9] hover:underline"
+              >
                 View homepage ↗
               </Link>
               <button
@@ -359,7 +393,7 @@ export function AdminBannersPage() {
                       slide={slide}
                       index={i}
                       onChange={(patch) => updateSlide(i, patch)}
-                      onRemove={() => removeSlide(i)}
+                      onRemove={() => void removeSlide(i)}
                       canRemove={banners.heroSlides.length > 1}
                     />
                   ))}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Plus, Pencil, UserMinus, UserPlus, Trash2 } from 'lucide-react';
+import { Info, Plus, Pencil, Ban, CircleCheck, Trash2 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import {
   createEmployee,
@@ -14,12 +14,17 @@ import {
   type EmployeeRole,
   type EmployeeUpsertInput,
 } from '../types/employee';
+import { adminUi } from '../lib/admin-ui';
+import { useAdminConfirm } from '../components/AdminConfirmDialog';
+
+const AVATAR_COLORS = ['#0ea5e9', '#7c3aed', '#f59e0b', '#10b981', '#ec4899', '#0284c7'];
 
 const ROLE_BADGE: Record<EmployeeRole, string> = {
-  Manager: 'bg-purple-100 text-purple-800',
-  Admin: 'bg-blue-100 text-blue-800',
-  Staff: 'bg-gray-100 text-gray-800',
-  Viewer: 'bg-slate-100 text-slate-700',
+  Manager:
+    'inline-flex items-center rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-bold text-violet-800',
+  Admin: adminUi.badgeSky,
+  Staff: adminUi.badgeGray,
+  Viewer: adminUi.badgeGray,
 };
 
 const emptyForm: EmployeeUpsertInput = {
@@ -31,7 +36,19 @@ const emptyForm: EmployeeUpsertInput = {
   temporaryPassword: '',
 };
 
+function initialsFor(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ''}${parts[1]![0] ?? ''}`.toUpperCase();
+}
+
+function avatarColorFor(index: number): string {
+  return AVATAR_COLORS[index % AVATAR_COLORS.length] ?? AVATAR_COLORS[0];
+}
+
 export function AdminEmployeesPage() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const { employee: currentEmployee, refreshEmployee } = useAdminAuth();
   const [members, setMembers] = useState<EmployeeRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,8 +140,16 @@ export function AdminEmployeesPage() {
       return;
     }
     const next = row.status === 'Active' ? 'Inactive' : 'Active';
-    const label = next === 'Inactive' ? 'revoke admin access for' : 'reactivate';
-    if (!window.confirm(`${label} ${row.fullName}?`)) return;
+    const suspending = next === 'Inactive';
+    const ok = await confirm({
+      title: suspending ? `Suspend ${row.fullName}?` : `Activate ${row.fullName}?`,
+      description: suspending
+        ? 'They will lose access to the admin panel until reactivated.'
+        : 'They will be able to sign in to the admin panel again.',
+      confirmLabel: suspending ? 'Suspend' : 'Activate',
+      tone: suspending ? 'danger' : 'default',
+    });
+    if (!ok) return;
 
     setError(null);
     try {
@@ -140,13 +165,13 @@ export function AdminEmployeesPage() {
       window.alert('You cannot remove your own account.');
       return;
     }
-    if (
-      !window.confirm(
-        `Permanently remove ${row.fullName}? They will need to be re-added to access admin again.`
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Remove ${row.fullName}?`,
+      description: 'They will need to be re-added to access admin again. This cannot be undone.',
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setError(null);
     try {
       await removeEmployee(row.id);
@@ -157,34 +182,29 @@ export function AdminEmployeesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Team Members</h2>
-          <p className="text-gray-600">
-            Add or remove people who can sign in to the admin panel. Only Managers and Admins can
-            manage this list.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#0EA5E9] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0284C7]"
-        >
-          <Plus className="h-4 w-4" />
+    <div>
+      {confirmDialog}
+      <div className="mb-[18px] flex flex-wrap items-center justify-between gap-3">
+        <p className={adminUi.pageIntro}>
+          Add or remove people who can sign in to the admin panel. Only Managers and Admins can
+          manage this list.
+        </p>
+        <button type="button" onClick={openCreate} className={`${adminUi.btnPrimary} shrink-0`}>
+          <Plus className="h-[17px] w-[17px]" strokeWidth={2.2} />
           Add member
         </button>
       </div>
 
-      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        <strong>Passwords:</strong> Set a temporary password when adding a member so they can sign
-        in at <code className="rounded bg-blue-100 px-1">/admin/login</code> with email or username.
-        They can change it later from their profile, or use{' '}
-        <code className="rounded bg-blue-100 px-1">/admin/forgot-password</code>.
+      <div className={`${adminUi.tip} mb-[18px]`}>
+        <Info className="mt-px h-[18px] w-[18px] shrink-0 text-[#0ea5e9]" strokeWidth={2} />
+        <p className="m-0">
+          <strong>Passwords:</strong> set a temporary password when adding a member so they can
+          sign in with their email or username. They can change it later from their profile.
+        </p>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="mb-[18px] rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
         </div>
       )}
@@ -192,56 +212,50 @@ export function AdminEmployeesPage() {
       {formOpen && (
         <form
           onSubmit={(e) => void handleSubmit(e)}
-          className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+          className={`${adminUi.card} mb-[18px] p-[22px]`}
         >
-          <h3 className="mb-4 text-lg font-bold text-gray-900">
+          <h3 className="mb-4 text-[15.5px] font-bold text-[#1e2a38]">
             {editingId ? 'Edit team member' : 'New team member'}
           </h3>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <label className="block sm:col-span-2">
-              <span className="text-sm font-medium text-gray-700">Full name</span>
+              <span className="text-[13px] font-semibold text-[#516171]">Full name</span>
               <input
                 required
                 value={form.fullName}
                 onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                placeholder="Jordan Hamel"
+                className={adminUi.input}
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Email</span>
+              <span className="text-[13px] font-semibold text-[#516171]">Email</span>
               <input
                 required
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                placeholder="name@hamel.ph"
+                className={adminUi.input}
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Username (optional)</span>
+              <span className="text-[13px] font-semibold text-[#516171]">Username (optional)</span>
               <input
                 value={form.username ?? ''}
                 onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
                 placeholder="e.g. manager"
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                className={adminUi.input}
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Phone (optional)</span>
-              <input
-                value={form.phone ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Role</span>
+              <span className="text-[13px] font-semibold text-[#516171]">Role</span>
               <select
                 value={form.role}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, role: e.target.value as EmployeeRole }))
                 }
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                className={adminUi.select}
               >
                 {EMPLOYEE_ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -250,8 +264,8 @@ export function AdminEmployeesPage() {
                 ))}
               </select>
             </label>
-            <label className="block sm:col-span-2">
-              <span className="text-sm font-medium text-gray-700">
+            <label className="block">
+              <span className="text-[13px] font-semibold text-[#516171]">
                 {editingId ? 'Temporary password (optional)' : 'Temporary password'}
               </span>
               <input
@@ -264,136 +278,116 @@ export function AdminEmployeesPage() {
                 placeholder={
                   editingId
                     ? 'Leave blank to keep current password'
-                    : 'At least 8 characters — share this with the new member'
+                    : 'At least 8 characters'
                 }
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                className={adminUi.input}
               />
-              <span className="mt-1 block text-xs text-gray-500">
-                {editingId
-                  ? 'Fill this in only if you want to reset their login password.'
-                  : 'They can sign in immediately with this password. Share it securely.'}
-              </span>
             </label>
           </div>
-          <div className="mt-4 flex gap-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-gray-900 hover:bg-amber-500 disabled:opacity-60"
-            >
-              {submitting ? 'Saving…' : editingId ? 'Save changes' : 'Add member'}
+          <div className="mt-4 flex gap-2.5">
+            <button type="submit" disabled={submitting} className={adminUi.btnAmber}>
+              {submitting ? 'Saving…' : editingId ? 'Save' : 'Add member'}
             </button>
-            <button
-              type="button"
-              onClick={closeForm}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
+            <button type="button" onClick={closeForm} className={adminUi.btnGhost}>
               Cancel
             </button>
           </div>
         </form>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className={`${adminUi.card} overflow-hidden`}>
         {loading ? (
-          <p className="p-8 text-center text-gray-500">Loading team…</p>
+          <p className="p-8 text-center text-[#9aa7b5]">Loading team…</p>
         ) : members.length === 0 ? (
-          <p className="p-8 text-center text-gray-500">No team members yet. Add your first member above.</p>
+          <p className="p-8 text-center text-[#9aa7b5]">
+            No team members yet. Add your first member above.
+          </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full border-collapse text-left text-[13.5px]">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Login
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Auth
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Actions
-                  </th>
+                <tr className={adminUi.tableHead}>
+                  <th className="px-[18px] py-3">Name</th>
+                  <th className="px-3 py-3">Login</th>
+                  <th className="px-3 py-3">Role</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-[18px] py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {members.map((row) => (
-                  <tr key={row.id} className="border-b border-gray-100">
-                    <td className="px-6 py-4">
-                      <p className="font-semibold text-gray-900">{row.fullName}</p>
-                      {row.id === currentEmployee?.id && (
-                        <span className="text-xs text-[#0EA5E9]">You</span>
-                      )}
+                {members.map((row, index) => (
+                  <tr
+                    key={row.id}
+                    className="border-t border-[#f1f5f9] hover:bg-[#f9fbfd]"
+                  >
+                    <td className="px-[18px] py-[13px]">
+                      <div className="flex items-center gap-[11px]">
+                        <span
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
+                          style={{ background: avatarColorFor(index) }}
+                        >
+                          {initialsFor(row.fullName)}
+                        </span>
+                        <div className="font-bold text-[#1e2a38]">
+                          {row.fullName}
+                          {row.id === currentEmployee?.id && (
+                            <span className="ml-[7px] text-[11px] font-bold text-[#0ea5e9]">
+                              You
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-gray-900">{row.email}</p>
-                      {row.username && (
-                        <p className="text-xs text-gray-500">@{row.username}</p>
-                      )}
+                    <td className="px-3 py-[13px]">
+                      <div className="text-[#1e2a38]">{row.email}</div>
+                      {row.username ? (
+                        <div className="text-[11.5px] text-[#9aa7b5]">@{row.username}</div>
+                      ) : null}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-[13px]">
+                      <span className={ROLE_BADGE[row.role]}>{row.role}</span>
+                    </td>
+                    <td className="px-3 py-[13px]">
                       <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_BADGE[row.role]}`}
-                      >
-                        {row.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          row.status === 'Active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
+                        className={
+                          row.status === 'Active' ? adminUi.badgeGreen : adminUi.badgeGray
+                        }
                       >
                         {row.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-xs text-gray-600">
-                      {row.authLinked ? 'Linked' : 'Not linked'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-2">
+                    <td className="px-[18px] py-[13px]">
+                      <div className="flex justify-end gap-1.5">
                         <button
                           type="button"
                           onClick={() => openEdit(row)}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-[#0EA5E9] hover:underline"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e4ebf2] bg-white text-[#0ea5e9] hover:bg-[#e0f2fe]"
+                          title="Edit"
+                          aria-label="Edit"
                         >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Edit
+                          <Pencil className="h-[15px] w-[15px]" />
                         </button>
                         <button
                           type="button"
                           onClick={() => void handleToggleActive(row)}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 hover:underline"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e4ebf2] bg-white text-[#516171] hover:bg-[#f7fafd]"
+                          title={row.status === 'Active' ? 'Suspend' : 'Activate'}
+                          aria-label={row.status === 'Active' ? 'Suspend' : 'Activate'}
                         >
                           {row.status === 'Active' ? (
-                            <>
-                              <UserMinus className="h-3.5 w-3.5" />
-                              Revoke access
-                            </>
+                            <Ban className="h-[15px] w-[15px]" />
                           ) : (
-                            <>
-                              <UserPlus className="h-3.5 w-3.5" />
-                              Reactivate
-                            </>
+                            <CircleCheck className="h-[15px] w-[15px]" />
                           )}
                         </button>
                         <button
                           type="button"
                           onClick={() => void handleRemove(row)}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e4ebf2] bg-white text-[#ef4444] hover:bg-red-50"
+                          title="Remove"
+                          aria-label="Remove"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Remove
+                          <Trash2 className="h-[15px] w-[15px]" />
                         </button>
                       </div>
                     </td>

@@ -16,6 +16,7 @@ import { PromoPagesTab } from './hub/PromoPagesTab';
 import { CoolDealsTab } from './hub/CoolDealsTab';
 import { BrandsTab } from './hub/BrandsTab';
 import { getPromoPages } from '../../data/promo-pages';
+import { adminUi } from '../lib/admin-ui';
 
 const PAGES = [
   {
@@ -97,98 +98,109 @@ export function AdminPagesHub() {
   const editingLabel = tab === 'promo' && focusedLabel ? focusedLabel : active.label;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-[18px]">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Website pages</h2>
-          <p className="mt-1 text-gray-600">
-            Choose a page to update, or create a brand-new page and design it yourself.{' '}
-            <Link to="/" target="_blank" className="font-semibold text-[#0EA5E9] hover:underline">
-              Open the website
-            </Link>
-          </p>
-        </div>
+        <p className={adminUi.pageIntro}>
+          Choose a page to update, or create a brand-new page and design it yourself. For the full
+          homepage carousel and page-header banner tools, use{' '}
+          <Link to="/admin/banners" className="font-semibold text-[#0ea5e9] hover:underline">
+            Banners
+          </Link>
+          .
+        </p>
         <button
           type="button"
           onClick={() => setParams({ tab: 'promo', new: '1' })}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#0EA5E9] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0284C7]"
+          className={adminUi.btnPrimary}
         >
-          <Plus size={18} />
+          <Plus size={17} strokeWidth={2.2} />
           Add a new page
         </button>
       </div>
 
       <div>
-        <p className="mb-3 text-sm font-semibold text-gray-800">Which page are you updating?</p>
-        <div className="space-y-2">
+        <p className="mb-3 text-[13px] font-bold text-[#1e2a38]">Which page are you updating?</p>
+        <div className="flex flex-col gap-2.5">
           {PAGES.filter((page) => page.id !== 'promo' || hasCustomPages).map(
             ({ id, label, desc, icon: Icon, preview }) => {
-            const selected = tab === id;
-            const showingFocusedCustomPage = id === 'promo' && focusedLabel;
-            const shownLabel = showingFocusedCustomPage ? focusedLabel : label;
-            const shownDesc =
-              showingFocusedCustomPage
+              const selected = tab === id;
+              const showingFocusedCustomPage = id === 'promo' && focusedLabel;
+              const shownLabel = showingFocusedCustomPage ? focusedLabel : label;
+              const shownDesc = showingFocusedCustomPage
                 ? 'Your custom page — edit settings and content below'
                 : desc;
-            return (
-              <div
-                key={id}
-                className="flex items-stretch gap-2 rounded-xl border-2 transition-colors"
-                style={{
-                  borderColor: selected ? '#0EA5E9' : '#E5E7EB',
-                  backgroundColor: selected ? '#F0F9FF' : '#FFF',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next: Record<string, string> = { tab: id };
-                    if (focusId) next.focus = focusId;
-                    setParams(next);
+              return (
+                <div
+                  key={id}
+                  className="flex items-stretch rounded-[14px] border transition-colors"
+                  style={{
+                    borderColor: selected ? '#bfe6fb' : '#e8eef4',
+                    backgroundColor: selected ? '#f0f9ff' : '#fff',
+                    boxShadow: '0 1px 2px rgba(30,42,56,0.03)',
                   }}
-                  className="flex min-w-0 flex-1 items-center gap-4 px-4 py-3.5 text-left"
                 >
-                  <span
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                      selected ? 'bg-[#0EA5E9] text-white' : 'bg-gray-100 text-gray-500'
-                    }`}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next: Record<string, string> = { tab: id };
+                      if (focusId) next.focus = focusId;
+                      setParams(next);
+                    }}
+                    className="flex min-w-0 flex-1 items-center gap-3.5 px-4 py-3.5 text-left"
                   >
-                    <Icon size={20} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-bold text-gray-900">{shownLabel}</span>
-                    <span className="mt-0.5 block text-sm text-gray-600">{shownDesc}</span>
-                  </span>
-                  <ChevronRight
-                    size={18}
-                    className={`shrink-0 ${selected ? 'text-[#0EA5E9]' : 'text-gray-300'}`}
-                  />
-                </button>
-                {preview ? (
-                  <Link
-                    to={preview}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 border-l border-gray-200 px-4 text-xs font-semibold text-gray-500 hover:text-[#0EA5E9]"
-                    title="Preview on site"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <ExternalLink size={14} />
-                    <span className="hidden sm:inline">Preview</span>
-                  </Link>
-                ) : null}
-              </div>
-            );
+                    <span
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                        selected ? 'bg-[#0EA5E9] text-white' : 'bg-[#f1f5f9] text-[#7a8899]'
+                      }`}
+                    >
+                      <Icon size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14.5px] font-bold text-[#1e2a38]">
+                        {shownLabel}
+                      </span>
+                      <span className="mt-0.5 block text-[13px] text-[#7a8899]">{shownDesc}</span>
+                    </span>
+                    <ChevronRight
+                      size={18}
+                      className={`shrink-0 ${selected ? 'text-[#0EA5E9]' : 'text-[#d0d8e0]'}`}
+                    />
+                  </button>
+                  {preview ? (
+                    <Link
+                      to={preview}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 border-l border-[#e8eef4] px-4 text-xs font-semibold text-[#9aa7b5] hover:text-[#0369a1]"
+                      title="Preview on site"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink size={14} />
+                      <span className="hidden sm:inline">Preview</span>
+                    </Link>
+                  ) : null}
+                </div>
+              );
             }
           )}
         </div>
       </div>
 
       {active.id !== 'promo' || hasCustomPages || creatingCustomPage ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:p-7">
-          <p className="mb-5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+        <div className={`${adminUi.card} p-[22px]`}>
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9aa7b5]">
             Editing · {editingLabel}
           </p>
+          {active.id === 'home' && (
+            <div className="mb-5 rounded-xl border border-[#d6ecfb] bg-[#eff8ff] px-4 py-3 text-[13px] text-[#38607a]">
+              Tip: the dedicated{' '}
+              <Link to="/admin/banners" className="font-bold text-[#0ea5e9] underline">
+                Banners
+              </Link>{' '}
+              page has the full hero carousel, side offers, page headers, and Cool Deals hero
+              tools matching the new admin design.
+            </div>
+          )}
           {active.id === 'home' && <HomepageTab />}
           {active.id === 'headers' && <PageHeadersTab />}
           {active.id === 'brands' && <BrandsTab />}
@@ -198,9 +210,4 @@ export function AdminPagesHub() {
       ) : null}
     </div>
   );
-}
-
-/** @deprecated Use AdminPagesHub — kept for old links */
-export function AdminBannersPage() {
-  return <AdminPagesHub />;
 }

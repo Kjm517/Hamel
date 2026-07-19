@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchMessages, setMessageStatus, type MessageRow } from '../lib/messages-api';
+import { adminUi } from '../lib/admin-ui';
 
 export function AdminMessagesPage() {
   const [rows, setRows] = useState<MessageRow[]>([]);
@@ -22,24 +23,26 @@ export function AdminMessagesPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Messages</h2>
-        <p className="text-gray-600">Contact and AI session messages.</p>
-      </div>
+    <div className="space-y-5">
+      <p className={adminUi.pageIntro}>Contact and AI session messages.</p>
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
       )}
-      {loading && <p className="text-sm text-gray-500">Loading…</p>}
-      {!loading && rows.length === 0 && <p className="text-sm text-gray-500">No messages yet.</p>}
+      {loading && <p className="text-sm text-[#9aa7b5]">Loading…</p>}
+      {!loading && rows.length === 0 && (
+        <p className="text-sm text-[#9aa7b5]">No messages yet.</p>
+      )}
       <div className="space-y-3">
         {rows.map((m) => (
-          <div key={m.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div key={m.id} className={`${adminUi.card} p-4`}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <p className="font-semibold text-gray-900">{m.name}</p>
-                <p className="text-xs text-gray-500">
-                  {m.channel} · {m.contact || 'no contact'} · {new Date(m.createdAt).toLocaleString()}
+                <p className="font-semibold text-[#1e2a38]">{m.name}</p>
+                <p className="text-[12px] text-[#9aa7b5]">
+                  {m.channel} · {m.contact || 'no contact'} ·{' '}
+                  {new Date(m.createdAt).toLocaleString()}
                 </p>
               </div>
               <select
@@ -47,14 +50,14 @@ export function AdminMessagesPage() {
                 onChange={(e) =>
                   void setMessageStatus(m.id, e.target.value as MessageRow['status']).then(load)
                 }
-                className="rounded border border-gray-200 px-2 py-1 text-xs"
+                className="h-8 rounded-[9px] border border-[#e4ebf2] bg-[#f7fafd] px-2 text-[12px] text-[#516171] focus:border-sky-300 focus:bg-white focus:outline-none"
               >
                 <option value="unread">unread</option>
                 <option value="read">read</option>
                 <option value="archived">archived</option>
               </select>
             </div>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{m.body}</p>
+            <p className="mt-2 whitespace-pre-wrap text-[13.5px] text-[#516171]">{m.body}</p>
           </div>
         ))}
       </div>

@@ -3,7 +3,8 @@ import { useAdminAuth } from '../context/AdminAuthContext';
 import { updateMyProfile } from '../lib/employees-api';
 import { updateAdminPassword } from '../lib/admin-auth';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
-import { normalizeStoragePathForDb } from '../../lib/storage';
+import { normalizeStoragePathForDb, resolveStorageImageUrl } from '../../lib/storage';
+import { adminUi } from '../lib/admin-ui';
 
 export function AdminProfilePage() {
   const { employee, employeeLoading, refreshEmployee } = useAdminAuth();
@@ -75,141 +76,155 @@ export function AdminProfilePage() {
   };
 
   if (employeeLoading && !employee) {
-    return <p className="text-sm text-gray-500">Loading profile…</p>;
+    return <p className="text-sm text-[#9aa7b5]">Loading profile…</p>;
   }
 
   if (!employee) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
         Could not load your profile. Try signing in again.
       </div>
     );
   }
 
-  return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">My profile</h2>
-        <p className="text-gray-600">Update your name, contact number, and photo.</p>
-      </div>
+  const initials = (fullName.trim() || employee.email || 'AD').slice(0, 2).toUpperCase();
+  const avatarSrc = resolveStorageImageUrl(avatarUrl || undefined);
 
+  return (
+    <div className="mx-auto flex max-w-[560px] flex-col gap-[18px]">
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
         </div>
       )}
 
       <form
         onSubmit={(e) => void onSaveProfile(e)}
-        className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-[#e8eef4] bg-white p-6 shadow-[0_1px_2px_rgba(30,42,56,0.03)]"
       >
-        <ImageUrlOrUploadField
-          label="Profile picture"
-          value={avatarUrl}
-          onChange={setAvatarUrl}
-          hint="PNG, JPG, or WebP up to 25 MB."
-          remoteUpload={{
-            getObjectPath: (file) => {
-              const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-              const safe = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
-              return `employee-avatars/${employee.id}-${Date.now()}.${safe}`;
-            },
-          }}
-        />
+        <h3 className="mb-[18px] text-[15.5px] font-bold text-[#1e2a38]">Profile details</h3>
 
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">Full name</span>
-          <input
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            required
-          />
-        </label>
+        <div className="mb-5 flex items-center gap-4">
+          {avatarSrc ? (
+            <img
+              src={avatarSrc}
+              alt=""
+              className="h-[68px] w-[68px] shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <span className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full bg-[#0ea5e9] text-2xl font-extrabold text-white">
+              {initials}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <ImageUrlOrUploadField
+              label="Upload photo"
+              value={avatarUrl}
+              onChange={setAvatarUrl}
+              hint="PNG, JPG, or WebP up to 25 MB."
+              remoteUpload={{
+                getObjectPath: (file) => {
+                  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+                  const safe = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
+                  return `employee-avatars/${employee.id}-${Date.now()}.${safe}`;
+                },
+              }}
+            />
+          </div>
+        </div>
 
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">Contact number</span>
-          <input
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="09XXXXXXXXX"
-          />
-        </label>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className="text-[13px] font-semibold text-[#516171]">Full name</span>
+            <input
+              className={adminUi.input}
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+            />
+          </label>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">Contact number</span>
+            <input
+              className={adminUi.input}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="09XXXXXXXXX"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">Role</span>
+            <input
+              className={`${adminUi.input} bg-[#eef3f8] text-[#7a8899]`}
+              value={employee.role}
+              readOnly
+            />
+          </label>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">Email</span>
+            <input
+              className={`${adminUi.input} bg-[#eef3f8] text-[#7a8899]`}
+              value={employee.email}
+              readOnly
+            />
+          </label>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">Username</span>
+            <input
+              className={`${adminUi.input} bg-[#eef3f8] text-[#7a8899]`}
+              value={employee.username ?? '—'}
+              readOnly
+            />
+          </label>
+        </div>
 
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">Email</span>
-          <input
-            className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-600"
-            value={employee.email}
-            readOnly
-          />
-        </label>
-
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">Username</span>
-          <input
-            className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-600"
-            value={employee.username ?? '—'}
-            readOnly
-          />
-        </label>
-
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">Role</span>
-          <input
-            className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-600"
-            value={employee.role}
-            readOnly
-          />
-        </label>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-[#0EA5E9] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0284C7] disabled:opacity-60"
-        >
+        <button type="submit" disabled={saving} className={`mt-[18px] ${adminUi.btnPrimary}`}>
           {saving ? 'Saving…' : saved ? 'Saved' : 'Save profile'}
         </button>
       </form>
 
       <form
         onSubmit={(e) => void onChangePassword(e)}
-        className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-[#e8eef4] bg-white p-6 shadow-[0_1px_2px_rgba(30,42,56,0.03)]"
       >
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Change password</h3>
-          <p className="text-sm text-gray-500">Must be at least 8 characters.</p>
-        </div>
+        <h3 className="m-0 mb-1 text-[15.5px] font-bold text-[#1e2a38]">Change password</h3>
+        <p className="mb-4 text-[12.5px] text-[#9aa7b5]">Must be at least 8 characters.</p>
+
         {pwError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {pwError}
           </div>
         )}
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">New password</span>
-          <input
-            type="password"
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">Confirm password</span>
-          <input
-            type="password"
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-            value={passwordConfirm}
-            onChange={(e) => setPasswordConfirm(e.target.value)}
-            autoComplete="new-password"
-          />
-        </label>
+
+        <div className="flex flex-col gap-3.5">
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">New password</span>
+            <input
+              type="password"
+              className={adminUi.input}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">Confirm password</span>
+            <input
+              type="password"
+              className={adminUi.input}
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+              placeholder="Re-enter password"
+              autoComplete="new-password"
+            />
+          </label>
+        </div>
+
         <button
           type="submit"
           disabled={pwSaving || !password}
-          className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+          className={`mt-[18px] h-11 rounded-[11px] border border-[#e4ebf2] bg-white px-[22px] text-[14px] font-bold text-[#1e2a38] hover:bg-[#f7fafd] disabled:opacity-60`}
         >
           {pwSaving ? 'Updating…' : pwSaved ? 'Password updated' : 'Update password'}
         </button>

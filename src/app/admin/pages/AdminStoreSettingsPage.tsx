@@ -4,6 +4,8 @@ import {
   saveStoreSettings,
   type StoreSettings,
 } from '../lib/ops-api';
+import { AdminToggle } from '../components/AdminToggle';
+import { adminUi } from '../lib/admin-ui';
 
 export function AdminStoreSettingsPage() {
   const [form, setForm] = useState<StoreSettings | null>(null);
@@ -32,69 +34,118 @@ export function AdminStoreSettingsPage() {
     }
   };
 
-  if (!form) return <p className="text-sm text-gray-500">Loading settings…</p>;
+  if (!form) return <p className="text-sm text-[#9aa7b5]">Loading settings…</p>;
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
-        <p className="text-gray-600">Store contact and feature flags (Neon). Used on the storefront.</p>
-      </div>
+    <div className="mx-auto max-w-[680px]">
+      <p className="mb-[18px] text-[14px] leading-relaxed text-[#7a8899]">
+        Store contact details and feature flags used on the storefront.
+      </p>
+
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
       )}
-      <form onSubmit={(e) => void onSubmit(e)} className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        {(
-          [
-            ['storeName', 'Store name'],
-            ['whatsappNumber', 'WhatsApp number (digits, country code)'],
-            ['phoneDisplay', 'Phone display (landline / call-us text)'],
-            ['contactEmail', 'Contact email'],
-            ['businessHours', 'Business hours'],
-            ['messengerUrl', 'Messenger URL (https://m.me/...)'],
-          ] as const
-        ).map(([key, label]) => (
-          <label key={key} className="block text-sm">
-            <span className="font-medium text-gray-700">{label}</span>
+
+      <form
+        onSubmit={(e) => void onSubmit(e)}
+        className="rounded-2xl border border-[#e8eef4] bg-white p-6 shadow-[0_1px_2px_rgba(30,42,56,0.03)]"
+      >
+        <h3 className="mb-[18px] text-[15.5px] font-bold text-[#1e2a38]">Store contact</h3>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className="text-[13px] font-semibold text-[#516171]">Store name</span>
             <input
-              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-              value={String(form[key] ?? '')}
-              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              className={adminUi.input}
+              value={form.storeName}
+              onChange={(e) => setForm({ ...form, storeName: e.target.value })}
             />
           </label>
-        ))}
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">Address</span>
-          <textarea
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-            rows={3}
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={form.showAiChat}
-            onChange={(e) => setForm({ ...form, showAiChat: e.target.checked })}
-          />
-          Show AI chat on storefront
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={form.showCoolDealsNavIcon !== false}
-            onChange={(e) => setForm({ ...form, showCoolDealsNavIcon: e.target.checked })}
-          />
-          Show % icon beside Cool Deals in the main menu
-        </label>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-[#0EA5E9] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0284C7] disabled:opacity-60"
-        >
-          {saving ? 'Saving…' : saved ? 'Saved' : 'Save settings'}
-        </button>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">WhatsApp number</span>
+            <input
+              className={adminUi.input}
+              value={form.whatsappNumber}
+              onChange={(e) => setForm({ ...form, whatsappNumber: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">Phone display</span>
+            <input
+              className={adminUi.input}
+              value={form.phoneDisplay}
+              onChange={(e) => setForm({ ...form, phoneDisplay: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">Contact email</span>
+            <input
+              className={adminUi.input}
+              value={form.contactEmail}
+              onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#516171]">Business hours</span>
+            <input
+              className={adminUi.input}
+              value={form.businessHours}
+              onChange={(e) => setForm({ ...form, businessHours: e.target.value })}
+            />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="text-[13px] font-semibold text-[#516171]">Messenger URL</span>
+            <input
+              className={adminUi.input}
+              value={form.messengerUrl}
+              onChange={(e) => setForm({ ...form, messengerUrl: e.target.value })}
+              placeholder="https://m.me/..."
+            />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="text-[13px] font-semibold text-[#516171]">Address</span>
+            <textarea
+              className={adminUi.textarea}
+              rows={2}
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+          </label>
+        </div>
+
+        <h3 className="mb-3.5 mt-6 text-[15.5px] font-bold text-[#1e2a38]">
+          Storefront features
+        </h3>
+        <div className="flex flex-col gap-1">
+          <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[#eef3f8] px-3.5 py-3">
+            <span className="text-[13.5px] font-semibold text-[#1e2a38]">
+              Show AI chat on storefront
+            </span>
+            <AdminToggle
+              checked={form.showAiChat}
+              onChange={(showAiChat) => setForm({ ...form, showAiChat })}
+              label="Show AI chat"
+            />
+          </label>
+          <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[#eef3f8] px-3.5 py-3">
+            <span className="text-[13.5px] font-semibold text-[#1e2a38]">
+              Show % icon beside Cool Deals in the menu
+            </span>
+            <AdminToggle
+              checked={form.showCoolDealsNavIcon !== false}
+              onChange={(showCoolDealsNavIcon) => setForm({ ...form, showCoolDealsNavIcon })}
+              label="Show Cool Deals icon"
+            />
+          </label>
+        </div>
+
+        <div className="mt-[22px]">
+          <button type="submit" disabled={saving} className={adminUi.btnPrimary}>
+            {saving ? 'Saving…' : saved ? 'Saved' : 'Save settings'}
+          </button>
+        </div>
       </form>
     </div>
   );

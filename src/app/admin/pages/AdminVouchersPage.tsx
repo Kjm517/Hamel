@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Search } from 'lucide-react';
+import { Plus, Trash2, Search, Ticket } from 'lucide-react';
 import { Link } from 'react-router';
 import {
   defaultVouchers,
@@ -15,6 +15,9 @@ import {
 } from '../../data/vouchers';
 import { useCatalog } from '../../context/CatalogContext';
 import { isStorefrontProduct } from '../../lib/catalog-product';
+import { AdminToggle } from '../components/AdminToggle';
+import { adminUi } from '../lib/admin-ui';
+import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 function emptyVoucher(): StoreVoucher {
   return {
@@ -33,13 +36,35 @@ function emptyVoucher(): StoreVoucher {
   };
 }
 
+function typeLabel(type: VoucherDiscountType) {
+  if (type === 'percent') return 'Percent %';
+  if (type === 'free_install') return 'Free installation';
+  return 'Fixed ₱ off';
+}
+
+function valueLabel(v: StoreVoucher) {
+  if (v.discountType === 'percent') return `${v.value}%`;
+  if (v.discountType === 'free_install') return 'Free install';
+  return `₱${v.value.toLocaleString('en-PH')}`;
+}
+
+function badgeFor(v: StoreVoucher) {
+  if (!v.enabled) return { text: 'Off', className: adminUi.badgeGray };
+  if (v.maxRedemptions > 0 && v.redemptionCount >= v.maxRedemptions) {
+    return { text: 'Used up', className: adminUi.badgeAmber };
+  }
+  return { text: 'Active', className: adminUi.badgeGreen };
+}
+
 export function AdminVouchersPage() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const { products, loading: catalogLoading } = useCatalog();
   const [draft, setDraft] = useState<VouchersConfig>(defaultVouchers);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState<Record<string, string>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const storefrontProducts = useMemo(
     () => products.filter(isStorefrontProduct),
@@ -69,6 +94,26 @@ export function AdminVouchersPage() {
     }));
   };
 
+  const addVoucher = () => {
+    const next = emptyVoucher();
+    setDraft((d) => ({ vouchers: [...d.vouchers, next] }));
+    setEditingId(next.id);
+  };
+
+  const removeVoucher = async (id: string, label: string) => {
+    const ok = await confirm({
+      title: 'Delete this voucher?',
+      description: `Remove ${label}? Remember to save vouchers after deleting.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    setDraft((d) => ({
+      vouchers: d.vouchers.filter((x) => x.id !== id),
+    }));
+    setEditingId((cur) => (cur === id ? null : cur));
+  };
+
   const save = async () => {
     setSaving(true);
     setError(null);
@@ -80,10 +125,12 @@ export function AdminVouchersPage() {
         setError(
           `Voucher ${invalid.code || invalid.label || 'untitled'} is set to specific products but none are selected.`
         );
+        setEditingId(invalid.id);
         return;
       }
       await saveVouchers(draft);
       setSaved(true);
+      setEditingId(null);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed');
@@ -93,263 +140,375 @@ export function AdminVouchersPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Vouchers</h2>
-          <p className="text-sm text-gray-600">
-            Platform vouchers for product detail and inquiry. Set product scope, who can claim,
-            and how many customers can apply each code (0 = unlimited).
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setDraft((d) => ({ vouchers: [...d.vouchers, emptyVoucher()] }))}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm font-semibold text-white"
-        >
-          <Plus className="h-4 w-4" />
+    <div className="mx-auto max-w-[900px] space-y-5">
+      {confirmDialog}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <p className={adminUi.pageIntro}>
+          Platform vouchers for product detail and inquiry. Set the discount, who can claim, and
+          how many customers can apply each code.
+        </p>
+        <button type="button" onClick={addVoucher} className={adminUi.btnPrimary}>
+          <Plus className="h-[17px] w-[17px]" strokeWidth={2.2} />
           Add voucher
         </button>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
           {error}
         </div>
       )}
       {saved && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           Vouchers saved.
         </div>
       )}
 
-      <div className="space-y-4">
-        {draft.vouchers.map((v) => {
-          const q = (productSearch[v.id] || '').trim().toLowerCase();
-          const filtered = storefrontProducts.filter((p) => {
-            if (!q) return true;
-            const hay = `${p.brand} ${p.model} ${p.id}`.toLowerCase();
-            return hay.includes(q);
-          });
-          return (
-            <div key={v.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <label className="text-xs font-medium text-gray-600">
-                  Code
-                  <input
-                    value={v.code}
-                    onChange={(e) => patch(v.id, { code: e.target.value.toUpperCase() })}
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-mono text-sm"
-                  />
-                </label>
-                <label className="text-xs font-medium text-gray-600 sm:col-span-2">
-                  Label
-                  <input
-                    value={v.label}
-                    onChange={(e) => patch(v.id, { label: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-xs font-medium text-gray-600">
-                  Type
-                  <select
-                    value={v.discountType}
-                    onChange={(e) =>
-                      patch(v.id, { discountType: e.target.value as VoucherDiscountType })
-                    }
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  >
-                    <option value="fixed">Fixed ₱ off</option>
-                    <option value="percent">Percent %</option>
-                    <option value="free_install">Free installation</option>
-                  </select>
-                </label>
-                <label className="text-xs font-medium text-gray-600">
-                  Value
-                  <input
-                    type="number"
-                    value={v.value}
-                    onChange={(e) => patch(v.id, { value: Number(e.target.value) || 0 })}
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-xs font-medium text-gray-600">
-                  Min spend ₱
-                  <input
-                    type="number"
-                    value={v.minSpend}
-                    onChange={(e) => patch(v.id, { minSpend: Number(e.target.value) || 0 })}
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-xs font-medium text-gray-600">
-                  Expires
-                  <input
-                    value={v.expiresAt || ''}
-                    onChange={(e) => patch(v.id, { expiresAt: e.target.value || undefined })}
-                    placeholder="2026-12-31"
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-xs font-medium text-gray-600 sm:col-span-2">
-                  Who can use this
-                  <select
-                    value={v.audience}
-                    onChange={(e) =>
-                      patch(v.id, { audience: e.target.value as VoucherAudience })
-                    }
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  >
-                    {(Object.keys(VOUCHER_AUDIENCE_LABELS) as VoucherAudience[]).map((key) => (
-                      <option key={key} value={key}>
-                        {VOUCHER_AUDIENCE_LABELS[key]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs font-medium text-gray-600">
-                  Max customers / claims
-                  <input
-                    type="number"
-                    min={0}
-                    value={v.maxRedemptions}
-                    onChange={(e) =>
-                      patch(v.id, { maxRedemptions: Math.max(0, Number(e.target.value) || 0) })
-                    }
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                  <span className="mt-1 block text-[11px] text-gray-500">
-                    0 = unlimited. Count increases when a shopper submits an inquiry with this
-                    voucher.
+      <div className="flex flex-col gap-3.5">
+        {draft.vouchers.length === 0 ? (
+          <div className={`${adminUi.card} px-6 py-12 text-center text-sm text-[#9aa7b5]`}>
+            No vouchers yet. Add one to get started.
+          </div>
+        ) : (
+          draft.vouchers.map((v) => {
+            const badge = badgeFor(v);
+            const editing = editingId === v.id;
+            const usedPct =
+              v.maxRedemptions > 0
+                ? Math.min(100, Math.round((v.redemptionCount / v.maxRedemptions) * 100))
+                : 0;
+            const q = (productSearch[v.id] || '').trim().toLowerCase();
+            const filtered = storefrontProducts.filter((p) => {
+              if (!q) return true;
+              return `${p.brand} ${p.model} ${p.id}`.toLowerCase().includes(q);
+            });
+
+            return (
+              <div key={v.id} className={`${adminUi.card} p-5`}>
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <span className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#0f2233] px-3 py-1.5 font-mono text-[13px] font-bold tracking-wide text-sky-300">
+                    <Ticket className="h-3.5 w-3.5" />
+                    {v.code || 'CODE'}
                   </span>
-                </label>
-                <div className="text-xs font-medium text-gray-600">
-                  Usage
-                  <div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
-                    <span>{voucherLimitLabel(v)}</span>
-                    {v.redemptionCount > 0 && (
+                  <span className="min-w-0 flex-1 text-[14px] font-semibold text-[#1e2a38]">
+                    {v.label || 'Untitled voucher'}
+                  </span>
+                  <span className={badge.className}>{badge.text}</span>
+                  <label className="ml-auto flex items-center gap-2 text-[13px] text-[#516171]">
+                    Active
+                    <AdminToggle
+                      checked={v.enabled}
+                      onChange={(enabled) => patch(v.id, { enabled })}
+                      label="Active"
+                    />
+                  </label>
+                </div>
+
+                {!editing ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-x-[18px] gap-y-3.5 border-t border-[#f1f5f9] pt-4 sm:grid-cols-4">
+                      <div>
+                        <div className={adminUi.labelMuted}>Type</div>
+                        <div className="mt-1 text-[13.5px] font-semibold text-[#1e2a38]">
+                          {typeLabel(v.discountType)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={adminUi.labelMuted}>Value</div>
+                        <div className="mt-1 text-[13.5px] font-bold text-[#0ea5e9]">
+                          {valueLabel(v)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={adminUi.labelMuted}>Min spend</div>
+                        <div className="mt-1 text-[13.5px] font-semibold text-[#1e2a38]">
+                          {v.minSpend > 0
+                            ? `₱${v.minSpend.toLocaleString('en-PH')}`
+                            : 'None'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={adminUi.labelMuted}>Expires</div>
+                        <div className="mt-1 text-[13.5px] font-semibold text-[#1e2a38]">
+                          {v.expiresAt || 'No expiry'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={adminUi.labelMuted}>Who can use</div>
+                        <div className="mt-1 text-[13.5px] font-semibold text-[#1e2a38]">
+                          {VOUCHER_AUDIENCE_LABELS[v.audience]}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={adminUi.labelMuted}>Applies to</div>
+                        <div className="mt-1 text-[13.5px] font-semibold text-[#1e2a38]">
+                          {v.productScope === 'all'
+                            ? 'All products'
+                            : `${v.productIds.length} selected`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={adminUi.labelMuted}>Max claims</div>
+                        <div className="mt-1 text-[13.5px] font-semibold text-[#1e2a38]">
+                          {v.maxRedemptions === 0 ? 'Unlimited' : v.maxRedemptions}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={adminUi.labelMuted}>Redeemed</div>
+                        <div className="mt-1 text-[13.5px] font-semibold text-[#1e2a38]">
+                          {voucherLimitLabel(v)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {v.maxRedemptions > 0 ? (
+                      <div className="mt-3.5">
+                        <div className="h-[7px] overflow-hidden rounded-full bg-[#eef3f8]">
+                          <div
+                            className="h-full rounded-full bg-[#0ea5e9]"
+                            style={{ width: `${usedPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-4 flex items-center justify-end gap-3.5 border-t border-[#f1f5f9] pt-3.5">
                       <button
                         type="button"
-                        onClick={() => patch(v.id, { redemptionCount: 0 })}
-                        className="text-xs font-semibold text-[#0EA5E9] hover:underline"
+                        onClick={() => setEditingId(v.id)}
+                        className="text-[12.5px] font-semibold text-[#516171] hover:text-[#0ea5e9]"
                       >
-                        Reset count
+                        Edit
                       </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">
-                  Applies to products
-                </p>
-                <div className="mb-3 flex flex-wrap gap-3">
-                  <label className="inline-flex items-center gap-2 text-sm text-gray-800">
-                    <input
-                      type="radio"
-                      name={`scope-${v.id}`}
-                      checked={v.productScope === 'all'}
-                      onChange={() => patch(v.id, { productScope: 'all' as VoucherProductScope, productIds: [] })}
-                    />
-                    All products
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-sm text-gray-800">
-                    <input
-                      type="radio"
-                      name={`scope-${v.id}`}
-                      checked={v.productScope === 'selected'}
-                      onChange={() =>
-                        patch(v.id, { productScope: 'selected' as VoucherProductScope })
-                      }
-                    />
-                    Selected products only
-                  </label>
-                </div>
-
-                {v.productScope === 'selected' && (
-                  <div>
-                    <div className="relative mb-2">
-                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                      <input
-                        value={productSearch[v.id] || ''}
-                        onChange={(e) =>
-                          setProductSearch((s) => ({ ...s, [v.id]: e.target.value }))
-                        }
-                        placeholder="Search brand or model…"
-                        className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-8 pr-3 text-sm"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => void removeVoucher(v.id, v.code || v.label || 'this voucher')}
+                        className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
                     </div>
-                    {catalogLoading ? (
-                      <p className="text-xs text-gray-500">Loading products…</p>
-                    ) : (
-                      <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
-                        {filtered.length === 0 ? (
-                          <p className="px-2 py-3 text-xs text-gray-500">No products match.</p>
-                        ) : (
-                          filtered.map((p) => (
-                            <label
-                              key={p.id}
-                              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[#F0F9FF]"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={v.productIds.includes(p.id)}
-                                onChange={() => toggleProduct(v.id, p.id)}
-                              />
-                              <span className="min-w-0 truncate">
-                                <span className="font-medium text-gray-900">
-                                  {p.brand} {p.model}
-                                </span>
-                                <span className="ml-1 text-xs text-gray-400">{p.id}</span>
-                              </span>
-                            </label>
-                          ))
-                        )}
+                  </>
+                ) : (
+                  <div className="space-y-4 border-t border-[#f1f5f9] pt-4">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <label className={adminUi.label}>
+                        Code
+                        <input
+                          value={v.code}
+                          onChange={(e) => patch(v.id, { code: e.target.value.toUpperCase() })}
+                          className={`${adminUi.input} font-mono`}
+                        />
+                      </label>
+                      <label className={`${adminUi.label} sm:col-span-2`}>
+                        Label
+                        <input
+                          value={v.label}
+                          onChange={(e) => patch(v.id, { label: e.target.value })}
+                          className={adminUi.input}
+                        />
+                      </label>
+                      <label className={adminUi.label}>
+                        Type
+                        <select
+                          value={v.discountType}
+                          onChange={(e) =>
+                            patch(v.id, {
+                              discountType: e.target.value as VoucherDiscountType,
+                            })
+                          }
+                          className={adminUi.select}
+                        >
+                          <option value="fixed">Fixed ₱ off</option>
+                          <option value="percent">Percent %</option>
+                          <option value="free_install">Free installation</option>
+                        </select>
+                      </label>
+                      <label className={adminUi.label}>
+                        Value
+                        <input
+                          type="number"
+                          value={v.value}
+                          onChange={(e) => patch(v.id, { value: Number(e.target.value) || 0 })}
+                          className={adminUi.input}
+                        />
+                      </label>
+                      <label className={adminUi.label}>
+                        Min spend ₱
+                        <input
+                          type="number"
+                          value={v.minSpend}
+                          onChange={(e) =>
+                            patch(v.id, { minSpend: Number(e.target.value) || 0 })
+                          }
+                          className={adminUi.input}
+                        />
+                      </label>
+                      <label className={adminUi.label}>
+                        Expires
+                        <input
+                          value={v.expiresAt || ''}
+                          onChange={(e) =>
+                            patch(v.id, { expiresAt: e.target.value || undefined })
+                          }
+                          placeholder="2026-12-31"
+                          className={adminUi.input}
+                        />
+                      </label>
+                      <label className={`${adminUi.label} sm:col-span-2`}>
+                        Who can use this
+                        <select
+                          value={v.audience}
+                          onChange={(e) =>
+                            patch(v.id, { audience: e.target.value as VoucherAudience })
+                          }
+                          className={adminUi.select}
+                        >
+                          {(Object.keys(VOUCHER_AUDIENCE_LABELS) as VoucherAudience[]).map(
+                            (key) => (
+                              <option key={key} value={key}>
+                                {VOUCHER_AUDIENCE_LABELS[key]}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                      <label className={adminUi.label}>
+                        Max customers / claims
+                        <input
+                          type="number"
+                          min={0}
+                          value={v.maxRedemptions}
+                          onChange={(e) =>
+                            patch(v.id, {
+                              maxRedemptions: Math.max(0, Number(e.target.value) || 0),
+                            })
+                          }
+                          className={adminUi.input}
+                        />
+                        <span className="mt-1 block text-[11px] font-normal text-[#9aa7b5]">
+                          0 = unlimited
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="rounded-xl border border-[#eef3f8] bg-[#f9fbfd] p-3">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#9aa7b5]">
+                        Applies to products
+                      </p>
+                      <div className="mb-3 flex flex-wrap gap-3">
+                        <label className="inline-flex items-center gap-2 text-sm text-[#1e2a38]">
+                          <input
+                            type="radio"
+                            name={`scope-${v.id}`}
+                            checked={v.productScope === 'all'}
+                            onChange={() =>
+                              patch(v.id, {
+                                productScope: 'all' as VoucherProductScope,
+                                productIds: [],
+                              })
+                            }
+                          />
+                          All products
+                        </label>
+                        <label className="inline-flex items-center gap-2 text-sm text-[#1e2a38]">
+                          <input
+                            type="radio"
+                            name={`scope-${v.id}`}
+                            checked={v.productScope === 'selected'}
+                            onChange={() =>
+                              patch(v.id, {
+                                productScope: 'selected' as VoucherProductScope,
+                              })
+                            }
+                          />
+                          Selected products only
+                        </label>
                       </div>
-                    )}
-                    <p className="mt-2 text-xs text-gray-500">
-                      {v.productIds.length} product{v.productIds.length === 1 ? '' : 's'} selected
-                    </p>
+
+                      {v.productScope === 'selected' && (
+                        <div>
+                          <div className="relative mb-2">
+                            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9aa7b5]" />
+                            <input
+                              value={productSearch[v.id] || ''}
+                              onChange={(e) =>
+                                setProductSearch((s) => ({ ...s, [v.id]: e.target.value }))
+                              }
+                              placeholder="Search brand or model…"
+                              className="h-10 w-full rounded-[10px] border border-[#e4ebf2] bg-white py-2 pl-8 pr-3 text-sm"
+                            />
+                          </div>
+                          {catalogLoading ? (
+                            <p className="text-xs text-[#9aa7b5]">Loading products…</p>
+                          ) : (
+                            <div className="max-h-48 space-y-1 overflow-y-auto rounded-[10px] border border-[#e4ebf2] bg-white p-2">
+                              {filtered.length === 0 ? (
+                                <p className="px-2 py-3 text-xs text-[#9aa7b5]">
+                                  No products match.
+                                </p>
+                              ) : (
+                                filtered.map((p) => (
+                                  <label
+                                    key={p.id}
+                                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[#F0F9FF]"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={v.productIds.includes(p.id)}
+                                      onChange={() => toggleProduct(v.id, p.id)}
+                                    />
+                                    <span className="min-w-0 truncate">
+                                      <span className="font-medium text-[#1e2a38]">
+                                        {p.brand} {p.model}
+                                      </span>
+                                      <span className="ml-1 text-xs text-[#9aa7b5]">{p.id}</span>
+                                    </span>
+                                  </label>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="text-[12.5px] font-semibold text-[#516171] hover:text-[#0ea5e9]"
+                      >
+                        Done editing
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void removeVoucher(v.id, v.code || v.label || 'this voucher')}
+                        className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-red-500"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
-
-              <div className="mt-3 flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={v.enabled}
-                    onChange={(e) => patch(v.id, { enabled: e.target.checked })}
-                  />
-                  Active
-                </label>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setDraft((d) => ({ vouchers: d.vouchers.filter((x) => x.id !== v.id) }))
-                  }
-                  className="inline-flex items-center gap-1 text-xs font-medium text-red-600"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 pt-1">
         <button
           type="button"
           disabled={saving}
           onClick={() => void save()}
-          className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-gray-900 hover:bg-amber-500 disabled:opacity-60"
+          className={adminUi.btnAmber}
         >
           {saving ? 'Saving…' : 'Save vouchers'}
         </button>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-[#9aa7b5]">
           Tip: open a{' '}
           <Link to="/admin/products" className="font-semibold text-[#0EA5E9] hover:underline">
             product

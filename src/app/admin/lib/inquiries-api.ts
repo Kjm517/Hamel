@@ -144,6 +144,12 @@ export async function updateInquiryStatus(id: string, status: InquiryStatus): Pr
   });
 }
 
+export async function deleteInquiry(id: string): Promise<void> {
+  await apiFetch(`/api/inquiries/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function updateInquiryPriority(
   id: string,
   leadScore: LeadScore

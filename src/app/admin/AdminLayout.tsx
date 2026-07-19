@@ -1,4 +1,5 @@
-import { NavLink, Outlet, Link, useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router';
 import {
   LayoutDashboard,
   Image,
@@ -12,44 +13,122 @@ import {
   Bookmark,
   ExternalLink,
   LogOut,
-  Search,
   Sparkles,
   CreditCard,
   Ticket,
   Megaphone,
+  Package,
+  PanelsTopLeft,
+  FileText,
+  User,
 } from 'lucide-react';
 import { useAdminAuth } from './context/AdminAuthContext';
 import { signOutAdmin } from './lib/admin-auth';
-import { AdminProductsNav } from './components/AdminProductsNav';
 import { AdminNotificationsBell } from './components/AdminNotificationsBell';
+import { AdminGlobalSearch } from './components/AdminGlobalSearch';
 import { resolveStorageImageUrl } from '../lib/storage';
+import { hamelAssets } from '../data/hamelAssets';
+import { getAdminPageMeta } from './lib/admin-page-meta';
+import { fetchInquiries } from './lib/inquiries-api';
+import { fetchMessages } from './lib/messages-api';
 
-const navMain = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/admin/pages', label: 'Website pages', icon: Image },
-  { to: '/admin/promo-event', label: 'Promo event', icon: Sparkles },
-  { to: '/admin/promo-popup', label: 'Promo popups', icon: Megaphone },
-  { to: '/admin/tags', label: 'Tags', icon: Bookmark },
-  { to: '/admin/installments', label: 'Card installments', icon: CreditCard },
-  { to: '/admin/vouchers', label: 'Vouchers', icon: Ticket },
-] as const;
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  end?: boolean;
+  managerOnly?: boolean;
+  badge?: 'inquiries' | 'messages';
+  match?: (pathname: string, search: string) => boolean;
+};
 
-const navAfterProducts = [
-  { to: '/admin/inquiries', label: 'Orders & Inquiries', icon: ClipboardList },
-  { to: '/admin/customers', label: 'Customers', icon: Users },
-  { to: '/admin/messages', label: 'Messages', icon: MessageSquare },
-  { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/admin/promos', label: 'Promotions', icon: Tag },
-  { to: '/admin/employees', label: 'Team Members', icon: UserCog, managerOnly: true },
-  { to: '/admin/settings', label: 'Settings', icon: Settings },
-] as const;
+type NavSection = {
+  label: string;
+  items: NavItem[];
+};
 
-function navClass({ isActive }: { isActive: boolean }) {
-  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-    isActive
-      ? 'border-l-[3px] border-[#0EA5E9] bg-[#E0F2FE] text-[#0EA5E9]'
-      : 'text-gray-700 hover:bg-gray-100'
-  }`;
+const navSections: NavSection[] = [
+  {
+    label: 'Main',
+    items: [{ to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true }],
+  },
+  {
+    label: 'Catalog',
+    items: [
+      {
+        to: '/admin/products',
+        label: 'Products',
+        icon: Package,
+        match: (pathname) =>
+          pathname === '/admin/products' || pathname.startsWith('/admin/products/'),
+      },
+      {
+        to: '/admin/pages',
+        label: 'Website pages',
+        icon: Image,
+        end: true,
+        match: (pathname, search) => {
+          if (pathname !== '/admin/pages') return false;
+          const tab = new URLSearchParams(search).get('tab');
+          return tab !== 'promo';
+        },
+      },
+      {
+        to: '/admin/banners',
+        label: 'Banners',
+        icon: PanelsTopLeft,
+      },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      {
+        to: '/admin/inquiries',
+        label: 'Orders & Inquiries',
+        icon: ClipboardList,
+        badge: 'inquiries',
+      },
+      { to: '/admin/customers', label: 'Customers', icon: Users },
+      { to: '/admin/messages', label: 'Messages', icon: MessageSquare, badge: 'messages' },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [{ to: '/admin/analytics', label: 'Analytics', icon: BarChart3 }],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { to: '/admin/promos', label: 'Promotions', icon: Tag },
+      { to: '/admin/vouchers', label: 'Vouchers', icon: Ticket },
+      { to: '/admin/tags', label: 'Tags', icon: Bookmark },
+      { to: '/admin/promo-event', label: 'Promo events', icon: Sparkles },
+      { to: '/admin/promo-popup', label: 'Promo pop-ups', icon: Megaphone },
+      { to: '/admin/promo-pages', label: 'Promo pages', icon: FileText },
+    ],
+  },
+  {
+    label: 'Payments',
+    items: [{ to: '/admin/installments', label: 'Installments', icon: CreditCard }],
+  },
+  {
+    label: 'System',
+    items: [
+      { to: '/admin/employees', label: 'Team members', icon: UserCog, managerOnly: true },
+      { to: '/admin/settings', label: 'Settings', icon: Settings },
+      { to: '/admin/profile', label: 'My profile', icon: User },
+    ],
+  },
+];
+
+function navClass(active: boolean) {
+  return [
+    'flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-[13.5px] font-semibold transition-colors',
+    active
+      ? 'bg-[#e0f2fe] text-[#0369a1]'
+      : 'text-[#516171] hover:bg-[#e0f2fe] hover:text-[#0369a1]',
+  ].join(' ');
 }
 
 function ProfileAvatar({
@@ -65,7 +144,7 @@ function ProfileAvatar({
 }) {
   const src = resolveStorageImageUrl(avatarUrl ?? undefined);
   const initials = (name?.trim() || email || 'AD').slice(0, 2).toUpperCase();
-  const sizeClass = size === 'sm' ? 'h-8 w-8 text-xs' : 'h-9 w-9 text-sm';
+  const sizeClass = size === 'sm' ? 'h-9 w-9 text-[13px]' : 'h-9 w-9 text-sm';
 
   if (src) {
     return (
@@ -79,22 +158,58 @@ function ProfileAvatar({
 
   return (
     <span
-      className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-full bg-[#0EA5E9] font-bold text-white`}
+      className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-full bg-[#0ea5e9] font-bold text-white`}
     >
       {initials}
     </span>
   );
 }
 
+function isItemActive(
+  item: NavItem,
+  pathname: string,
+  search: string,
+  isActive: boolean
+) {
+  if (item.match) return item.match(pathname, search);
+  return isActive;
+}
+
 export function AdminLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, employee, canManageTeam } = useAdminAuth();
-
-  const navTail = navAfterProducts.filter(
-    (item) => !('managerOnly' in item && item.managerOnly) || canManageTeam
-  );
+  const [pendingInquiries, setPendingInquiries] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const displayName = employee?.fullName || user?.email?.split('@')[0] || 'Admin';
+  const pageMeta = getAdminPageMeta(location.pathname, location.search);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadBadges = async () => {
+      try {
+        const [inquiries, messages] = await Promise.all([
+          fetchInquiries({ limit: 50, status: 'pending' }).catch(() => []),
+          fetchMessages(50).catch(() => []),
+        ]);
+        if (cancelled) return;
+        setPendingInquiries(inquiries.length);
+        setUnreadMessages(messages.filter((m) => m.status === 'unread').length);
+      } catch {
+        if (!cancelled) {
+          setPendingInquiries(0);
+          setUnreadMessages(0);
+        }
+      }
+    };
+    void loadBadges();
+    const timer = window.setInterval(() => void loadBadges(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [location.pathname]);
 
   const handleSignOut = async () => {
     await signOutAdmin();
@@ -102,83 +217,79 @@ export function AdminLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#F9FAFB]">
-      <aside className="flex w-[260px] shrink-0 flex-col border-r border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 px-5 py-5">
-          <div className="text-lg font-bold text-[#0EA5E9]">❄️ HAMEL</div>
-          <div className="text-xs text-gray-500">Admin Panel</div>
-        </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {navMain.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} className={navClass}>
-              <Icon className="h-5 w-5 shrink-0" />
-              {label}
-            </NavLink>
-          ))}
-          <AdminProductsNav />
-          {navTail.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} className={navClass}>
-              <Icon className="h-5 w-5 shrink-0" />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="space-y-2 border-t border-gray-200 p-4">
-          {employee && (
-            <Link
-              to="/admin/profile"
-              className="flex items-center gap-3 rounded-lg px-1 py-1.5 hover:bg-gray-50"
-            >
-              <ProfileAvatar
-                name={employee.fullName}
-                email={user?.email}
-                avatarUrl={employee.avatarUrl}
-                size="sm"
-              />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-gray-800">{employee.fullName}</p>
-                <p className="text-xs text-gray-500">{employee.role}</p>
-              </div>
-            </Link>
-          )}
-          {user?.email && (
-            <p className="truncate px-1 text-xs text-gray-500" title={user.email}>
-              {user.email}
-            </p>
-          )}
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-[#0EA5E9]"
-          >
-            <ExternalLink className="h-4 w-4" />
-            View storefront
-          </Link>
-          <button
-            type="button"
-            onClick={() => void handleSignOut()}
-            className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
-        </div>
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b border-gray-200 bg-white px-6">
-          <div className="relative hidden max-w-md flex-1 sm:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="search"
-              placeholder="Search…"
-              className="w-full rounded-full border border-gray-200 py-2 pl-9 pr-4 text-sm text-gray-700 placeholder:text-gray-400 focus:border-[#0EA5E9] focus:outline-none focus:ring-1 focus:ring-[#0EA5E9]"
+    <div
+      className="flex min-h-screen bg-[#f4f8fc] text-[#1e2a38]"
+      style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+    >
+      <aside className="sticky top-0 flex h-screen w-[252px] shrink-0 flex-col border-r border-[#e8eef4] bg-white">
+        <div className="flex items-center gap-[11px] px-5 pb-[18px] pt-5">
+          <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#e0f2fe] to-[#f0f9ff] shadow-[inset_0_0_0_1px_#d6ecfb]">
+            <img
+              src={hamelAssets.branding.soloLogo}
+              alt="Hamel"
+              className="h-[30px] w-[30px] object-contain"
             />
           </div>
-          <div className="ml-auto flex items-center gap-3">
-            <AdminNotificationsBell />
+          <div className="leading-none">
+            <div className="text-[17px] font-extrabold tracking-[0.04em] text-[#0ea5e9]">
+              HAMEL
+            </div>
+            <div className="mt-0.5 text-[11px] font-semibold tracking-[0.02em] text-[#93a2b3]">
+              Admin console
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 pt-1">
+          {navSections.map((section) => {
+            const items = section.items.filter(
+              (item) => !item.managerOnly || canManageTeam
+            );
+            if (items.length === 0) return null;
+            return (
+              <div key={section.label}>
+                <div
+                  className={`px-3 text-[11px] font-bold uppercase tracking-[0.08em] text-[#9aa7b5] ${
+                    section.label === 'Main' ? 'mb-1.5 mt-2' : 'mb-1.5 mt-[18px]'
+                  }`}
+                >
+                  {section.label}
+                </div>
+                {items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      navClass(
+                        isItemActive(item, location.pathname, location.search, isActive)
+                      )
+                    }
+                  >
+                    <item.icon className="h-[19px] w-[19px] shrink-0" strokeWidth={2} />
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    {item.badge === 'inquiries' && pendingInquiries > 0 ? (
+                      <span className="ml-auto rounded-full bg-amber-500 px-1.5 py-px text-[11px] font-bold text-white">
+                        {pendingInquiries > 99 ? '99+' : pendingInquiries}
+                      </span>
+                    ) : null}
+                    {item.badge === 'messages' && unreadMessages > 0 ? (
+                      <span className="ml-auto rounded-full bg-[#e0f2fe] px-1.5 py-px text-[11px] font-bold text-[#0369a1]">
+                        {unreadMessages > 99 ? '99+' : unreadMessages}
+                      </span>
+                    ) : null}
+                  </NavLink>
+                ))}
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-[#eef3f8] p-3">
+          <div className="flex items-center gap-2.5 rounded-xl bg-[#f7fafd] p-2">
             <Link
               to="/admin/profile"
-              className="flex items-center gap-2 rounded-lg border border-gray-200 px-2 py-1 hover:border-[#0EA5E9] hover:bg-[#F0F9FF]"
-              title="My profile"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg hover:opacity-90"
             >
               <ProfileAvatar
                 name={employee?.fullName}
@@ -186,13 +297,56 @@ export function AdminLayout() {
                 avatarUrl={employee?.avatarUrl}
                 size="sm"
               />
-              <span className="hidden text-sm font-medium text-gray-800 md:inline">
-                {displayName}
-              </span>
+              <div className="min-w-0 leading-tight">
+                <p className="truncate text-[13.5px] font-bold text-[#1e2a38]">
+                  {displayName}
+                </p>
+                <p className="text-[11.5px] text-[#93a2b3]">
+                  {employee?.role || 'Admin'}
+                </p>
+              </div>
             </Link>
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              className="shrink-0 rounded-lg p-1.5 text-[#93a2b3] hover:bg-white hover:text-[#0369a1]"
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex h-[68px] items-center gap-[18px] border-b border-[#e8eef4] bg-white/85 px-7 backdrop-blur-md">
+          <div className="min-w-0">
+            <div className="text-[11.5px] font-semibold tracking-[0.02em] text-[#93a2b3]">
+              {pageMeta.crumb}
+            </div>
+            <h1 className="mt-px truncate text-[19px] font-extrabold tracking-[-0.01em] text-[#1e2a38]">
+              {pageMeta.title}
+            </h1>
+          </div>
+
+          <AdminGlobalSearch />
+
+          <div className="ml-auto flex items-center gap-2.5">
+            <Link
+              to="/"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-[38px] items-center gap-1.5 rounded-[10px] border border-[#e4ebf2] bg-white px-3.5 text-[13px] font-semibold text-[#516171] transition hover:border-sky-300 hover:bg-[#f0f9ff] hover:text-[#0369a1]"
+            >
+              <ExternalLink className="h-[15px] w-[15px]" />
+              Storefront
+            </Link>
+            <AdminNotificationsBell />
           </div>
         </header>
-        <main className="flex-1 overflow-auto p-6">
+
+        <main className="flex-1 overflow-auto p-7">
           <Outlet />
         </main>
       </div>

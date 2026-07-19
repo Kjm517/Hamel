@@ -22,6 +22,7 @@ import { SortableList } from '../../components/SortableList';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { AdminToggle } from '../../components/AdminToggle';
 import { PageEditorIntro } from './PageEditorIntro';
+import { useAdminConfirm } from '../../components/AdminConfirmDialog';
 import { uploadToPublicStorage } from '../../../lib/storage';
 
 function Field({
@@ -62,6 +63,7 @@ function Field({
 }
 
 export function BrandsTab() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const { products, loading: catalogLoading } = useCatalog();
   const [config, setConfig] = useState<BrandsPageConfig>(() => getBrandsPage());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -155,6 +157,7 @@ export function BrandsTab() {
 
   return (
     <div className="space-y-5">
+      {confirmDialog}
       <PageEditorIntro
         title="Brands admin"
         description="Add a new brand and it appears as a selectable, toggleable tile — and instantly on the storefront brand filter. Type a name and hit Add brand."
@@ -271,11 +274,19 @@ export function BrandsTab() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (!confirm(`Remove "${brand.name}"?`)) return;
-                            setConfig((p) => ({
-                              brands: p.brands.filter((b) => b.id !== brand.id),
-                            }));
-                            setSelectedId(null);
+                            void (async () => {
+                              const ok = await confirm({
+                                title: `Remove "${brand.name}"?`,
+                                description: 'This brand card will be removed from the brands page.',
+                                confirmLabel: 'Remove',
+                                tone: 'danger',
+                              });
+                              if (!ok) return;
+                              setConfig((p) => ({
+                                brands: p.brands.filter((b) => b.id !== brand.id),
+                              }));
+                              setSelectedId(null);
+                            })();
                           }}
                           className="inline-flex items-center gap-1 text-xs font-semibold text-red-500"
                         >
@@ -408,12 +419,20 @@ export function BrandsTab() {
         saved={saved}
         onSave={save}
         onReset={() => {
-          if (!confirm('Reset all brand cards to defaults?')) return;
-          void resetBrandsPage().then(() => {
-            skipAutoSave.current = true;
-            setConfig(JSON.parse(JSON.stringify(defaultBrandsPage)));
-            setSelectedId(null);
-          });
+          void (async () => {
+            const ok = await confirm({
+              title: 'Reset all brand cards?',
+              description: 'Restore the default brand list. Custom brands will be lost.',
+              confirmLabel: 'Reset',
+              tone: 'danger',
+            });
+            if (!ok) return;
+            void resetBrandsPage().then(() => {
+              skipAutoSave.current = true;
+              setConfig(JSON.parse(JSON.stringify(defaultBrandsPage)));
+              setSelectedId(null);
+            });
+          })();
         }}
         resetLabel="Reset brands"
       />

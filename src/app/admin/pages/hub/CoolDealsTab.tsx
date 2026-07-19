@@ -30,6 +30,7 @@ import { AdminColorField } from '../../components/AdminColorField';
 import { DealTileSurface } from '../../../components/cool-deals/DealTileSurface';
 import { contrastRatio, hexForColorInput } from '../../../lib/color-utils';
 import { PageEditorIntro } from './PageEditorIntro';
+import { useAdminConfirm } from '../../components/AdminConfirmDialog';
 
 function Field({ label, value, onChange, rows }: { label: string; value: string; onChange: (v: string) => void; rows?: number }) {
   return (
@@ -45,6 +46,7 @@ function Field({ label, value, onChange, rows }: { label: string; value: string;
 }
 
 export function CoolDealsTab() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const [sections, setSections] = useState<CoolDealsPageConfig>(() => getCoolDealsPage());
   const [hero, setHero] = useState<CoolDealsBannerConfig>(() => getBanners().coolDealsBanner);
   const [openId, setOpenId] = useState<string | null>(sections.sections[0]?.id ?? null);
@@ -104,6 +106,7 @@ export function CoolDealsTab() {
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       <PageEditorIntro
         title="Cool Deals page"
         description="First update the top banner photo, then arrange the sections customers see below it."
@@ -183,8 +186,18 @@ export function CoolDealsTab() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!confirm('Remove section?')) return;
-                    setSections((p) => ({ sections: p.sections.filter((s) => s.id !== section.id) }));
+                    void (async () => {
+                      const ok = await confirm({
+                        title: 'Remove this section?',
+                        description: 'It will be removed from the Cool Deals page.',
+                        confirmLabel: 'Remove',
+                        tone: 'danger',
+                      });
+                      if (!ok) return;
+                      setSections((p) => ({
+                        sections: p.sections.filter((s) => s.id !== section.id),
+                      }));
+                    })();
                   }}
                   className="text-red-400"
                 >
@@ -221,13 +234,25 @@ export function CoolDealsTab() {
       />
       </div>
 
-      <AdminSaveBar saved={saved} onSave={save} onReset={() => {
-        if (!confirm('Reset Cool Deals page?')) return;
-        void resetCoolDealsPage().then(() => {
-          setSections(JSON.parse(JSON.stringify(defaultCoolDealsPage)));
-          setHero({ ...defaultBanners.coolDealsBanner });
-        });
-      }} />
+      <AdminSaveBar
+        saved={saved}
+        onSave={save}
+        onReset={() => {
+          void (async () => {
+            const ok = await confirm({
+              title: 'Reset Cool Deals page?',
+              description: 'Restore default sections and hero banner. Custom changes will be lost.',
+              confirmLabel: 'Reset',
+              tone: 'danger',
+            });
+            if (!ok) return;
+            void resetCoolDealsPage().then(() => {
+              setSections(JSON.parse(JSON.stringify(defaultCoolDealsPage)));
+              setHero({ ...defaultBanners.coolDealsBanner });
+            });
+          })();
+        }}
+      />
     </div>
   );
 }

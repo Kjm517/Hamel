@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Copy, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { Copy, Sparkles, SlidersHorizontal, Trash2 } from 'lucide-react';
 import {
+  deleteInquiry,
   fetchInquiries,
   generateInquiryReplyDraft,
   leadScoreLabel,
@@ -11,24 +12,40 @@ import {
   type InquiryStatus,
   type LeadScore,
 } from '../lib/inquiries-api';
+import { adminUi } from '../lib/admin-ui';
+import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 const STATUSES: InquiryStatus[] = ['pending', 'confirmed', 'completed', 'cancelled'];
 const PRIORITIES: LeadScore[] = ['high', 'medium', 'low'];
 
 function leadBadge(score: LeadScore | null | undefined) {
   if (score === 'high') {
-    return 'bg-red-100 text-red-800';
+    return 'inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-bold text-red-800';
   }
   if (score === 'medium') {
-    return 'bg-amber-100 text-amber-900';
+    return adminUi.badgeAmber;
   }
   if (score === 'low') {
-    return 'bg-slate-100 text-slate-700';
+    return adminUi.badgeGray;
   }
-  return 'bg-gray-100 text-gray-500';
+  return adminUi.badgeGray;
+}
+
+function statusBadge(status: InquiryStatus | string) {
+  if (status === 'completed') return adminUi.badgeGreen;
+  if (status === 'pending') return adminUi.badgeAmber;
+  if (status === 'confirmed') return adminUi.badgeSky;
+  if (status === 'cancelled') return adminUi.badgeRed;
+  return adminUi.badgeGray;
+}
+
+function statusLabel(status: InquiryStatus | string) {
+  if (!status) return '—';
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 export function AdminInquiriesPage() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const [rows, setRows] = useState<InquiryRow[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [leadFilter, setLeadFilter] = useState<string>('all');
@@ -42,6 +59,7 @@ export function AdminInquiriesPage() {
   const [manualPriority, setManualPriority] = useState<LeadScore>('medium');
   const [prioritySaving, setPrioritySaving] = useState(false);
   const [priorityError, setPriorityError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -144,20 +162,40 @@ export function AdminInquiriesPage() {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const handleDelete = async (row: InquiryRow) => {
+    const ok = await confirm({
+      title: 'Delete this inquiry?',
+      description: `Remove the inquiry from ${row.customerName}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteInquiry(row.id);
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      if (selected?.id === row.id) setSelected(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete inquiry');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {confirmDialog}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Orders & Inquiries</h2>
-          <p className="text-gray-600">
-            Live inquiries with lead scoring and AI reply drafts.
-          </p>
-        </div>
+        <p className={adminUi.pageIntro}>
+          Live inquiries with lead scoring and AI reply drafts.
+        </p>
         <div className="flex flex-wrap gap-2">
           <select
             value={leadFilter}
             onChange={(e) => setLeadFilter(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            className="h-10 rounded-[10px] border border-[#e4ebf2] bg-white px-3 text-[13.5px] text-[#516171] focus:border-sky-300 focus:outline-none"
           >
             <option value="all">All priorities</option>
             <option value="high">High Priority</option>
@@ -167,12 +205,12 @@ export function AdminInquiriesPage() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            className="h-10 rounded-[10px] border border-[#e4ebf2] bg-white px-3 text-[13.5px] text-[#516171] focus:border-sky-300 focus:outline-none"
           >
             <option value="all">All statuses</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {statusLabel(s)}
               </option>
             ))}
           </select>
@@ -180,50 +218,64 @@ export function AdminInquiriesPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
         </div>
       )}
-      {loading && <p className="text-sm text-gray-500">Loading…</p>}
+      {loading && <p className="text-sm text-[#9aa7b5]">Loading…</p>}
 
       {!loading && rows.length === 0 && (
-        <p className="text-sm text-gray-500">No inquiries yet. Submit one from the storefront AI chat.</p>
+        <p className="text-sm text-[#9aa7b5]">
+          No inquiries yet. Submit one from the storefront AI chat.
+        </p>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-gray-50 text-xs uppercase text-gray-500">
-            <tr>
-              <th className="px-4 py-3">Priority</th>
-              <th className="px-4 py-3">Customer</th>
-              <th className="px-4 py-3">Product</th>
-              <th className="px-4 py-3">HP / Qty</th>
-              <th className="px-4 py-3">When</th>
-              <th className="px-4 py-3">Status</th>
+      <div className={`${adminUi.card} overflow-hidden`}>
+        <table className="min-w-full text-left text-[13.5px]">
+          <thead>
+            <tr className={adminUi.tableHead}>
+              <th className="px-[18px] py-3">Priority</th>
+              <th className="px-3 py-3">Customer</th>
+              <th className="px-3 py-3">Product</th>
+              <th className="px-3 py-3">HP / Qty</th>
+              <th className="px-3 py-3">When</th>
+              <th className="px-3 py-3">Status</th>
+              <th className="px-[18px] py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr
                 key={row.id}
-                className="cursor-pointer border-t border-gray-100 hover:bg-sky-50"
+                className="cursor-pointer border-t border-[#f1f5f9] hover:bg-[#f0f9ff]"
                 onClick={() => openInquiry(row)}
               >
-                <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${leadBadge(row.leadScore)}`}
-                  >
+                <td className="px-[18px] py-3.5">
+                  <span className={leadBadge(row.leadScore)}>
                     {leadScoreLabel(row.leadScore)}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-medium text-gray-900">{row.customerName}</td>
-                <td className="px-4 py-3 text-gray-700">{row.product}</td>
-                <td className="px-4 py-3 text-gray-600">{row.hpQty}</td>
-                <td className="px-4 py-3 text-gray-500">{row.dateLabel}</td>
-                <td className="px-4 py-3">
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium capitalize">
-                    {row.status}
-                  </span>
+                <td className="px-3 py-3.5 font-semibold text-[#1e2a38]">{row.customerName}</td>
+                <td className="px-3 py-3.5 text-[#516171]">{row.product}</td>
+                <td className="px-3 py-3.5 text-[#7a8899]">{row.hpQty}</td>
+                <td className="px-3 py-3.5 text-[#9aa7b5]">{row.dateLabel}</td>
+                <td className="px-3 py-3.5">
+                  <span className={statusBadge(row.status)}>{statusLabel(row.status)}</span>
+                </td>
+                <td className="px-[18px] py-3.5 text-right">
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDelete(row);
+                    }}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#9aa7b5] transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                    title="Delete"
+                    aria-label={`Delete inquiry from ${row.customerName}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -242,11 +294,12 @@ export function AdminInquiriesPage() {
                 <h3 className="text-lg font-bold text-gray-900">{selected.customerName}</h3>
                 <p className="mt-1 text-sm text-gray-500">{selected.dateLabel}</p>
               </div>
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${leadBadge(selected.leadScore)}`}
-              >
-                {selected.leadScore ? leadScoreLabel(selected.leadScore) : 'Unscored'}
-              </span>
+              <div className="flex flex-col items-end gap-2">
+                <span className={leadBadge(selected.leadScore)}>
+                  {selected.leadScore ? leadScoreLabel(selected.leadScore) : 'Unscored'}
+                </span>
+                <span className={statusBadge(selected.status)}>{statusLabel(selected.status)}</span>
+              </div>
             </div>
 
             {selected.leadReasons && selected.leadReasons.length > 0 && (
@@ -373,7 +426,7 @@ export function AdminInquiriesPage() {
               >
                 {STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {statusLabel(s)}
                   </option>
                 ))}
               </select>
@@ -410,13 +463,24 @@ export function AdminInquiriesPage() {
               )}
             </div>
 
-            <button
-              type="button"
-              className="mt-4 w-full rounded-lg border border-gray-200 py-2 text-sm"
-              onClick={() => setSelected(null)}
-            >
-              Close
-            </button>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={deleting}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                onClick={() => void handleDelete(selected)}
+              >
+                <Trash2 size={15} />
+                Delete inquiry
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-lg border border-gray-200 py-2 text-sm"
+                onClick={() => setSelected(null)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

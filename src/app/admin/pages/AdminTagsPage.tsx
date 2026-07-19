@@ -27,6 +27,8 @@ import {
 } from '../../data/productTags';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
 import { hexForColorInput } from '../../lib/color-utils';
+import { adminUi } from '../lib/admin-ui';
+import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 const STYLE_OPTIONS = Object.keys(PROMO_BADGE_STYLE_LABELS) as PromoBadgeStyle[];
 
@@ -51,21 +53,23 @@ const emptyCornerTag = (): ProductTag => ({
 
 function TagChipUploadGuide() {
   return (
-    <div className="rounded-lg border border-[#BAE6FD] bg-[#F0F9FF] px-4 py-3 text-[#0C4A6E]">
-      <p className="mb-2 text-sm font-semibold">TAG D — full chip image (Abenson-style)</p>
-      <ul className="space-y-1.5 text-xs leading-relaxed">
-        <li>
-          <span className="font-medium">Recommended:</span> PNG with transparent edges, about{' '}
-          <strong>320×56</strong> or <strong>240×48</strong> px. The whole graphic is the chip.
-        </li>
-        <li>
-          <span className="font-medium">Composed mode:</span> uses icon + colors below (legacy).
-          Switch to <strong>Image chip</strong> when you upload a full graphic.
-        </li>
-        <li>
-          Max file size 25 MB. Folder: <span className="font-mono">{DEFAULT_STORAGE_BUCKET}</span>.
-        </li>
-      </ul>
+    <div className={adminUi.tip}>
+      <div>
+        <p className="mb-2 text-sm font-semibold">TAG D — full chip image (Abenson-style)</p>
+        <ul className="space-y-1.5 text-xs leading-relaxed">
+          <li>
+            <span className="font-medium">Recommended:</span> PNG with transparent edges, about{' '}
+            <strong>320×56</strong> or <strong>240×48</strong> px. The whole graphic is the chip.
+          </li>
+          <li>
+            <span className="font-medium">Composed mode:</span> uses icon + colors below (legacy).
+            Switch to <strong>Image chip</strong> when you upload a full graphic.
+          </li>
+          <li>
+            Max file size 25 MB. Folder: <span className="font-mono">{DEFAULT_STORAGE_BUCKET}</span>.
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }
@@ -83,6 +87,7 @@ function TagIconUploadGuide() {
 }
 
 export function AdminTagsPage() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const { tags, loading, error, reload } = useProductTags();
   const { products } = useCatalog();
   const [tab, setTab] = useState<'promo' | 'corner'>('promo');
@@ -158,7 +163,13 @@ export function AdminTagsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this tag? Products using it will fall back to their saved label/style.')) return;
+    const ok = await confirm({
+      title: 'Delete this tag?',
+      description: 'Products using it will fall back to their saved label/style.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     const next = tags.filter((t) => t.id !== id);
     setSaving(true);
     setSaveError(null);
@@ -174,7 +185,13 @@ export function AdminTagsPage() {
   };
 
   const handleReset = async () => {
-    if (!window.confirm('Reset all tags to defaults?')) return;
+    const ok = await confirm({
+      title: 'Reset all tags to defaults?',
+      description: 'Custom tags will be removed. This cannot be undone.',
+      confirmLabel: 'Reset',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -191,11 +208,11 @@ export function AdminTagsPage() {
   const isCornerForm = isCornerTag(form);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {confirmDialog}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Product tags</h2>
-          <p className="text-gray-600">
+          <p className={adminUi.pageIntro}>
             {tab === 'promo'
               ? 'Abenson-style sticker chips under the price — upload a full graphic (best) or use the playful composed sticker. Assign up to 4 per product.'
               : 'Pill tags above the product title (TAG-D): solid for discounts (−20%), outline for specs (INVERTER).'}
@@ -204,8 +221,10 @@ export function AdminTagsPage() {
             <button
               type="button"
               onClick={() => setTab('promo')}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold border-2 transition-colors ${
-                tab === 'promo' ? 'border-[#0EA5E9] bg-[#E0F2FE] text-[#0369A1]' : 'border-gray-200 text-gray-600'
+              className={`rounded-[11px] border px-4 py-2 text-[13.5px] font-semibold transition ${
+                tab === 'promo'
+                  ? 'border-[#0ea5e9] bg-[#e0f2fe] text-[#0369a1]'
+                  : 'border-[#e4ebf2] bg-white text-[#516171] hover:bg-[#f7fafd]'
               }`}
             >
               Promo chips
@@ -213,8 +232,10 @@ export function AdminTagsPage() {
             <button
               type="button"
               onClick={() => setTab('corner')}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold border-2 transition-colors ${
-                tab === 'corner' ? 'border-[#0EA5E9] bg-[#E0F2FE] text-[#0369A1]' : 'border-gray-200 text-gray-600'
+              className={`rounded-[11px] border px-4 py-2 text-[13.5px] font-semibold transition ${
+                tab === 'corner'
+                  ? 'border-[#0ea5e9] bg-[#e0f2fe] text-[#0369a1]'
+                  : 'border-[#e4ebf2] bg-white text-[#516171] hover:bg-[#f7fafd]'
               }`}
             >
               Corner badges
@@ -222,20 +243,12 @@ export function AdminTagsPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-          >
+          <button type="button" onClick={handleReset} className={adminUi.btnGhost}>
             <RotateCcw className="h-4 w-4" />
             Reset defaults
           </button>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0284C7]"
-          >
-            <Plus className="h-4 w-4" />
+          <button type="button" onClick={openCreate} className={adminUi.btnPrimary}>
+            <Plus className="h-[17px] w-[17px]" strokeWidth={2.2} />
             Add tag
           </button>
         </div>
@@ -285,8 +298,8 @@ export function AdminTagsPage() {
       )}
 
       {formOpen && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-bold text-gray-900">
+        <div className={`${adminUi.card} p-6`}>
+          <h3 className="mb-4 text-[16px] font-bold text-[#1e2a38]">
             {editingId ? 'Edit tag' : 'New tag'}
           </h3>
           <div className="grid gap-6 lg:grid-cols-2">
@@ -548,14 +561,14 @@ export function AdminTagsPage() {
               type="button"
               onClick={() => void handleSaveForm()}
               disabled={saving}
-              className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-gray-900 hover:bg-amber-500 disabled:opacity-60"
+              className={adminUi.btnAmber}
             >
               {saving ? 'Saving…' : 'Save tag'}
             </button>
             <button
               type="button"
               onClick={() => setFormOpen(false)}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className={adminUi.btnGhost}
             >
               Cancel
             </button>
@@ -563,27 +576,15 @@ export function AdminTagsPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className={`${adminUi.card} overflow-hidden`}>
+        <table className="w-full text-left text-[13.5px]">
           <thead>
-            <tr className="border-b border-gray-200 bg-slate-50">
-              <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
-                Tag
-              </th>
-              <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
-                Used
-              </th>
-              <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
-                {tab === 'corner' ? 'Auto rule' : 'Style'}
-              </th>
-              {tab === 'promo' && (
-                <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
-                  Mode
-                </th>
-              )}
-              <th className="px-6 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">
-                Actions
-              </th>
+            <tr className={adminUi.tableHead}>
+              <th className="px-[18px] py-3">Tag</th>
+              <th className="px-3 py-3">Used</th>
+              <th className="px-3 py-3">{tab === 'corner' ? 'Auto rule' : 'Style'}</th>
+              {tab === 'promo' && <th className="px-3 py-3">Mode</th>}
+              <th className="px-[18px] py-3">Actions</th>
             </tr>
           </thead>
           <tbody>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { ChevronDown, ChevronUp, ExternalLink, Plus, Sparkles, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Plus, X } from 'lucide-react';
 import {
   defaultBanners,
   FEATURED_PRODUCT_LIMIT,
@@ -18,6 +18,7 @@ import {
 import { storefrontProducts } from '../../lib/catalog-product';
 import { resolveStorageImageUrl } from '../../lib/storage';
 import { AdminSaveBar } from '../components/AdminSaveBar';
+import { AdminToggle } from '../components/AdminToggle';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
 import {
   PROMO_ANIMATION_OPTIONS,
@@ -32,6 +33,8 @@ import {
   type PromoAmbientIntensity,
 } from '../../lib/promo-ambient-effects';
 import { PromoAmbientLayer, PROMO_AMBIENT_ICONS } from '../../components/PromoAmbientLayer';
+import { adminUi } from '../lib/admin-ui';
+import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 function hexForColorInput(value: string): string {
   const v = value.trim();
@@ -54,28 +57,28 @@ function Field({
   rows?: number;
 }) {
   return (
-    <div className="mb-2">
-      <label className="mb-1 block text-xs font-medium text-gray-600">{label}</label>
+    <label className="block">
+      <span className={adminUi.label}>{label}</span>
       {rows ? (
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={rows}
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          className={adminUi.textarea}
         />
       ) : (
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          className={adminUi.input}
         />
       )}
-    </div>
+    </label>
   );
 }
 
-function ColorField({
+function ColorSwatch({
   label,
   value,
   onChange,
@@ -85,23 +88,22 @@ function ColorField({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="mb-3">
-      <label className="mb-1 block text-xs font-medium text-gray-600">{label}</label>
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          value={hexForColorInput(value)}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-10 w-10 cursor-pointer rounded border border-gray-200"
-        />
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          placeholder="#0EA5E9"
-        />
-      </div>
+    <div className="flex-1 text-center">
+      <input
+        type="color"
+        value={hexForColorInput(value)}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-[34px] w-full cursor-pointer rounded-lg border border-[#d6e2ee] bg-transparent p-0"
+        aria-label={label}
+      />
+      <span className="mt-1 block text-[10.5px] text-[#9aa7b5]">{label}</span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-md border border-[#e4ebf2] bg-[#f7fafd] px-1.5 py-1 text-center font-mono text-[10px] text-[#516171]"
+        placeholder="#0EA5E9"
+      />
     </div>
   );
 }
@@ -157,6 +159,7 @@ const EVENT_PRESETS: Array<
 
 /** Admin page for the homepage promo event strip (Cool Summer / Birthday Sale / etc.). */
 export function AdminPromoEventPage() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const { products } = useCatalog();
   const [featured, setFeatured] = useState<FeaturedCollectionConfig>(
     () => getBanners().featuredCollection
@@ -272,53 +275,53 @@ export function AdminPromoEventPage() {
 
   const featuredBgPreview =
     resolveStorageImageUrl(featured.bgImageUrl) || featured.bgImageUrl?.trim() || '';
+  const countdownActive =
+    Boolean(featured.countdownEndsAt) && isPromoCountdownActive(featured.countdownEndsAt);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-[940px] space-y-5">
+      {confirmDialog}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-[#0EA5E9]">
-            <Sparkles size={18} />
-            <span className="text-xs font-bold uppercase tracking-wide">Homepage</span>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900">Promo event</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Control the homepage strip (Cool Summer, Birthday Sale, Winter Sale, etc.) — title,
-            colors, products, countdown, and See All link.
-          </p>
-        </div>
+        <p className={adminUi.pageIntro}>
+          Control the homepage strip (Cool Summer, Birthday Sale, Winter Sale…) — title, colors,
+          products, countdown, and See-All link.
+        </p>
         <Link
           to="/"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:border-[#0EA5E9] hover:text-[#0EA5E9]"
+          className={adminUi.btnGhost}
         >
           Preview homepage <ExternalLink size={14} />
         </Link>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+      <div className={`${adminUi.card} p-[22px]`}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-gray-800">Event settings</h3>
-            <p className="mt-0.5 text-xs text-gray-500">
+            <h3 className="m-0 text-[15.5px] font-bold text-[#1e2a38]">Event settings</h3>
+            <p className="mt-0.5 text-[12.5px] text-[#9aa7b5]">
               Changes appear on the storefront homepage after you save.
             </p>
           </div>
-          <label className="inline-flex items-center gap-2 text-xs font-semibold text-gray-700">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2.5 text-[13px] font-semibold text-[#516171]">
+            <span>Show on homepage</span>
+            <AdminToggle
               checked={featured.enabled !== false}
-              onChange={(e) => updateFeatured({ enabled: e.target.checked })}
-              className="rounded border-gray-300"
+              onChange={(enabled) => updateFeatured({ enabled })}
+              label="Show on homepage"
             />
-            Show on homepage
-          </label>
+          </div>
         </div>
 
         <div
-          className="relative mb-5 overflow-hidden rounded-lg px-5 py-5"
-          style={{ backgroundColor: featured.bgColor }}
+          className="relative mb-5 overflow-hidden rounded-[14px] px-[26px] py-[26px]"
+          style={{
+            background: featuredBgPreview
+              ? featured.bgColor
+              : `linear-gradient(120deg, ${featured.bgColor}, ${featured.bgColor}cc)`,
+            backgroundColor: featured.bgColor,
+          }}
         >
           {featuredBgPreview ? (
             <>
@@ -338,34 +341,32 @@ export function AdminPromoEventPage() {
               />
             </>
           ) : null}
-          <div className="relative z-10 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <div className="text-3xl font-black tracking-tight sm:text-4xl">
-                <span style={{ color: featured.titleColor }}>{featured.title} </span>
-                <span style={{ color: featured.highlightColor }}>{featured.titleHighlight}</span>
-              </div>
-              {featured.subtitle ? (
-                <p className="mt-1 text-sm" style={{ color: featured.titleColor, opacity: 0.85 }}>
-                  {featured.subtitle}
-                </p>
-              ) : null}
+          {countdownActive ? (
+            <span className="absolute right-[22px] top-5 z-10 text-[11px] font-bold uppercase tracking-[0.05em] text-white/90">
+              {featured.countdownLabel || 'Ends in'} · timer active
+            </span>
+          ) : null}
+          <div className="relative z-10">
+            <div className="text-[36px] font-black leading-none tracking-[-0.02em]">
+              <span style={{ color: featured.titleColor }}>{featured.title} </span>
+              <span style={{ color: featured.highlightColor }}>{featured.titleHighlight}</span>
             </div>
-            {featured.countdownEndsAt && isPromoCountdownActive(featured.countdownEndsAt) ? (
-              <span className="text-xs font-bold uppercase tracking-wide text-white/90">
-                {featured.countdownLabel || 'ENDS IN'} · timer active
-              </span>
+            {featured.subtitle ? (
+              <p className="mt-2 text-[13.5px]" style={{ color: featured.titleColor, opacity: 0.85 }}>
+                {featured.subtitle}
+              </p>
             ) : null}
+            <p className="mt-3 text-[11px] text-white/75">
+              {usesCatalogDefault
+                ? `Automatically showing the first ${selectedProducts.length} active catalog products`
+                : `${selectedProducts.length} curated product${selectedProducts.length === 1 ? '' : 's'}`}
+            </p>
           </div>
-          <p className="relative z-10 mt-3 text-[11px] text-white/75">
-            {usesCatalogDefault
-              ? `Automatically showing the first ${selectedProducts.length} active catalog products`
-              : `${selectedProducts.length} curated product${selectedProducts.length === 1 ? '' : 's'}`}
-          </p>
         </div>
 
-        <div className="mb-4">
-          <label className="mb-1.5 block text-xs font-medium text-gray-600">Quick event presets</label>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        <div className="mb-[18px]">
+          <div className="mb-2 text-xs font-semibold text-[#9aa7b5]">Quick event presets</div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {EVENT_PRESETS.map((preset) => (
               <button
                 key={preset.label}
@@ -374,23 +375,33 @@ export function AdminPromoEventPage() {
                   const { label: _label, ...rest } = preset;
                   updateFeatured(rest);
                 }}
-                className="rounded border px-3 py-2 text-left text-xs font-medium transition hover:opacity-90"
+                className="rounded-[11px] border-2 border-transparent p-3 text-left transition hover:opacity-90"
                 style={{
                   backgroundColor: preset.bgColor,
                   color: preset.titleColor,
-                  borderColor: 'transparent',
                 }}
               >
-                <span style={{ color: preset.titleColor }}>{preset.title} </span>
-                <span style={{ color: preset.highlightColor }}>{preset.titleHighlight}</span>
+                <span className="text-[13.5px] font-extrabold" style={{ color: preset.titleColor }}>
+                  {preset.title}{' '}
+                </span>
+                <span
+                  className="text-[13.5px] font-extrabold"
+                  style={{ color: preset.highlightColor }}
+                >
+                  {preset.titleHighlight}
+                </span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="grid gap-x-6 md:grid-cols-2">
-          <div>
-            <Field label="Title — first word" value={featured.title} onChange={(v) => updateFeatured({ title: v })} />
+        <div className="grid gap-x-[22px] gap-y-[18px] md:grid-cols-2">
+          <div className="flex flex-col gap-3">
+            <Field
+              label="Title — first word"
+              value={featured.title}
+              onChange={(v) => updateFeatured({ title: v })}
+            />
             <Field
               label="Title — highlighted word"
               value={featured.titleHighlight}
@@ -402,100 +413,64 @@ export function AdminPromoEventPage() {
               onChange={(v) => updateFeatured({ subtitle: v })}
               rows={2}
             />
-            <Field
-              label="See All button label"
-              value={featured.seeAllLabel || ''}
-              onChange={(v) => updateFeatured({ seeAllLabel: v })}
-            />
-            <Field
-              label="See All link (e.g. /products or /cool-deals)"
-              value={featured.seeAllHref || ''}
-              onChange={(v) => updateFeatured({ seeAllHref: v })}
-            />
-            <label className="mb-3 inline-flex items-center gap-2 text-xs text-gray-600">
-              <input
-                type="checkbox"
-                checked={Boolean(featured.seeAllExternal)}
-                onChange={(e) => updateFeatured({ seeAllExternal: e.target.checked })}
-                className="rounded border-gray-300"
-              />
-              Open See All in a new tab
-            </label>
-          </div>
-          <div>
-            <ColorField label="Background color" value={featured.bgColor} onChange={(v) => updateFeatured({ bgColor: v })} />
-            <div className="mb-3">
-              <ImageUrlOrUploadField
-                label="Background image (optional)"
-                value={featured.bgImageUrl || ''}
-                onChange={(v) => updateFeatured({ bgImageUrl: v })}
-              />
-              <p className="mt-1 text-[11px] text-gray-400">
-                Upload campaign art or a wave pattern. Color still shows as a tint underneath.
+            <div>
+              <label className="block">
+                <span className={adminUi.label}>Countdown ends at</span>
+                <input
+                  type="datetime-local"
+                  value={toDatetimeLocalValue(featured.countdownEndsAt)}
+                  onChange={(e) =>
+                    updateFeatured({ countdownEndsAt: fromDatetimeLocalValue(e.target.value) })
+                  }
+                  className={adminUi.input}
+                />
+              </label>
+              {featured.countdownEndsAt ? (
+                <button
+                  type="button"
+                  onClick={() => updateFeatured({ countdownEndsAt: undefined })}
+                  className="mt-1.5 text-xs text-red-500 hover:underline"
+                >
+                  Clear
+                </button>
+              ) : null}
+              <p className="mt-1 text-[11px] text-[#9aa7b5]">
+                Sets the live days / hours / mins / secs timer under the promo title. Leave empty to
+                hide.
               </p>
             </div>
-            {featured.bgImageUrl?.trim() ? (
-              <div className="mb-3">
-                <label className="mb-1 block text-xs font-medium text-gray-600">
-                  Image tint strength ({Math.round((featured.bgImageOverlay ?? 0.2) * 100)}%)
-                </label>
-                <input
-                  type="range"
-                  min={0}
-                  max={80}
-                  step={5}
-                  value={Math.round((featured.bgImageOverlay ?? 0.2) * 100)}
-                  onChange={(e) =>
-                    updateFeatured({ bgImageOverlay: Number(e.target.value) / 100 })
-                  }
-                  className="w-full"
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div>
+              <span className={adminUi.label}>Colors</span>
+              <div className="mt-2 flex gap-2.5">
+                <ColorSwatch
+                  label="Background"
+                  value={featured.bgColor}
+                  onChange={(v) => updateFeatured({ bgColor: v })}
                 />
-                <p className="mt-1 text-[11px] text-gray-400">
-                  Higher = more of the background color over the image (easier to read titles).
-                </p>
+                <ColorSwatch
+                  label="Title"
+                  value={featured.titleColor}
+                  onChange={(v) => updateFeatured({ titleColor: v })}
+                />
+                <ColorSwatch
+                  label="Accent"
+                  value={featured.highlightColor}
+                  onChange={(v) => updateFeatured({ highlightColor: v })}
+                />
               </div>
-            ) : null}
-            <ColorField label="Title color" value={featured.titleColor} onChange={(v) => updateFeatured({ titleColor: v })} />
-            <ColorField
-              label="Highlight / accent color"
-              value={featured.highlightColor}
-              onChange={(v) => updateFeatured({ highlightColor: v })}
-            />
-            <Field
-              label="Countdown label"
-              value={featured.countdownLabel || ''}
-              onChange={(v) => updateFeatured({ countdownLabel: v })}
-            />
-            <div className="mb-3">
-              <label className="mb-1 block text-xs font-medium text-gray-600">
-                Section animation (Birthday / promo deals)
-              </label>
-              <select
-                value={normalizePromoAnimation(featured.animation)}
-                onChange={(e) =>
-                  updateFeatured({
-                    animation: e.target.value as FeaturedCollectionConfig['animation'],
-                  })
-                }
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-              >
-                {PROMO_ANIMATION_OPTIONS.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} — {a.desc}
-                  </option>
-                ))}
-              </select>
             </div>
 
-            <div className="mb-3 rounded-xl border border-[#BAE6FD] bg-[#F0F9FF] p-3">
-              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[#0369A1]">
+            <div className="rounded-xl border border-[#bae6fd] bg-[#f0f9ff] p-[13px]">
+              <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.05em] text-[#0369a1]">
                 Ambient effect
+              </div>
+              <p className="mb-2 text-[11px] text-[#7a8899]">
+                Short burst on the homepage promo strip — plays briefly, then fades out.
               </p>
-              <p className="mb-2 text-[11px] text-gray-500">
-                Short burst on the homepage promo strip — plays for a few seconds, then fades out
-                so it does not stay looping.
-              </p>
-              <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="mb-3 flex flex-wrap gap-1.5">
                 {PROMO_AMBIENT_OPTIONS.map((option) => {
                   const active =
                     normalizePromoAmbientEffect(featured.ambientEffect) === option.id;
@@ -509,25 +484,21 @@ export function AdminPromoEventPage() {
                           ambientEffect: option.id as PromoAmbientEffect,
                         })
                       }
-                      className={`rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition ${
                         active
-                          ? 'border-[#0EA5E9] bg-white font-semibold text-[#0369A1] shadow-sm'
-                          : 'border-transparent bg-white/70 hover:border-gray-200 hover:bg-white'
+                          ? 'bg-[#0ea5e9] font-semibold text-white'
+                          : 'bg-white/80 font-medium text-[#516171] ring-1 ring-[#bae6fd] hover:bg-white'
                       }`}
+                      title={option.desc}
                     >
-                      <span className="mb-1 inline-flex h-7 w-7 items-center justify-center rounded-md bg-[#E0F2FE] text-[#0369A1]">
-                        <Icon size={15} strokeWidth={2.25} />
-                      </span>
-                      <span className="block">{option.name}</span>
-                      <span className="mt-0.5 block font-normal text-[10px] text-gray-500">
-                        {option.desc}
-                      </span>
+                      <Icon size={13} strokeWidth={2.25} />
+                      {option.name}
                     </button>
                   );
                 })}
               </div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Intensity</label>
-              <div className="flex flex-wrap gap-2">
+              <label className="mb-1 block text-xs font-medium text-[#516171]">Intensity</label>
+              <div className="mb-3 flex flex-wrap gap-2">
                 {PROMO_AMBIENT_INTENSITY_OPTIONS.map((option) => {
                   const active =
                     normalizePromoAmbientIntensity(featured.ambientIntensity) === option.id;
@@ -551,7 +522,7 @@ export function AdminPromoEventPage() {
                   );
                 })}
               </div>
-              <div className="relative mt-3 h-28 overflow-hidden rounded-lg border border-[#BAE6FD] bg-[#38BDF8]/40">
+              <div className="relative h-28 overflow-hidden rounded-lg border border-[#BAE6FD] bg-[#38BDF8]/40">
                 <PromoAmbientLayer
                   effect={featured.ambientEffect}
                   intensity={featured.ambientIntensity}
@@ -562,42 +533,90 @@ export function AdminPromoEventPage() {
                 </p>
               </div>
             </div>
-
-            <div className="mb-2">
-              <label className="mb-1 block text-xs font-medium text-gray-600">
-                Section countdown ends at (optional)
-              </label>
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="datetime-local"
-                  value={toDatetimeLocalValue(featured.countdownEndsAt)}
-                  onChange={(e) =>
-                    updateFeatured({ countdownEndsAt: fromDatetimeLocalValue(e.target.value) })
-                  }
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                />
-                {featured.countdownEndsAt ? (
-                  <button
-                    type="button"
-                    onClick={() => updateFeatured({ countdownEndsAt: undefined })}
-                    className="text-xs text-red-500 hover:underline"
-                  >
-                    Clear
-                  </button>
-                ) : null}
-              </div>
-              <p className="mt-1 text-[11px] text-gray-400">
-                Sets the live days / hours / mins / secs timer under the Birthday / promo title on
-                the homepage. Leave empty to hide.
-              </p>
-            </div>
           </div>
         </div>
 
-        <div className="mt-4 border-t border-gray-100 pt-4">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h4 className="text-xs font-bold uppercase tracking-wide text-gray-600">
-              Featured products ({selectedProducts.length}/{FEATURED_PRODUCT_LIMIT})
+        <div className="mt-5 grid gap-x-[22px] gap-y-3 border-t border-[#eef3f8] pt-4 md:grid-cols-2">
+          <Field
+            label="See All button label"
+            value={featured.seeAllLabel || ''}
+            onChange={(v) => updateFeatured({ seeAllLabel: v })}
+          />
+          <Field
+            label="See All link (e.g. /products or /cool-deals)"
+            value={featured.seeAllHref || ''}
+            onChange={(v) => updateFeatured({ seeAllHref: v })}
+          />
+          <div className="flex items-center gap-2.5 text-[13px] font-semibold text-[#516171]">
+            <span>Open See All in a new tab</span>
+            <AdminToggle
+              checked={Boolean(featured.seeAllExternal)}
+              onChange={(seeAllExternal) => updateFeatured({ seeAllExternal })}
+              label="Open See All in a new tab"
+            />
+          </div>
+          <Field
+            label="Countdown label"
+            value={featured.countdownLabel || ''}
+            onChange={(v) => updateFeatured({ countdownLabel: v })}
+          />
+          <div>
+            <ImageUrlOrUploadField
+              label="Background image (optional)"
+              value={featured.bgImageUrl || ''}
+              onChange={(v) => updateFeatured({ bgImageUrl: v })}
+            />
+            <p className="mt-1 text-[11px] text-[#9aa7b5]">
+              Upload campaign art or a wave pattern. Color still shows as a tint underneath.
+            </p>
+          </div>
+          <div>
+            <label className="block">
+              <span className={adminUi.label}>Section animation</span>
+              <select
+                value={normalizePromoAnimation(featured.animation)}
+                onChange={(e) =>
+                  updateFeatured({
+                    animation: e.target.value as FeaturedCollectionConfig['animation'],
+                  })
+                }
+                className={adminUi.select}
+              >
+                {PROMO_ANIMATION_OPTIONS.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} — {a.desc}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {featured.bgImageUrl?.trim() ? (
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-[#516171]">
+                Image tint strength ({Math.round((featured.bgImageOverlay ?? 0.2) * 100)}%)
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={80}
+                step={5}
+                value={Math.round((featured.bgImageOverlay ?? 0.2) * 100)}
+                onChange={(e) =>
+                  updateFeatured({ bgImageOverlay: Number(e.target.value) / 100 })
+                }
+                className="w-full"
+              />
+              <p className="mt-1 text-[11px] text-[#9aa7b5]">
+                Higher = more of the background color over the image (easier to read titles).
+              </p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-[18px] border-t border-[#eef3f8] pt-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h4 className={adminUi.sectionLabel}>
+              Featured products ({selectedProducts.length} / {FEATURED_PRODUCT_LIMIT})
             </h4>
             {usesCatalogDefault ? (
               <button
@@ -621,57 +640,59 @@ export function AdminPromoEventPage() {
           </div>
 
           {usesCatalogDefault ? (
-            <p className="mb-3 text-xs text-gray-500">
+            <p className="mb-3 text-xs text-[#9aa7b5]">
               Showing the first active products from the catalog. Customize to lock this list and
               change its order.
             </p>
           ) : null}
 
           {selectedProducts.length > 0 ? (
-            <ul className="mb-3 space-y-1.5">
+            <div className="mb-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
               {selectedProducts.map((p, index) => (
-                <li
+                <div
                   key={p.id}
-                  className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2"
+                  className="rounded-[11px] border border-[#e8eef4] p-3 text-center"
                 >
-                  <img src={p.image} alt="" className="h-9 w-9 rounded bg-white object-contain" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-gray-800">
-                      {p.brand} · {p.model}
-                    </p>
-                    <p className="text-[10px] text-gray-400">#{index + 1}</p>
+                  <img
+                    src={p.image}
+                    alt=""
+                    className="mx-auto h-14 w-14 rounded bg-white object-contain"
+                  />
+                  <div className="mt-1.5 truncate text-xs font-bold text-[#1e2a38]">{p.brand}</div>
+                  <div className="truncate text-[11px] text-[#9aa7b5]">{p.model}</div>
+                  <div className="mt-2 flex items-center justify-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveProduct(p.id, -1)}
+                      disabled={index === 0}
+                      className="rounded p-1 text-gray-500 hover:bg-[#f7fafd] disabled:opacity-30"
+                      aria-label="Move up"
+                    >
+                      <ChevronUp size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveProduct(p.id, 1)}
+                      disabled={index === selectedProducts.length - 1}
+                      className="rounded p-1 text-gray-500 hover:bg-[#f7fafd] disabled:opacity-30"
+                      aria-label="Move down"
+                    >
+                      <ChevronDown size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeProduct(p.id)}
+                      className="rounded p-1 text-red-500 hover:bg-[#f7fafd]"
+                      aria-label="Remove"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => moveProduct(p.id, -1)}
-                    disabled={index === 0}
-                    className="rounded p-1 text-gray-500 hover:bg-white disabled:opacity-30"
-                    aria-label="Move up"
-                  >
-                    <ChevronUp size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveProduct(p.id, 1)}
-                    disabled={index === selectedProducts.length - 1}
-                    className="rounded p-1 text-gray-500 hover:bg-white disabled:opacity-30"
-                    aria-label="Move down"
-                  >
-                    <ChevronDown size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeProduct(p.id)}
-                    className="rounded p-1 text-red-500 hover:bg-white"
-                    aria-label="Remove"
-                  >
-                    <X size={14} />
-                  </button>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           ) : (
-            <p className="mb-3 text-xs text-gray-500">
+            <p className="mb-3 text-xs text-[#9aa7b5]">
               No curated products yet. Homepage will show the first {FEATURED_PRODUCT_LIMIT} catalog
               items until you pick some.
             </p>
@@ -684,11 +705,11 @@ export function AdminPromoEventPage() {
                 value={productSearch}
                 onChange={(e) => setProductSearch(e.target.value)}
                 placeholder="Search catalog to add…"
-                className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className={`${adminUi.input} mb-2`}
               />
-              <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-gray-100 p-1">
+              <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[#eef3f8] p-1">
                 {searchableProducts.length === 0 ? (
-                  <p className="px-2 py-3 text-center text-xs text-gray-400">No matching products</p>
+                  <p className="px-2 py-3 text-center text-xs text-[#9aa7b5]">No matching products</p>
                 ) : (
                   searchableProducts.map((p) => (
                     <button
@@ -698,7 +719,7 @@ export function AdminPromoEventPage() {
                       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-[#E0F2FE]"
                     >
                       <img src={p.image} alt="" className="h-8 w-8 rounded bg-white object-contain" />
-                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-800">
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#1e2a38]">
                         {p.brand} · {p.model}
                       </span>
                       <Plus size={14} className="shrink-0 text-[#0EA5E9]" />
@@ -715,9 +736,17 @@ export function AdminPromoEventPage() {
         saved={saved}
         onSave={save}
         onReset={() => {
-          if (!confirm('Reset promo event to default (Cool Summer)?')) return;
-          setFeatured({ ...defaultBanners.featuredCollection });
-          setSaved(false);
+          void (async () => {
+            const ok = await confirm({
+              title: 'Reset promo event?',
+              description: 'Restore the default Cool Summer settings. Unsaved customizations will be lost.',
+              confirmLabel: 'Reset',
+              tone: 'danger',
+            });
+            if (!ok) return;
+            setFeatured({ ...defaultBanners.featuredCollection });
+            setSaved(false);
+          })();
         }}
       />
     </div>

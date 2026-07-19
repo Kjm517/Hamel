@@ -28,6 +28,7 @@ import {
 } from '../../data/cool-deals-page';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
 import { hexForColorInput } from '../../lib/color-utils';
+import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 function FieldEditor({
   label,
@@ -63,6 +64,7 @@ function FieldEditor({
 }
 
 export function AdminCoolDealsPage() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const [config, setConfig] = useState<CoolDealsPageConfig>(() => getCoolDealsPage());
   const [expandedId, setExpandedId] = useState<string | null>(config.sections[0]?.id ?? null);
   const [saved, setSaved] = useState(false);
@@ -88,8 +90,14 @@ export function AdminCoolDealsPage() {
     updateSections(sections);
   };
 
-  const removeSection = (id: string) => {
-    if (!confirm('Remove this section from the Cool Deals page?')) return;
+  const removeSection = async (id: string) => {
+    const ok = await confirm({
+      title: 'Remove this section?',
+      description: 'It will be removed from the Cool Deals page. Remember to save after deleting.',
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    });
+    if (!ok) return;
     updateSections(config.sections.filter((s) => s.id !== id));
   };
 
@@ -100,8 +108,14 @@ export function AdminCoolDealsPage() {
     saveTimer.current = setTimeout(() => setSaved(false), 2500);
   };
 
-  const handleReset = () => {
-    if (!confirm('Reset all Cool Deals sections to defaults?')) return;
+  const handleReset = async () => {
+    const ok = await confirm({
+      title: 'Reset Cool Deals to defaults?',
+      description: 'All custom sections will be replaced. This cannot be undone.',
+      confirmLabel: 'Reset',
+      tone: 'danger',
+    });
+    if (!ok) return;
     void resetCoolDealsPage();
     setConfig(JSON.parse(JSON.stringify(defaultCoolDealsPage)));
     setSaved(false);
@@ -118,6 +132,7 @@ export function AdminCoolDealsPage() {
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Cool Deals page</h2>
@@ -230,7 +245,7 @@ export function AdminCoolDealsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => removeSection(section.id)}
+                  onClick={() => void removeSection(section.id)}
                   className="p-1.5 rounded text-red-400 hover:bg-red-50"
                   aria-label="Delete section"
                 >

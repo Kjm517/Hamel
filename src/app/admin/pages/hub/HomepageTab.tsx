@@ -14,6 +14,7 @@ import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
 import { BannerLinkDestinationField } from '../../components/BannerLinkDestinationField';
 import { SortableList } from '../../components/SortableList';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
+import { useAdminConfirm } from '../../components/AdminConfirmDialog';
 import { PageEditorIntro } from './PageEditorIntro';
 
 type SlideRow = BannerConfig & { id: string };
@@ -40,6 +41,7 @@ function Field({ label, value, onChange, rows }: { label: string; value: string;
 }
 
 export function HomepageTab() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const [store, setStore] = useState<BannerStore>(() => getBanners());
   const [slides, setSlides] = useState<SlideRow[]>(() => ensureSlideIds(getBanners().heroSlides));
   const [openSlideId, setOpenSlideId] = useState<string | null>(slides[0]?.id ?? null);
@@ -69,6 +71,7 @@ export function HomepageTab() {
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       <PageEditorIntro
         title="Home page"
         description="Update the big sliding pictures at the top and up to three optional offer tiles on the right."
@@ -274,11 +277,19 @@ export function HomepageTab() {
         saved={saved}
         onSave={save}
         onReset={() => {
-          if (!confirm('Reset homepage banners to defaults?')) return;
-          const d = defaultBanners;
-          setStore(d);
-          setSlides(ensureSlideIds(d.heroSlides));
-          setSaved(false);
+          void (async () => {
+            const ok = await confirm({
+              title: 'Reset homepage banners?',
+              description: 'Restore default hero slides and offer tiles. This cannot be undone.',
+              confirmLabel: 'Reset',
+              tone: 'danger',
+            });
+            if (!ok) return;
+            const d = defaultBanners;
+            setStore(d);
+            setSlides(ensureSlideIds(d.heroSlides));
+            setSaved(false);
+          })();
         }}
       />
     </div>

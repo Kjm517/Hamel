@@ -41,6 +41,7 @@ import {
 } from '../data/admin-demo';
 import { useBrandsPage } from '../../hooks/useBrandsPage';
 import { deriveProductBrandChoices } from '../../data/brands-page';
+import { adminUi } from '../lib/admin-ui';
 
 type StockStatus = (typeof STOCK_OPTIONS)[number];
 
@@ -258,20 +259,22 @@ export function AddEditProductPage() {
 
   return (
     <div className="pb-24">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">
-          {isEdit ? 'Edit Product' : 'Add New Product'}
-        </h2>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className={adminUi.pageIntro}>
+          {isEdit
+            ? 'Update catalog details, pricing, promos, and media for this product.'
+            : 'Fill in catalog details, pricing, and media to publish a new product.'}
+        </p>
         <Link
           to="/admin/products"
-          className="text-sm font-medium text-[#0EA5E9] hover:underline"
+          className="text-[13.5px] font-semibold text-[#0ea5e9] hover:underline"
         >
           ← Back to Products
         </Link>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
         </div>
       )}
@@ -895,24 +898,14 @@ export function AddEditProductPage() {
           </Section>
         </div>
 
-        <div className="fixed bottom-0 left-[260px] right-0 z-20 flex justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4 shadow-lg">
-          <Link
-            to="/admin/products"
-            className="rounded-md border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+        <div className="fixed bottom-0 left-[260px] right-0 z-20 flex justify-end gap-3 border-t border-[#e8eef4] bg-white px-6 py-4 shadow-[0_-4px_20px_rgba(30,42,56,0.06)]">
+          <Link to="/admin/products" className={adminUi.btnGhost}>
             Cancel
           </Link>
-          <button
-            type="button"
-            className="rounded-md border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <button type="button" className={adminUi.btnGhost}>
             Save Draft
           </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-md bg-amber-400 px-6 py-2.5 text-sm font-bold text-gray-900 hover:bg-amber-500 disabled:opacity-60"
-          >
+          <button type="submit" disabled={saving} className={adminUi.btnAmber}>
             {saving ? 'Publishing…' : 'Publish'}
           </button>
         </div>
@@ -923,8 +916,8 @@ export function AddEditProductPage() {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 text-lg font-bold text-gray-900">{title}</h3>
+    <div className={`${adminUi.card} p-6`}>
+      <h3 className="mb-4 text-[16px] font-bold text-[#1e2a38]">{title}</h3>
       <div className="space-y-4">{children}</div>
     </div>
   );
@@ -933,11 +926,10 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
-      <div className="mt-1">{children}</div>
+      <span className={adminUi.label}>{label}</span>
+      <div>{children}</div>
     </label>
   );
 }
 
-const inputClass =
-  'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#0EA5E9] focus:outline-none focus:ring-1 focus:ring-[#0EA5E9]';
+const inputClass = adminUi.input;

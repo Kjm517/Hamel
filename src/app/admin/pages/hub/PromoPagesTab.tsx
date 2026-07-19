@@ -23,6 +23,7 @@ import {
 import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
 import { SortableList } from '../../components/SortableList';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
+import { useAdminConfirm } from '../../components/AdminConfirmDialog';
 import { PageEditorIntro } from './PageEditorIntro';
 
 function Field({
@@ -193,6 +194,7 @@ function BlockEditor({
 }
 
 export function PromoPagesTab() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const [params, setParams] = useSearchParams();
   const [pages, setPages] = useState<PromoPage[]>(() => getPromoPages());
   const [openId, setOpenId] = useState<string | null>(pages[0]?.id ?? null);
@@ -330,8 +332,14 @@ export function PromoPagesTab() {
     return draft;
   };
 
-  const deletePage = (id: string) => {
-    if (!confirm('Delete this page? This cannot be undone.')) return;
+  const deletePage = async (id: string) => {
+    const ok = await confirm({
+      title: 'Delete this page?',
+      description: 'This permanently removes the page and its sections. This cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
 
     const remaining = pages.filter((page) => page.id !== id);
     const nextPage = remaining[0] ?? null;
@@ -358,14 +366,15 @@ export function PromoPagesTab() {
     }
   };
 
-  const deleteAllCustomPages = () => {
-    if (
-      !confirm(
-        'Delete all custom pages? This permanently removes every custom page, its sections, and its website menu links.'
-      )
-    ) {
-      return;
-    }
+  const deleteAllCustomPages = async () => {
+    const ok = await confirm({
+      title: 'Delete all custom pages?',
+      description:
+        'This permanently removes every custom page, its sections, and its website menu links.',
+      confirmLabel: 'Delete all',
+      tone: 'danger',
+    });
+    if (!ok) return;
 
     pagesRef.current = [];
     setPages([]);
@@ -447,6 +456,7 @@ export function PromoPagesTab() {
 
   return (
     <div className="space-y-5">
+      {confirmDialog}
       <PageEditorIntro
         title={introTitle}
         description={introDescription}
@@ -465,7 +475,7 @@ export function PromoPagesTab() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => deletePage(focusPage.id)}
+                  onClick={() => void deletePage(focusPage.id)}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                 >
                   <Trash2 size={15} /> Delete page
@@ -475,7 +485,7 @@ export function PromoPagesTab() {
             {pages.length > 0 ? (
               <button
                 type="button"
-                onClick={deleteAllCustomPages}
+                onClick={() => void deleteAllCustomPages()}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
               >
                 <Trash2 size={15} /> Delete all custom pages
@@ -569,7 +579,7 @@ export function PromoPagesTab() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => deletePage(page.id)}
+                    onClick={() => void deletePage(page.id)}
                     className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-red-500 hover:bg-red-50"
                     title="Delete this entire page"
                   >
@@ -716,7 +726,7 @@ export function PromoPagesTab() {
                         </p>
                         <button
                           type="button"
-                          onClick={() => deletePage(page.id)}
+                          onClick={() => void deletePage(page.id)}
                           className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
                         >
                           <Trash2 size={14} /> Delete page
@@ -811,10 +821,18 @@ export function PromoPagesTab() {
         saved={saved}
         onSave={save}
         onReset={() => {
-          if (!confirm('Reset all custom pages to the starter examples?')) return;
-          void resetPromoPages().then(() => {
-            setPages(defaultPromoPages.map((p) => ({ ...p, blocks: ensurePageBlocks(p) })));
-          });
+          void (async () => {
+            const ok = await confirm({
+              title: 'Reset all custom pages?',
+              description: 'Replace everything with the starter examples. This cannot be undone.',
+              confirmLabel: 'Reset',
+              tone: 'danger',
+            });
+            if (!ok) return;
+            void resetPromoPages().then(() => {
+              setPages(defaultPromoPages.map((p) => ({ ...p, blocks: ensurePageBlocks(p) })));
+            });
+          })();
         }}
       />
     </div>

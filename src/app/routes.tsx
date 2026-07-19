@@ -18,6 +18,7 @@ import { AdminForgotPasswordPage } from "./admin/pages/AdminForgotPasswordPage";
 import { AdminResetPasswordPage } from "./admin/pages/AdminResetPasswordPage";
 import { DashboardPage } from "./admin/pages/DashboardPage";
 import { AdminPagesHub } from "./admin/pages/AdminPagesHub";
+import { AdminBannersPage } from "./admin/pages/AdminBannersPage";
 import { AdminPromoEventPage } from "./admin/pages/AdminPromoEventPage";
 import { AdminProductsPage } from "./admin/pages/AdminProductsPage";
 import { AddEditProductPage } from "./admin/pages/AddEditProductPage";
@@ -27,6 +28,7 @@ import { AdminTagsPage } from "./admin/pages/AdminTagsPage";
 import { AdminInstallmentsPage } from "./admin/pages/AdminInstallmentsPage";
 import { AdminPromoPopupPage } from "./admin/pages/AdminPromoPopupPage";
 import { AdminVouchersPage } from "./admin/pages/AdminVouchersPage";
+import { AdminPromoPagesPage } from "./admin/pages/AdminPromoPagesPage";
 import { AdminInquiriesPage } from "./admin/pages/AdminInquiriesPage";
 import { AdminCustomersPage } from "./admin/pages/AdminCustomersPage";
 import { AdminMessagesPage } from "./admin/pages/AdminMessagesPage";
@@ -69,8 +71,8 @@ export const router = createBrowserRouter([
               { path: "dashboard", Component: DashboardPage },
               { path: "pages", Component: AdminPagesHub },
               { path: "promo-event", Component: AdminPromoEventPage },
-              { path: "banners", element: <Navigate to="/admin/pages?tab=home" replace /> },
-              { path: "promo-pages", element: <Navigate to="/admin/pages?tab=promo" replace /> },
+              { path: "banners", Component: AdminBannersPage },
+              { path: "promo-pages", Component: AdminPromoPagesPage },
               { path: "cool-deals", element: <Navigate to="/admin/pages?tab=cool-deals" replace /> },
               { path: "tags", Component: AdminTagsPage },
               { path: "installments", Component: AdminInstallmentsPage },

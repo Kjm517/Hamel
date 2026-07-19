@@ -5,6 +5,7 @@ import { PageBanner } from '../../../components/PageBanner';
 import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
 import { BannerLinkDestinationField } from '../../components/BannerLinkDestinationField';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
+import { useAdminConfirm } from '../../components/AdminConfirmDialog';
 import { PageEditorIntro } from './PageEditorIntro';
 
 const PAGE_KEYS: PageKey[] = ['products', 'brands', 'why-hamel', 'contact'];
@@ -23,6 +24,7 @@ function Field({ label, value, onChange, rows }: { label: string; value: string;
 }
 
 export function PageHeadersTab() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const [store, setStore] = useState<BannerStore>(() => getBanners());
   const [active, setActive] = useState<PageKey>('products');
   const [saved, setSaved] = useState(false);
@@ -44,6 +46,7 @@ export function PageHeadersTab() {
 
   return (
     <div className="space-y-5">
+      {confirmDialog}
       <PageEditorIntro
         title="Other page headers"
         description="Each of these pages has a large photo banner at the top. Pick a page, change the photo and text, then save."
@@ -92,11 +95,19 @@ export function PageHeadersTab() {
         saved={saved}
         onSave={save}
         onReset={() => {
-          if (!confirm('Reset all page headers?')) return;
-          const next = { ...getBanners() };
-          for (const k of PAGE_KEYS) next[k] = { ...defaultBanners[k] };
-          setStore(next);
-          setSaved(false);
+          void (async () => {
+            const ok = await confirm({
+              title: 'Reset all page headers?',
+              description: 'Restore default header banners for Products, Brands, Why Hamel, and Contact.',
+              confirmLabel: 'Reset',
+              tone: 'danger',
+            });
+            if (!ok) return;
+            const next = { ...getBanners() };
+            for (const k of PAGE_KEYS) next[k] = { ...defaultBanners[k] };
+            setStore(next);
+            setSaved(false);
+          })();
         }}
       />
     </div>

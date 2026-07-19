@@ -22,8 +22,11 @@ import {
 } from '../../lib/promo-animations';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
 import { SortableList } from '../components/SortableList';
+import { AdminToggle } from '../components/AdminToggle';
 import { useCatalog } from '../../context/CatalogContext';
 import { isStorefrontProduct } from '../../lib/catalog-product';
+import { adminUi } from '../lib/admin-ui';
+import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 const LAYOUTS: { id: PromoPopupLayout; label: string; hint: string }[] = [
   { id: 'centered', label: 'PM-A · Centered · announcement', hint: 'Centered message with image or mascot' },
@@ -33,9 +36,9 @@ const LAYOUTS: { id: PromoPopupLayout; label: string; hint: string }[] = [
 ];
 
 const PURPOSES: { id: PromoPopupPurpose; label: string; hint: string }[] = [
-  { id: 'voucher', label: 'Voucher / deal', hint: 'Share a copyable promo code' },
-  { id: 'product', label: 'Product spotlight', hint: 'Send shoppers to a catalog product' },
-  { id: 'announcement', label: 'Announcement', hint: 'Share a service, event, or store update' },
+  { id: 'voucher', label: 'Voucher / deal', hint: 'Share a copyable code' },
+  { id: 'product', label: 'Product spotlight', hint: 'Send to a product' },
+  { id: 'announcement', label: 'Announcement', hint: 'Store update' },
 ];
 
 const PATH_PRESETS = ['/', '/cool-deals', '/products', '/brands', '/about', '/contact'];
@@ -224,6 +227,7 @@ function PopupLayoutPreview({ popup }: { popup: SitePromoPopupItem }) {
 }
 
 export function AdminPromoPopupPage() {
+  const { confirm, dialog: confirmDialog } = useAdminConfirm();
   const { products } = useCatalog();
   const [draft, setDraft] = useState<SitePromoPopupsConfig>(defaultSitePromoPopups);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -306,7 +310,15 @@ export function AdminPromoPopupPage() {
     setSelectedId(item.id);
   };
 
-  const removePopup = (id: string) => {
+  const removePopup = async (id: string) => {
+    const item = draft.popups.find((p) => p.id === id);
+    const ok = await confirm({
+      title: 'Delete this promo pop-up?',
+      description: `Remove "${item?.name || 'this pop-up'}"? Remember to save after deleting.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setDraft((prev) => {
       const popups = prev.popups.filter((p) => p.id !== id);
       return { popups };
@@ -363,57 +375,42 @@ export function AdminPromoPopupPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {confirmDialog}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Promo pop-ups</h2>
-          <p className="text-sm text-gray-600">
-            Create voucher offers, product spotlights, and store announcements. Choose when each
-            shows — first visit, every visit, homepage only, or selected pages. When several match,
-            they show one after another (lowest priority number first).
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={addPopup}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm font-semibold text-white"
-          >
-            <Plus className="h-4 w-4" />
-            Add popup
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void save()}
-            className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-gray-900 hover:bg-amber-500 disabled:opacity-60"
-          >
-            {saving ? 'Saving…' : 'Save all'}
-          </button>
-        </div>
+        <p className={`${adminUi.pageIntro} max-w-[640px]`}>
+          Create voucher offers, product spotlights, and store announcements. Choose when each
+          shows — first visit, every visit, homepage only, or selected pages.
+        </p>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void save()}
+          className={adminUi.btnAmber}
+        >
+          {saving ? 'Saving…' : saved ? 'Saved' : 'Save all'}
+        </button>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
           {error}
         </div>
       )}
-      {saved && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
-          Popup settings saved.
-        </div>
-      )}
 
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-3">
-          <p className="px-1 text-xs font-bold uppercase tracking-wide text-gray-500">
+      <div className="grid items-start gap-4 lg:grid-cols-[220px_minmax(0,1fr)_340px]">
+        {/* LEFT — popup list */}
+        <div className={`${adminUi.card} flex flex-col p-3`}>
+          <p className={`px-1.5 pb-2 pt-1 ${adminUi.sectionLabel}`}>
             Popups ({draft.popups.length})
           </p>
           {draft.popups.length === 0 ? (
-            <p className="px-1 py-4 text-center text-xs text-gray-500">No popups yet.</p>
+            <p className="px-1 py-4 text-center text-xs text-[#9aa7b5]">No popups yet.</p>
           ) : (
             <>
-              <p className="px-1 text-[11px] text-gray-500">Drag the handle to set popup priority.</p>
+              <p className="mb-1.5 px-1 text-[11px] text-[#9aa7b5]">
+                Drag the handle to set popup priority.
+              </p>
               <SortableList
                 items={orderedPopups}
                 onReorder={reorderPopups}
@@ -422,14 +419,24 @@ export function AdminPromoPopupPage() {
                   <button
                     type="button"
                     onClick={() => setSelectedId(p.id)}
-                    className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm ${
+                    className={`w-full rounded-[10px] border px-3 py-2.5 text-left transition ${
                       selected?.id === p.id
-                        ? 'border-[#0EA5E9] bg-[#E0F2FE] font-semibold text-[#0369A1]'
-                        : 'border-gray-200 hover:bg-gray-50'
+                        ? 'border-[#0ea5e9] bg-[#e0f2fe]'
+                        : 'border-[#e4ebf2] bg-white hover:bg-[#f7fafd]'
                     }`}
                   >
-                    <span className="block truncate">{p.name || p.headline || 'Untitled'}</span>
-                    <span className="mt-0.5 block text-[10px] font-normal text-gray-500">
+                    <span
+                      className={`block truncate text-[13px] font-bold ${
+                        selected?.id === p.id ? 'text-[#0369a1]' : 'text-[#1e2a38]'
+                      }`}
+                    >
+                      {p.name || p.headline || 'Untitled'}
+                    </span>
+                    <span
+                      className={`mt-0.5 block text-[10.5px] font-medium opacity-80 ${
+                        selected?.id === p.id ? 'text-[#0369a1]' : 'text-[#9aa7b5]'
+                      }`}
+                    >
                       {p.enabled ? 'On' : 'Off'} · P{index + 1} ·{' '}
                       {PROMO_POPUP_PAGE_SCOPE_LABELS[p.pageScope]}
                     </span>
@@ -438,50 +445,58 @@ export function AdminPromoPopupPage() {
               />
             </>
           )}
+          <button
+            type="button"
+            onClick={addPopup}
+            className="mt-2.5 inline-flex h-[38px] w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#0ea5e9] text-[13px] font-bold text-white transition hover:bg-[#0284c7]"
+          >
+            <Plus className="h-[15px] w-[15px]" strokeWidth={2.2} />
+            Add popup
+          </button>
         </div>
 
+        {/* CENTER — editor */}
         {!selected ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+          <div className={`${adminUi.card} border-dashed p-8 text-center text-sm text-[#9aa7b5]`}>
             Add a popup to configure content and show conditions.
           </div>
         ) : (
-          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-            {/* Content / rules — scrolls independently of preview */}
-            <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-800">
-                  <input
-                    type="checkbox"
-                    checked={selected.enabled}
-                    onChange={(e) => patch(selected.id, { enabled: e.target.checked })}
-                  />
-                  Enabled
-                </label>
-                <button
-                  type="button"
-                  onClick={() => removePopup(selected.id)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </button>
-              </div>
-
-              <label className="block text-sm">
-                <span className="font-medium text-gray-700">Admin name</span>
-                <input
-                  value={selected.name}
-                  onChange={(e) => patch(selected.id, { name: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
+          <div className={`${adminUi.card} flex flex-col gap-4 p-5`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 text-[13px] font-semibold text-[#516171]">
+                <span>Enabled</span>
+                <AdminToggle
+                  checked={selected.enabled}
+                  onChange={(enabled) => patch(selected.id, { enabled })}
+                  label="Enabled"
                 />
-              </label>
+              </div>
+              <button
+                type="button"
+                onClick={() => void removePopup(selected.id)}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </button>
+            </div>
 
-              <div className="space-y-3 rounded-lg border border-sky-100 bg-[#F0F9FF] p-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-[#0369A1]">
-                  When to show
-                </p>
-                <label className="block text-sm">
-                  <span className="font-medium text-gray-700">Frequency</span>
+            <label className="block">
+              <span className={adminUi.label}>Admin name</span>
+              <input
+                value={selected.name}
+                onChange={(e) => patch(selected.id, { name: e.target.value })}
+                className={adminUi.input}
+              />
+            </label>
+
+            <div className="rounded-xl border border-[#bae6fd] bg-[#f0f9ff] p-3.5">
+              <div className="mb-2.5 text-[11px] font-extrabold uppercase tracking-[0.05em] text-[#0369a1]">
+                When to show
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className={adminUi.label}>Frequency</span>
                   <select
                     value={selected.frequency}
                     onChange={(e) =>
@@ -489,7 +504,7 @@ export function AdminPromoPopupPage() {
                         frequency: e.target.value as PromoPopupFrequency,
                       })
                     }
-                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2"
+                    className={`${adminUi.select} bg-white`}
                   >
                     {(Object.keys(PROMO_POPUP_FREQUENCY_LABELS) as PromoPopupFrequency[]).map(
                       (key) => (
@@ -500,8 +515,8 @@ export function AdminPromoPopupPage() {
                     )}
                   </select>
                 </label>
-                <label className="block text-sm">
-                  <span className="font-medium text-gray-700">Pages</span>
+                <label className="block">
+                  <span className={adminUi.label}>Pages</span>
                   <select
                     value={selected.pageScope}
                     onChange={(e) =>
@@ -509,7 +524,7 @@ export function AdminPromoPopupPage() {
                         pageScope: e.target.value as PromoPopupPageScope,
                       })
                     }
-                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2"
+                    className={`${adminUi.select} bg-white`}
                   >
                     {(Object.keys(PROMO_POPUP_PAGE_SCOPE_LABELS) as PromoPopupPageScope[]).map(
                       (key) => (
@@ -520,113 +535,192 @@ export function AdminPromoPopupPage() {
                     )}
                   </select>
                 </label>
-                {selected.pageScope === 'selected' && (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      {PATH_PRESETS.map((path) => (
-                        <button
-                          key={path}
-                          type="button"
-                          onClick={() => addPath(path)}
-                          className="rounded-full border border-[#BAE6FD] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#0369A1] hover:bg-[#E0F2FE]"
-                        >
-                          + {path === '/' ? 'Home' : path}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        value={pathDraft}
-                        onChange={(e) => setPathDraft(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addPath(pathDraft);
-                          }
-                        }}
-                        placeholder="/custom-path"
-                        className="flex-1 rounded-lg border border-gray-200 px-3 py-2 font-mono text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => addPath(pathDraft)}
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                      >
-                        Add
-                      </button>
-                    </div>
-                    {selected.pagePaths.length > 0 && (
-                      <ul className="flex flex-wrap gap-1.5">
-                        {selected.pagePaths.map((path) => (
-                          <li
-                            key={path}
-                            className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 font-mono text-xs text-gray-800 ring-1 ring-gray-200"
-                          >
-                            {path}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                patch(selected.id, {
-                                  pagePaths: selected.pagePaths.filter((p) => p !== path),
-                                })
-                              }
-                              className="text-gray-400 hover:text-red-600"
-                              aria-label={`Remove ${path}`}
-                            >
-                              ×
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
-                    <span className="block text-sm font-medium text-gray-700">Queue priority</span>
-                    <span className="mt-1 block text-lg font-bold text-[#0369A1]">P{selectedQueuePosition}</span>
-                    <span className="mt-1 block text-[11px] text-gray-500">
-                      Drag this popup in the left queue to change its order.
-                    </span>
-                  </div>
-                  <label className="block text-sm">
-                    <span className="font-medium text-gray-700">Delay (ms)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={100}
-                      value={selected.delayMs}
-                      onChange={(e) =>
-                        patch(selected.id, {
-                          delayMs: Math.max(0, Number(e.target.value) || 0),
-                        })
-                      }
-                      className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2"
-                    />
-                  </label>
-                </div>
               </div>
+              {selected.pageScope === 'selected' && (
+                <div className="mt-3 space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {PATH_PRESETS.map((path) => (
+                      <button
+                        key={path}
+                        type="button"
+                        onClick={() => addPath(path)}
+                        className="rounded-full border border-[#BAE6FD] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#0369A1] hover:bg-[#E0F2FE]"
+                      >
+                        + {path === '/' ? 'Home' : path}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={pathDraft}
+                      onChange={(e) => setPathDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addPath(pathDraft);
+                        }
+                      }}
+                      placeholder="/custom-path"
+                      className={`${adminUi.input} mt-0 flex-1 font-mono`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addPath(pathDraft)}
+                      className={adminUi.btnSoft}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {selected.pagePaths.length > 0 && (
+                    <ul className="flex flex-wrap gap-1.5">
+                      {selected.pagePaths.map((path) => (
+                        <li
+                          key={path}
+                          className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 font-mono text-xs text-gray-800 ring-1 ring-gray-200"
+                        >
+                          {path}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              patch(selected.id, {
+                                pagePaths: selected.pagePaths.filter((p) => p !== path),
+                              })
+                            }
+                            className="text-gray-400 hover:text-red-600"
+                            aria-label={`Remove ${path}`}
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-[#e4ebf2] bg-white px-3 py-2">
+                  <span className="block text-[12.5px] font-semibold text-[#516171]">
+                    Queue priority
+                  </span>
+                  <span className="mt-1 block text-lg font-bold text-[#0369A1]">
+                    P{selectedQueuePosition}
+                  </span>
+                  <span className="mt-1 block text-[11px] text-[#9aa7b5]">
+                    Drag this popup in the left queue to change its order.
+                  </span>
+                </div>
+                <label className="block">
+                  <span className={adminUi.label}>Delay (ms)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={selected.delayMs}
+                    onChange={(e) =>
+                      patch(selected.id, {
+                        delayMs: Math.max(0, Number(e.target.value) || 0),
+                      })
+                    }
+                    className={`${adminUi.input} bg-white`}
+                  />
+                </label>
+              </div>
+            </div>
 
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Campaign type</p>
-              <div className="grid gap-2 sm:grid-cols-3">
+            <div>
+              <div className={`mb-2 ${adminUi.sectionLabel}`}>Campaign type</div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {PURPOSES.map((purpose) => (
                   <button
                     key={purpose.id}
                     type="button"
                     onClick={() => setPurpose(purpose.id)}
-                    className={`rounded-lg border px-3 py-2.5 text-left text-sm ${
+                    className={`rounded-[10px] border-[1.5px] p-[11px] text-left transition ${
                       selected.purpose === purpose.id
-                        ? 'border-[#0EA5E9] bg-[#E0F2FE] font-semibold text-[#0369A1]'
-                        : 'border-gray-200 hover:bg-gray-50'
+                        ? 'border-[#0ea5e9] bg-[#e0f2fe]'
+                        : 'border-[#e4ebf2] bg-white hover:bg-[#f7fafd]'
                     }`}
                   >
-                    {purpose.label}
-                    <span className="mt-0.5 block text-xs font-normal text-gray-500">{purpose.hint}</span>
+                    <div
+                      className={`text-[12.5px] font-bold ${
+                        selected.purpose === purpose.id ? 'text-[#0369a1]' : 'text-[#1e2a38]'
+                      }`}
+                    >
+                      {purpose.label}
+                    </div>
+                    <div
+                      className={`mt-0.5 text-[11px] ${
+                        selected.purpose === purpose.id ? 'text-[#38607a]' : 'text-[#9aa7b5]'
+                      }`}
+                    >
+                      {purpose.hint}
+                    </div>
                   </button>
                 ))}
               </div>
+            </div>
 
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Layout</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block sm:col-span-2">
+                <span className={adminUi.label}>Headline</span>
+                <input
+                  value={selected.headline}
+                  onChange={(e) => patch(selected.id, { headline: e.target.value })}
+                  className={adminUi.input}
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className={adminUi.label}>Body</span>
+                <textarea
+                  value={selected.body}
+                  onChange={(e) => patch(selected.id, { body: e.target.value })}
+                  rows={2}
+                  className={adminUi.textarea}
+                />
+              </label>
+              {selected.purpose === 'voucher' ? (
+                <label className="block">
+                  <span className={adminUi.label}>Voucher code</span>
+                  <input
+                    value={selected.code}
+                    onChange={(e) => patch(selected.id, { code: e.target.value.toUpperCase() })}
+                    className={`${adminUi.input} font-mono font-bold`}
+                  />
+                </label>
+              ) : null}
+              <label className={`block ${selected.purpose === 'voucher' ? '' : 'sm:col-span-2'}`}>
+                <span className={adminUi.label}>CTA label</span>
+                <input
+                  value={selected.ctaLabel}
+                  onChange={(e) => patch(selected.id, { ctaLabel: e.target.value })}
+                  className={adminUi.input}
+                />
+              </label>
+            </div>
+
+            {selected.purpose === 'product' ? (
+              <label className="block">
+                <span className={adminUi.label}>Catalog product</span>
+                <select
+                  value={selected.productId || ''}
+                  onChange={(e) => selectProduct(e.target.value)}
+                  className={adminUi.select}
+                >
+                  <option value="">Choose a product to populate this spotlight…</option>
+                  {storefrontProducts.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.brand} {product.model}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-[11px] text-[#9aa7b5]">
+                  Selecting a product fills the image, copy, and link; you can edit them afterward.
+                </span>
+              </label>
+            ) : null}
+
+            <div>
+              <div className={`mb-2 ${adminUi.sectionLabel}`}>Layout</div>
               <div className="space-y-2">
                 {LAYOUTS.filter(
                   (layout) =>
@@ -637,220 +731,166 @@ export function AdminPromoPopupPage() {
                     key={l.id}
                     type="button"
                     onClick={() => patch(selected.id, { layout: l.id })}
-                    className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm ${
+                    className={`w-full rounded-[10px] border px-3 py-2.5 text-left text-sm transition ${
                       selected.layout === l.id
-                        ? 'border-[#0EA5E9] bg-[#E0F2FE] font-semibold text-[#0369A1]'
-                        : 'border-gray-200 hover:bg-gray-50'
+                        ? 'border-[#0ea5e9] bg-[#e0f2fe] font-semibold text-[#0369a1]'
+                        : 'border-[#e4ebf2] hover:bg-[#f7fafd]'
                     }`}
                   >
                     {l.label}
-                    <span className="mt-0.5 block text-xs font-normal text-gray-500">{l.hint}</span>
+                    <span className="mt-0.5 block text-xs font-normal text-[#9aa7b5]">{l.hint}</span>
                   </button>
                 ))}
               </div>
+            </div>
 
-              <label className="block text-sm">
-                <span className="font-medium text-gray-700">Headline</span>
-                <input
-                  value={selected.headline}
-                  onChange={(e) => patch(selected.id, { headline: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="font-medium text-gray-700">Body</span>
-                <textarea
-                  value={selected.body}
-                  onChange={(e) => patch(selected.id, { body: e.target.value })}
-                  rows={3}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-                />
-              </label>
-              {selected.purpose === 'product' ? (
-                <label className="block text-sm">
-                  <span className="font-medium text-gray-700">Catalog product</span>
-                  <select
-                    value={selected.productId || ''}
-                    onChange={(e) => selectProduct(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2"
-                  >
-                    <option value="">Choose a product to populate this spotlight…</option>
-                    {storefrontProducts.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.brand} {product.model}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="mt-1 block text-[11px] text-gray-500">
-                    Selecting a product fills the image, copy, and link; you can edit them afterward.
-                  </span>
-                </label>
-              ) : null}
-              {selected.purpose === 'voucher' ? (
-                <label className="block text-sm">
-                  <span className="font-medium text-gray-700">Voucher code</span>
-                  <input
-                    value={selected.code}
-                    onChange={(e) => patch(selected.id, { code: e.target.value.toUpperCase() })}
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-mono"
-                  />
-                </label>
-              ) : null}
-              {selected.layout === 'coupon' ? (
-                <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2.5">
-                  <p className="text-xs font-semibold text-gray-700">
-                    {IMAGE_UPLOAD_GUIDES.coupon.label}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">{IMAGE_UPLOAD_GUIDES.coupon.detail}</p>
-                </div>
-              ) : (
-                <>
-                  {selected.layout === 'poster' ? (
-                    <label className="block text-sm">
-                      <span className="font-medium text-gray-700">Media type</span>
-                      <select
-                        value={selected.mediaType}
-                        onChange={(e) =>
-                          patch(selected.id, {
-                            mediaType: e.target.value === 'video' ? 'video' : 'image',
-                          })
-                        }
-                        className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2"
-                      >
-                        <option value="image">Image</option>
-                        <option value="video">MP4 video</option>
-                      </select>
-                    </label>
-                  ) : null}
-                  <div className="rounded-lg border border-[#BAE6FD] bg-[#F0F9FF] px-3 py-2.5">
-                    <p className="text-xs font-semibold text-[#0369A1]">
-                      Image size guide · {IMAGE_UPLOAD_GUIDES[selected.layout].hint}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-600">
-                      {IMAGE_UPLOAD_GUIDES[selected.layout].detail}
-                    </p>
-                  </div>
-                  <ImageUrlOrUploadField
-                    label={IMAGE_UPLOAD_GUIDES[selected.layout].label}
-                    value={selected.imageUrl || ''}
-                    onChange={(v) => patch(selected.id, { imageUrl: v })}
-                    remoteUpload={{
-                      getObjectPath: (file) => {
-                        const extension = file.name.split('.').pop()?.toLowerCase() || 'png';
-                        const base =
-                          file.name
-                            .replace(/\.[^.]+$/, '')
-                            .replace(/[^a-zA-Z0-9_-]+/g, '-')
-                            .slice(0, 48) || 'campaign';
-                        return `promo-popups/${base}-${Date.now()}.${extension}`;
-                      },
-                    }}
-                    allowVideo={selected.layout === 'poster'}
-                    previewAsVideo={selected.layout === 'poster' && selected.mediaType === 'video'}
-                    onMediaTypeChange={(mediaType) =>
-                      patch(selected.id, { mediaType })
-                    }
-                    hint={IMAGE_UPLOAD_GUIDES[selected.layout].hint}
-                  />
-                </>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block text-sm">
-                  <span className="font-medium text-gray-700">CTA label</span>
-                  <input
-                    value={selected.ctaLabel}
-                    onChange={(e) => patch(selected.id, { ctaLabel: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="font-medium text-gray-700">CTA link</span>
-                  <input
-                    value={selected.ctaHref}
-                    onChange={(e) => patch(selected.id, { ctaHref: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
-                  />
-                </label>
+            {selected.layout === 'coupon' ? (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2.5">
+                <p className="text-xs font-semibold text-gray-700">
+                  {IMAGE_UPLOAD_GUIDES.coupon.label}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">{IMAGE_UPLOAD_GUIDES.coupon.detail}</p>
               </div>
-              <label className="block text-sm">
-                <span className="font-medium text-gray-700">Dismiss label</span>
+            ) : (
+              <>
+                {selected.layout === 'poster' ? (
+                  <label className="block">
+                    <span className={adminUi.label}>Media type</span>
+                    <select
+                      value={selected.mediaType}
+                      onChange={(e) =>
+                        patch(selected.id, {
+                          mediaType: e.target.value === 'video' ? 'video' : 'image',
+                        })
+                      }
+                      className={adminUi.select}
+                    >
+                      <option value="image">Image</option>
+                      <option value="video">MP4 video</option>
+                    </select>
+                  </label>
+                ) : null}
+                <div className="rounded-lg border border-[#BAE6FD] bg-[#F0F9FF] px-3 py-2.5">
+                  <p className="text-xs font-semibold text-[#0369A1]">
+                    Image size guide · {IMAGE_UPLOAD_GUIDES[selected.layout].hint}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    {IMAGE_UPLOAD_GUIDES[selected.layout].detail}
+                  </p>
+                </div>
+                <ImageUrlOrUploadField
+                  label={IMAGE_UPLOAD_GUIDES[selected.layout].label}
+                  value={selected.imageUrl || ''}
+                  onChange={(v) => patch(selected.id, { imageUrl: v })}
+                  remoteUpload={{
+                    getObjectPath: (file) => {
+                      const extension = file.name.split('.').pop()?.toLowerCase() || 'png';
+                      const base =
+                        file.name
+                          .replace(/\.[^.]+$/, '')
+                          .replace(/[^a-zA-Z0-9_-]+/g, '-')
+                          .slice(0, 48) || 'campaign';
+                      return `promo-popups/${base}-${Date.now()}.${extension}`;
+                    },
+                  }}
+                  allowVideo={selected.layout === 'poster'}
+                  previewAsVideo={selected.layout === 'poster' && selected.mediaType === 'video'}
+                  onMediaTypeChange={(mediaType) =>
+                    patch(selected.id, { mediaType })
+                  }
+                  hint={IMAGE_UPLOAD_GUIDES[selected.layout].hint}
+                />
+              </>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className={adminUi.label}>CTA link</span>
+                <input
+                  value={selected.ctaHref}
+                  onChange={(e) => patch(selected.id, { ctaHref: e.target.value })}
+                  className={adminUi.input}
+                />
+              </label>
+              <label className="block">
+                <span className={adminUi.label}>Dismiss label</span>
                 <input
                   value={selected.dismissLabel}
                   onChange={(e) => patch(selected.id, { dismissLabel: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2"
+                  className={adminUi.input}
                 />
               </label>
             </div>
-
-            {/* Preview + animations stay together while the left form scrolls */}
-            <aside className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
-              <div className="space-y-4 rounded-xl border border-[#BAE6FD] bg-[#E0F2FE]/60 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                    Live preview
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewKey((k) => k + 1)}
-                    className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-[#0EA5E9] shadow-sm ring-1 ring-[#BAE6FD] hover:bg-[#F0F9FF]"
-                  >
-                    ↻ Replay
-                  </button>
-                </div>
-
-                <div className="overflow-hidden rounded-xl bg-[#0C4A6E]/10 p-4">
-                  <PopupLayoutPreview
-                    key={`${previewKey}-${selected.layout}-${selected.animation}-${selected.id}`}
-                    popup={selected}
-                  />
-                </div>
-
-                <dl className="space-y-1 text-xs text-gray-600">
-                  <div>
-                    <dt className="inline font-semibold text-gray-800">Shows: </dt>
-                    <dd className="inline">
-                      {PROMO_POPUP_FREQUENCY_LABELS[selected.frequency]}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="inline font-semibold text-gray-800">On: </dt>
-                    <dd className="inline">
-                      {selected.pageScope === 'selected'
-                        ? selected.pagePaths.join(', ') || 'No paths'
-                        : PROMO_POPUP_PAGE_SCOPE_LABELS[selected.pageScope]}
-                    </dd>
-                  </div>
-                </dl>
-
-                <div className="border-t border-[#BAE6FD] pt-4">
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">
-                    Animation style
-                  </p>
-                  <p className="mb-2 text-[11px] text-gray-500">
-                    Click a style — the preview above replays immediately.
-                  </p>
-                  <div className="grid max-h-[min(360px,40vh)] grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-1">
-                    {PROMO_ANIMATION_OPTIONS.map((a) => (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => pickAnimation(a.id)}
-                        className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                          normalizePromoAnimation(selected.animation) === a.id
-                            ? 'border-[#0EA5E9] bg-white text-[#0C4A6E] shadow-sm'
-                            : 'border-transparent bg-white/70 hover:border-gray-200 hover:bg-white'
-                        }`}
-                      >
-                        <span className="mr-1">{a.icon}</span>
-                        <span className="font-semibold">{a.name}</span>
-                        <span className="mt-0.5 block text-xs text-gray-500">{a.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </aside>
           </div>
+        )}
+
+        {/* RIGHT — sticky live preview */}
+        {selected ? (
+          <aside className="rounded-2xl border border-[#bae6fd] bg-[#e0f2fe] p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <span className={adminUi.sectionLabel}>Live preview</span>
+              <button
+                type="button"
+                onClick={() => setPreviewKey((k) => k + 1)}
+                className="h-7 rounded-lg border border-[#bae6fd] bg-white px-2.5 text-[11.5px] font-bold text-[#0ea5e9] transition hover:bg-[#f0f9ff]"
+              >
+                ↻ Replay
+              </button>
+            </div>
+
+            <div className="flex justify-center overflow-hidden rounded-[14px] bg-[rgba(12,74,110,0.12)] p-[18px]">
+              <PopupLayoutPreview
+                key={`${previewKey}-${selected.layout}-${selected.animation}-${selected.id}`}
+                popup={selected}
+              />
+            </div>
+
+            <dl className="mt-3 space-y-1 text-xs text-[#516171]">
+              <div>
+                <dt className="inline font-semibold text-[#1e2a38]">Shows: </dt>
+                <dd className="inline">
+                  {PROMO_POPUP_FREQUENCY_LABELS[selected.frequency]}
+                </dd>
+              </div>
+              <div>
+                <dt className="inline font-semibold text-[#1e2a38]">On: </dt>
+                <dd className="inline">
+                  {selected.pageScope === 'selected'
+                    ? selected.pagePaths.join(', ') || 'No paths'
+                    : PROMO_POPUP_PAGE_SCOPE_LABELS[selected.pageScope]}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-3.5 border-t border-[#bae6fd] pt-3">
+              <div className={`mb-2 ${adminUi.sectionLabel}`}>Animation style</div>
+              <p className="mb-2 text-[11px] text-[#7a8899]">
+                Click a style — the preview above replays immediately.
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {PROMO_ANIMATION_OPTIONS.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => pickAnimation(a.id)}
+                    className={`rounded-[10px] border px-3 py-2 text-left transition ${
+                      normalizePromoAnimation(selected.animation) === a.id
+                        ? 'border-[#0ea5e9] bg-white shadow-sm'
+                        : 'border-transparent bg-white/70 hover:border-[#e4ebf2] hover:bg-white'
+                    }`}
+                  >
+                    <span className="text-[12.5px] font-bold text-[#1e2a38]">
+                      <span className="mr-1">{a.icon}</span>
+                      {a.name}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-[#7a8899]">{a.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </aside>
+        ) : (
+          <div className="hidden lg:block" />
         )}
       </div>
     </div>

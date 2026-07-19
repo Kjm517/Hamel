@@ -30,6 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
+import { adminUi } from '../lib/admin-ui';
 
 const SKY = '#0EA5E9';
 const AMBER = '#F59E0B';
@@ -47,13 +48,13 @@ function ChartCard({
   empty?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div className={`${adminUi.card} p-5`}>
       <div className="mb-4">
-        <h3 className="font-semibold text-gray-900">{title}</h3>
-        {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+        <h3 className="font-semibold text-[#1e2a38]">{title}</h3>
+        {subtitle && <p className="text-[12px] text-[#9aa7b5]">{subtitle}</p>}
       </div>
       {empty ? (
-        <div className="flex h-56 items-center justify-center text-sm text-gray-400">
+        <div className="flex h-56 items-center justify-center text-sm text-[#9aa7b5]">
           No data yet — browse the storefront to generate pageviews.
         </div>
       ) : (
@@ -116,33 +117,30 @@ export function AdminAnalyticsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
-          <p className="text-gray-600">Live metrics from Neon + pageview beacons.</p>
-        </div>
+        <p className={adminUi.pageIntro}>Live metrics from Neon + pageview beacons.</p>
         <button
           type="button"
           onClick={() => setResetOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+          className="inline-flex h-[42px] items-center gap-2 rounded-[11px] border border-red-200 bg-white px-3.5 text-[13.5px] font-semibold text-red-600 transition hover:bg-red-50"
         >
           <RotateCcw size={16} />
           Reset analytics
         </button>
       </div>
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
         </div>
       )}
-      {!data && !error && <p className="text-sm text-gray-500">Loading…</p>}
+      {!data && !error && <p className="text-sm text-[#9aa7b5]">Loading…</p>}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{c.label}</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900">{c.value}</p>
+          <div key={c.label} className={`${adminUi.card} p-5`}>
+            <p className={adminUi.sectionLabel}>{c.label}</p>
+            <p className="mt-2 text-3xl font-bold text-[#1e2a38]">{c.value}</p>
           </div>
         ))}
       </div>

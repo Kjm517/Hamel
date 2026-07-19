@@ -22,10 +22,10 @@ function kindIcon(kind: NotificationItem['kind']) {
   return MessageSquare;
 }
 
-function kindLabel(kind: NotificationItem['kind']) {
-  if (kind === 'inquiry') return 'Order / inquiry';
-  if (kind === 'customer') return 'Customer';
-  return 'Message';
+function kindStyle(kind: NotificationItem['kind']) {
+  if (kind === 'inquiry') return 'bg-[#fef3c7] text-[#b45309]';
+  if (kind === 'customer') return 'bg-[#dcfce7] text-[#15803d]';
+  return 'bg-[#e0f2fe] text-[#0369a1]';
 }
 
 export function AdminNotificationsBell() {
@@ -125,104 +125,110 @@ export function AdminNotificationsBell() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-[#0EA5E9]"
+        className="relative flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#e4ebf2] bg-white text-[#516171] transition hover:border-sky-300 hover:bg-[#f0f9ff] hover:text-[#0369a1]"
         aria-label={
           count > 0 ? `Notifications — ${count} items needing attention` : 'Notifications'
         }
         aria-expanded={open}
         title="Notifications"
       >
-        <Bell className="h-5 w-5" />
+        <Bell className="h-[18px] w-[18px]" />
         {count > 0 ? (
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-400" />
+          <span className="absolute right-[7px] top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-rose-500 px-1 text-[9.5px] font-bold text-white">
+            {count > 99 ? '99+' : count}
+          </span>
         ) : null}
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-40 mt-2 w-[22rem] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-          <div className="border-b border-gray-100 px-4 py-3">
-            <p className="text-sm font-bold text-gray-900">Notifications</p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Messages, pending inquiries, and new customers
-            </p>
-          </div>
+        <>
+          <div className="fixed inset-0 z-[55]" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-[50px] z-[60] w-[380px] overflow-hidden rounded-2xl border border-[#e8eef4] bg-white shadow-[0_20px_48px_-16px_rgba(15,31,46,0.35)]">
+            <div className="flex items-start justify-between gap-2.5 px-[18px] pb-3 pt-4">
+              <div>
+                <p className="text-[15px] font-extrabold text-[#1e2a38]">Notifications</p>
+                <p className="mt-px text-xs text-[#9aa7b5]">
+                  Messages, pending inquiries &amp; new customers
+                </p>
+              </div>
+            </div>
 
-          <div className="flex flex-wrap gap-2 border-b border-gray-100 px-4 py-2.5 text-[11px] font-semibold">
-            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-800">
-              {messageCount} message{messageCount === 1 ? '' : 's'}
-            </span>
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-900">
-              {inquiryCount} inquir{inquiryCount === 1 ? 'y' : 'ies'}
-            </span>
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800">
-              {customerCount} customer{customerCount === 1 ? '' : 's'}
-            </span>
-          </div>
+            <div className="flex flex-wrap gap-1.5 px-[18px] pb-3 text-[11.5px] font-bold">
+              <span className="inline-flex items-center rounded-full bg-[#e0f2fe] px-2.5 py-0.5 text-[#0369a1]">
+                {messageCount} message{messageCount === 1 ? '' : 's'}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-[#fef3c7] px-2.5 py-0.5 text-[#b45309]">
+                {inquiryCount} inquir{inquiryCount === 1 ? 'y' : 'ies'}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-[#dcfce7] px-2.5 py-0.5 text-[#15803d]">
+                {customerCount} customer{customerCount === 1 ? '' : 's'}
+              </span>
+            </div>
 
-          <div className="max-h-80 overflow-y-auto">
-            {loading && items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-gray-500">Loading…</p>
-            ) : items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-gray-500">
-                You’re all caught up.
-              </p>
-            ) : (
-              items.map((item) => {
-                const Icon = kindIcon(item.kind);
-                return (
-                  <Link
-                    key={item.id}
-                    to={item.href}
-                    onClick={() => setOpen(false)}
-                    className="flex gap-3 border-b border-gray-50 px-4 py-3 hover:bg-[#F0F9FF]"
-                  >
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
-                      <Icon size={15} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                        {kindLabel(item.kind)}
+            <div className="max-h-[340px] overflow-y-auto border-t border-[#f1f5f9]">
+              {loading && items.length === 0 ? (
+                <p className="px-[18px] py-8 text-center text-sm text-[#9aa7b5]">Loading…</p>
+              ) : items.length === 0 ? (
+                <p className="px-[18px] py-8 text-center text-sm text-[#9aa7b5]">
+                  You’re all caught up.
+                </p>
+              ) : (
+                items.map((item) => {
+                  const Icon = kindIcon(item.kind);
+                  return (
+                    <Link
+                      key={item.id}
+                      to={item.href}
+                      onClick={() => setOpen(false)}
+                      className="flex gap-3 border-b border-[#f5f8fb] px-[18px] py-3.5 hover:bg-[#f7fbfe]"
+                    >
+                      <span
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${kindStyle(item.kind)}`}
+                      >
+                        <Icon size={16} />
                       </span>
-                      <span className="mt-0.5 block truncate text-sm font-semibold text-gray-900">
-                        {item.title}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold text-[#1e2a38]">
+                          {item.title}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-[#516171]">
+                          {item.detail}
+                        </span>
+                        <span className="mt-1 block text-[11px] text-[#9aa7b5]">
+                          {formatRelativeTime(item.createdAt)}
+                        </span>
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-gray-600">
-                        {item.detail}
-                      </span>
-                      <span className="mt-1 block text-[11px] text-gray-400">
-                        {formatRelativeTime(item.createdAt)}
-                      </span>
-                    </span>
-                  </Link>
-                );
-              })
-            )}
-          </div>
+                    </Link>
+                  );
+                })
+              )}
+            </div>
 
-          <div className="grid grid-cols-3 gap-px border-t border-gray-100 bg-gray-100">
-            <Link
-              to="/admin/messages"
-              onClick={() => setOpen(false)}
-              className="bg-white px-2 py-2.5 text-center text-xs font-semibold text-gray-700 hover:text-[#0EA5E9]"
-            >
-              Messages
-            </Link>
-            <Link
-              to="/admin/inquiries"
-              onClick={() => setOpen(false)}
-              className="bg-white px-2 py-2.5 text-center text-xs font-semibold text-gray-700 hover:text-[#0EA5E9]"
-            >
-              Inquiries
-            </Link>
-            <Link
-              to="/admin/customers"
-              onClick={() => setOpen(false)}
-              className="bg-white px-2 py-2.5 text-center text-xs font-semibold text-gray-700 hover:text-[#0EA5E9]"
-            >
-              Customers
-            </Link>
+            <div className="grid grid-cols-3 gap-px border-t border-[#eef3f8] bg-[#eef3f8]">
+              <Link
+                to="/admin/messages"
+                onClick={() => setOpen(false)}
+                className="bg-white px-2 py-2.5 text-center text-xs font-bold text-[#516171] hover:text-[#0ea5e9]"
+              >
+                Messages
+              </Link>
+              <Link
+                to="/admin/inquiries"
+                onClick={() => setOpen(false)}
+                className="bg-white px-2 py-2.5 text-center text-xs font-bold text-[#516171] hover:text-[#0ea5e9]"
+              >
+                Inquiries
+              </Link>
+              <Link
+                to="/admin/customers"
+                onClick={() => setOpen(false)}
+                className="bg-white px-2 py-2.5 text-center text-xs font-bold text-[#516171] hover:text-[#0ea5e9]"
+              >
+                Customers
+              </Link>
+            </div>
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   );
