@@ -24,6 +24,7 @@ import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
 import { SortableList } from '../../components/SortableList';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { useAdminConfirm } from '../../components/AdminConfirmDialog';
+import { mediaPathFor } from '../../../lib/storage';
 import { PageEditorIntro } from './PageEditorIntro';
 
 function Field({
@@ -91,6 +92,7 @@ function BlockEditor({
             label="Background photo"
             value={block.imageUrl || ''}
             onChange={(v) => onChange({ imageUrl: v })}
+            remoteUpload={{ getObjectPath: mediaPathFor('promo-pages') }}
           />
           <div className="grid sm:grid-cols-2 gap-2">
             <Field label="Button text" value={block.buttonLabel || ''} onChange={(v) => onChange({ buttonLabel: v })} />
@@ -113,7 +115,12 @@ function BlockEditor({
 
       {block.type === 'image' && (
         <>
-          <ImageUrlOrUploadField label="Photo" value={block.imageUrl} onChange={(v) => onChange({ imageUrl: v })} />
+          <ImageUrlOrUploadField
+            label="Photo"
+            value={block.imageUrl}
+            onChange={(v) => onChange({ imageUrl: v })}
+            remoteUpload={{ getObjectPath: mediaPathFor('promo-pages') }}
+          />
           <Field label="Caption (optional)" value={block.caption || ''} onChange={(v) => onChange({ caption: v })} />
         </>
       )}

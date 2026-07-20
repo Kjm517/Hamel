@@ -16,6 +16,7 @@ import { PromoSideBannerEditor } from '../components/PromoSideBannerEditor';
 import { BannerLinkDestinationField } from '../components/BannerLinkDestinationField';
 import { AmbientEffectFields } from '../../components/AmbientEffectFields';
 import { hexForColorInput } from '../../lib/color-utils';
+import { mediaPathFor } from '../../lib/storage';
 import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 const PAGE_KEYS: PageKey[] = ['home', 'products', 'brands', 'why-hamel', 'contact'];
@@ -114,6 +115,7 @@ function SlideEditor({
                 label="Background image"
                 value={slide.imageUrl}
                 onChange={(v) => onChange({ imageUrl: v })}
+                remoteUpload={{ getObjectPath: mediaPathFor('banners') }}
                 placeholder="https://... or /hamel/..."
               />
               <div className="mb-3">
@@ -591,6 +593,7 @@ export function AdminBannersPage() {
                 label="Banner image (full width)"
                 value={banners.coolDealsBanner.bannerImageUrl}
                 onChange={(v) => updateCoolDealsBanner({ bannerImageUrl: v })}
+                remoteUpload={{ getObjectPath: mediaPathFor('cool-deals') }}
                 placeholder="Wide banner — recommended ~1600×600px or similar"
               />
 
@@ -767,6 +770,7 @@ export function AdminBannersPage() {
                           label="Background image"
                           value={banner.imageUrl}
                           onChange={(v) => updateBanner(page, { imageUrl: v })}
+                          remoteUpload={{ getObjectPath: mediaPathFor('page-headers') }}
                         />
                         <div className="mb-3">
                           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Overlay Color Theme</label>

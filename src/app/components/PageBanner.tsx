@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 
 export interface BannerConfig {
   id?: string;
@@ -60,9 +61,10 @@ export function PageBanner({ config, className = '' }: PageBannerProps) {
   return (
     <div className={`relative overflow-hidden w-full ${heights[height]} ${className}`}>
       {/* Background image */}
-      <img
+      <ImageWithFallback
         src={imageUrl}
         alt={imageAlt}
+        loading="eager"
         className="absolute inset-0 w-full h-full object-cover"
       />
       {/* Color overlay — only when set in admin */}

@@ -28,6 +28,7 @@ import {
 } from '../../data/cool-deals-page';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
 import { hexForColorInput } from '../../lib/color-utils';
+import { mediaPathFor } from '../../lib/storage';
 import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 function FieldEditor({
@@ -366,7 +367,7 @@ function CardGridSectionEditor({
               <ImageUrlOrUploadField label="Image" value={card.imageUrl} onChange={(v) => {
                 const cards = section.cards.map((c) => (c.id === card.id ? { ...c, imageUrl: v } : c));
                 onChange({ cards });
-              }} />
+              }} remoteUpload={{ getObjectPath: mediaPathFor('cool-deals') }} />
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Accent color</label>
                 <div className="flex gap-2">
@@ -438,7 +439,7 @@ function CardGridSectionEditor({
               <ImageUrlOrUploadField label="Background image (optional)" value={card.imageUrl || ''} onChange={(v) => {
                 const dealCards = (section.dealCards ?? []).map((c) => (c.id === card.id ? { ...c, imageUrl: v } : c));
                 onChange({ dealCards });
-              }} />
+              }} remoteUpload={{ getObjectPath: mediaPathFor('cool-deals') }} />
             </div>
           ))}
         </>

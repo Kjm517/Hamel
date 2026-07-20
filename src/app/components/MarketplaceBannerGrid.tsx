@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { BannerConfig } from './PageBanner';
 import type { PromoBannerItem } from '../data/banners';
 import { BannerLinkWrapper, resolveBannerLinkHref } from '../lib/banner-link';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 
 function PromoSideCard({ item }: { item: PromoBannerItem }) {
   const href = resolveBannerLinkHref(item);
@@ -14,7 +15,7 @@ function PromoSideCard({ item }: { item: PromoBannerItem }) {
       style={{ backgroundColor: item.bgColor }}
     >
       {item.imageUrl && (
-        <img
+        <ImageWithFallback
           src={item.imageUrl}
           alt=""
           className="absolute inset-0 h-full w-full object-cover object-center"
@@ -111,9 +112,10 @@ function MainBannerCarousel({ slides }: { slides: BannerConfig[] }) {
         const href = resolveBannerLinkHref(s);
         const slideInner = (
           <>
-            <img
+            <ImageWithFallback
               src={s.imageUrl}
               alt={s.imageAlt ?? ''}
+              loading={i === 0 ? 'eager' : 'lazy'}
               className="absolute inset-0 w-full h-full object-cover object-right"
             />
             {/* Only apply color/smoke overlay when admin set one (empty = image only) */}

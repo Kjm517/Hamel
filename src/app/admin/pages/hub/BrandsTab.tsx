@@ -23,7 +23,7 @@ import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { AdminToggle } from '../../components/AdminToggle';
 import { PageEditorIntro } from './PageEditorIntro';
 import { useAdminConfirm } from '../../components/AdminConfirmDialog';
-import { uploadToPublicStorage } from '../../../lib/storage';
+import { mediaPathFor, uploadToPublicStorage } from '../../../lib/storage';
 
 function Field({
   label,
@@ -334,12 +334,7 @@ export function BrandsTab() {
                         label="Logo image"
                         value={brand.logoImageUrl || ''}
                         onChange={(v) => patchBrand(brand.id, { logoImageUrl: v || undefined })}
-                        remoteUpload={{
-                          getObjectPath: (file) => {
-                            const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
-                            return `brand-logos/${brand.id}-${Date.now()}.${ext}`;
-                          },
-                        }}
+                        remoteUpload={{ getObjectPath: mediaPathFor('brand-logos') }}
                       />
                       <div>
                         <label className="mb-1 block text-xs font-medium text-gray-600">

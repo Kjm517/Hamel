@@ -2,6 +2,7 @@ import type { PromoBannerItem } from '../../data/banners';
 import { ImageUrlOrUploadField } from './ImageUrlOrUploadField';
 import { BannerLinkDestinationField } from './BannerLinkDestinationField';
 import { hexForColorInput } from '../../lib/color-utils';
+import { mediaPathFor } from '../../lib/storage';
 
 interface FieldEditorProps {
   label: string;
@@ -96,6 +97,7 @@ export function PromoSideBannerEditor({ label, badgeNumber, item, onChange }: Pr
             label="Background image"
             value={item.imageUrl || ''}
             onChange={(v) => onChange({ imageUrl: v })}
+            remoteUpload={{ getObjectPath: mediaPathFor('promo-banners') }}
           />
           <div className="grid grid-cols-3 gap-2">
             <div>

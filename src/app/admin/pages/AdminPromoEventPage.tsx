@@ -16,7 +16,7 @@ import {
   toDatetimeLocalValue,
 } from '../../lib/product-promos';
 import { storefrontProducts } from '../../lib/catalog-product';
-import { resolveStorageImageUrl } from '../../lib/storage';
+import { mediaPathFor, resolveStorageImageUrl } from '../../lib/storage';
 import { AdminSaveBar } from '../components/AdminSaveBar';
 import { AdminToggle } from '../components/AdminToggle';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
@@ -501,6 +501,7 @@ export function AdminPromoEventPage() {
               label="Background image (optional)"
               value={featured.bgImageUrl || ''}
               onChange={(v) => updateFeatured({ bgImageUrl: v })}
+              remoteUpload={{ getObjectPath: mediaPathFor('promo-events') }}
             />
             <p className="mt-1 text-[11px] text-[#9aa7b5]">
               Upload campaign art or a wave pattern. Color still shows as a tint underneath.

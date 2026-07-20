@@ -30,6 +30,7 @@ import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { AdminColorField } from '../../components/AdminColorField';
 import { DealTileSurface } from '../../../components/cool-deals/DealTileSurface';
 import { contrastRatio, hexForColorInput } from '../../../lib/color-utils';
+import { mediaPathFor, resolveStorageImageUrl } from '../../../lib/storage';
 import { PageEditorIntro } from './PageEditorIntro';
 import { useAdminConfirm } from '../../components/AdminConfirmDialog';
 
@@ -119,7 +120,12 @@ export function CoolDealsTab() {
       <div className="rounded-xl border border-gray-200 p-4 bg-white space-y-3">
         <h3 className="text-sm font-bold text-gray-800">1. Top banner</h3>
         <p className="text-xs text-gray-500">This is the large photo at the top of the Cool Deals page.</p>
-        <ImageUrlOrUploadField label="Banner photo" value={hero.bannerImageUrl} onChange={(v) => setHero((h) => ({ ...h, bannerImageUrl: v }))} />
+        <ImageUrlOrUploadField
+          label="Banner photo"
+          value={hero.bannerImageUrl}
+          onChange={(v) => setHero((h) => ({ ...h, bannerImageUrl: v }))}
+          remoteUpload={{ getObjectPath: mediaPathFor('cool-deals') }}
+        />
         <BannerLinkDestinationField fields={hero} onChange={(p) => setHero((h) => ({ ...h, ...p }))} />
         <AmbientEffectFields
           value={hero}
@@ -139,7 +145,7 @@ export function CoolDealsTab() {
         )}
         {hero.bannerImageUrl && (
           <div className={`relative rounded-lg overflow-hidden w-full ${PAGE_BANNER_HEIGHTS.md}`}>
-            <img src={hero.bannerImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={resolveStorageImageUrl(hero.bannerImageUrl)} alt="" className="absolute inset-0 h-full w-full object-cover" />
           </div>
         )}
       </div>
@@ -295,7 +301,12 @@ function ProductMatrixEditor({
           <div className="pr-3 py-2 space-y-2">
             <Field label="Name" value={col.name} onChange={(v) => patchColumn(col.id, { name: v })} />
             <Field label="Description" value={col.sub} onChange={(v) => patchColumn(col.id, { sub: v })} />
-            <ImageUrlOrUploadField label="Image" value={col.imageUrl} onChange={(v) => patchColumn(col.id, { imageUrl: v })} />
+            <ImageUrlOrUploadField
+              label="Image"
+              value={col.imageUrl}
+              onChange={(v) => patchColumn(col.id, { imageUrl: v })}
+              remoteUpload={{ getObjectPath: mediaPathFor('cool-deals') }}
+            />
             <BannerLinkDestinationField
               label="Card navigation"
               fields={col}
@@ -418,7 +429,12 @@ function CardGridEditor({
           {section.cards.map((card) => (
             <div key={card.id} className="rounded-lg border p-3 text-sm space-y-1">
               <Field label="Title" value={card.title} onChange={(v) => patchVoucherCard(card.id, { title: v })} />
-              <ImageUrlOrUploadField label="Image" value={card.imageUrl} onChange={(v) => patchVoucherCard(card.id, { imageUrl: v })} />
+              <ImageUrlOrUploadField
+                label="Image"
+                value={card.imageUrl}
+                onChange={(v) => patchVoucherCard(card.id, { imageUrl: v })}
+                remoteUpload={{ getObjectPath: mediaPathFor('cool-deals') }}
+              />
               <input type="color" value={hexForColorInput(card.color)} onChange={(e) => patchVoucherCard(card.id, { color: e.target.value })} />
               <BannerLinkDestinationField
                 label="Card navigation"
@@ -444,7 +460,12 @@ function CardGridEditor({
                   fields={card}
                   onChange={(patch) => onPatchDealCard(card.id, patch)}
                 />
-                <ImageUrlOrUploadField label="Background image (optional)" value={card.imageUrl || ''} onChange={(v) => onPatchDealCard(card.id, { imageUrl: v || undefined })} />
+                <ImageUrlOrUploadField
+                  label="Background image (optional)"
+                  value={card.imageUrl || ''}
+                  onChange={(v) => onPatchDealCard(card.id, { imageUrl: v || undefined })}
+                  remoteUpload={{ getObjectPath: mediaPathFor('cool-deals') }}
+                />
                 <Field label="Accent text (e.g. 0%)" value={card.accent || ''} onChange={(v) => onPatchDealCard(card.id, { accent: v || undefined })} />
                 <DealTileColorFields card={card} onPatch={(p) => onPatchDealCard(card.id, p)} />
                 <button

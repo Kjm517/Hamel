@@ -6,9 +6,9 @@ import { useStoreSettings } from '../context/StoreSettingsContext';
 import { useProductTags } from '../context/ProductTagsContext';
 import { useSiteLoading } from '../context/SiteLoadingContext';
 
-const MIN_FIRST_MS = 1100;
-const MIN_PAGE_MS = 480;
-const EXIT_MS = 420;
+const MIN_FIRST_MS = 420;
+const MIN_PAGE_MS = 280;
+const EXIT_MS = 320;
 const MESSAGE_ROTATE_MS = 1600;
 
 const LOADING_MESSAGES = [

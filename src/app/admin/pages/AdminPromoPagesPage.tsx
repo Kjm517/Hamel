@@ -10,6 +10,7 @@ import {
   type PromoPage,
 } from '../../data/promo-pages';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import { mediaPathFor } from '../../lib/storage';
 import { adminUi } from '../lib/admin-ui';
 import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
@@ -235,6 +236,7 @@ export function AdminPromoPagesPage() {
                             label=""
                             value={page.heroImageUrl || ''}
                             onChange={(v) => updatePage(page.id, { heroImageUrl: v })}
+                            remoteUpload={{ getObjectPath: mediaPathFor('promo-pages') }}
                           />
                         </div>
                       </div>

@@ -8,20 +8,15 @@ import {
   type CoolDealsBannerConfig,
 } from '../data/banners';
 import type { BannerConfig } from '../components/PageBanner';
-import { usePageLoading } from '../context/SiteLoadingContext';
 
 export function useBanner(page: PageKey): BannerConfig {
   const [banner, setBanner] = useState<BannerConfig>(() => getBanners()[page]);
-  const [loading, setLoading] = useState(true);
-  usePageLoading(loading, `banner:${page}`);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void loadBanners().then((store) => {
       if (cancelled) return;
       setBanner(store[page]);
-      setLoading(false);
     });
     const refresh = () => setBanner(getBanners()[page]);
     window.addEventListener('hamel-banners-updated', refresh);
@@ -36,16 +31,12 @@ export function useBanner(page: PageKey): BannerConfig {
 
 export function useHeroSlides(): BannerConfig[] {
   const [slides, setSlides] = useState<BannerConfig[]>(() => getBanners().heroSlides);
-  const [loading, setLoading] = useState(true);
-  usePageLoading(loading, 'hero-slides');
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void loadBanners().then((store) => {
       if (cancelled) return;
       setSlides(store.heroSlides);
-      setLoading(false);
     });
     const refresh = () => setSlides(getBanners().heroSlides);
     window.addEventListener('hamel-banners-updated', refresh);
@@ -60,16 +51,12 @@ export function useHeroSlides(): BannerConfig[] {
 
 export function useFeaturedCollection(): FeaturedCollectionConfig {
   const [config, setConfig] = useState<FeaturedCollectionConfig>(() => getBanners().featuredCollection);
-  const [loading, setLoading] = useState(true);
-  usePageLoading(loading, 'featured-collection');
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void loadBanners().then((store) => {
       if (cancelled) return;
       setConfig(store.featuredCollection);
-      setLoading(false);
     });
     const refresh = () => setConfig(getBanners().featuredCollection);
     window.addEventListener('hamel-banners-updated', refresh);
@@ -84,16 +71,12 @@ export function useFeaturedCollection(): FeaturedCollectionConfig {
 
 export function usePromoBanners(): [PromoBannerItem, PromoBannerItem, PromoBannerItem] {
   const [banners, setBanners] = useState(() => getBanners().promoBanners);
-  const [loading, setLoading] = useState(true);
-  usePageLoading(loading, 'promo-banners');
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void loadBanners().then((store) => {
       if (cancelled) return;
       setBanners(store.promoBanners);
-      setLoading(false);
     });
     const refresh = () => setBanners(getBanners().promoBanners);
     window.addEventListener('hamel-banners-updated', refresh);
@@ -108,16 +91,12 @@ export function usePromoBanners(): [PromoBannerItem, PromoBannerItem, PromoBanne
 
 export function useCoolDealsBanner(): CoolDealsBannerConfig {
   const [config, setConfig] = useState<CoolDealsBannerConfig>(() => getBanners().coolDealsBanner);
-  const [loading, setLoading] = useState(true);
-  usePageLoading(loading, 'cool-deals-banner');
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void loadBanners().then((store) => {
       if (cancelled) return;
       setConfig(store.coolDealsBanner);
-      setLoading(false);
     });
     const refresh = () => setConfig(getBanners().coolDealsBanner);
     window.addEventListener('hamel-banners-updated', refresh);

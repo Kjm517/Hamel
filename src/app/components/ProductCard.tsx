@@ -12,6 +12,7 @@ import { PromoCountdownInline } from './PromoCountdownBanner';
 import { brandLogoFor } from '../data/hamelAssets';
 import { SpecialOffersModal } from './SpecialOffersModal';
 import { InstallmentChip, InstallmentOptionsModal } from './InstallmentOptionsModal';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useProductTags } from '../context/ProductTagsContext';
 import {
   cornerTagBgColor,
@@ -108,9 +109,10 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
       >
         {/* Product Image */}
         <div className="relative bg-gray-50 aspect-square shrink-0 flex items-center justify-center p-4">
-          <img
+          <ImageWithFallback
             src={product.image}
             alt={product.model}
+            loading="lazy"
             className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
           />
         </div>

@@ -1,4 +1,5 @@
 import type { Product } from '../data/products';
+import { resolveStorageImageUrl } from './storage';
 
 const HP_ORDER = ['0.5HP', '0.75HP', '1HP', '1.5HP', '2HP', '2.5HP', '3HP', '3.5HP', '4HP', '5HP'];
 
@@ -18,15 +19,25 @@ function sortHpValues(values: string[]): string[] {
   });
 }
 
+function resolveProductImage(url: string | undefined): string {
+  const trimmed = url?.trim() || '';
+  if (!trimmed) return '';
+  return resolveStorageImageUrl(trimmed) || trimmed;
+}
+
 /** Normalize a product row from Neon `data` jsonb for storefront use. */
 export function normalizeCatalogProduct(raw: Partial<Product> & { id: string }): Product {
-  const image = raw.image?.trim() || raw.images?.[0]?.trim() || '';
+  const rawImage = raw.image?.trim() || raw.images?.[0]?.trim() || '';
+  const image = resolveProductImage(rawImage);
+  const resolvedGallery = (raw.images ?? [])
+    .map((u) => resolveProductImage(u))
+    .filter(Boolean);
   const images =
-    raw.images?.length && image
-      ? [image, ...raw.images.filter((u) => u && u !== image)]
+    resolvedGallery.length && image
+      ? [image, ...resolvedGallery.filter((u) => u !== image)]
       : image
         ? [image]
-        : raw.images ?? [];
+        : resolvedGallery;
 
   return {
     id: raw.id,

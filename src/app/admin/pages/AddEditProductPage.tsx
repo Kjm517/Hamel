@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Upload, Plus, X, ExternalLink } from 'lucide-react';
+import { Plus, X, ExternalLink } from 'lucide-react';
 import type { Product, ProductPromoEntry } from '../../data/products';
 import { getHpUnitPrice, MAX_PRODUCT_PROMOS } from '../../data/products';
 import { createProduct, fetchProductDetail, saveProduct } from '../../lib/catalog-api';
 import { useProductTags } from '../../context/ProductTagsContext';
 import type { ProductTag } from '../../data/productTags';
 import { CornerTag, PromoChip } from '../../components/PromoBadge';
+import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import { mediaPathFor } from '../../lib/storage';
 import {
   CORNER_AUTO_RULE_LABELS,
   isCornerTag,
@@ -836,35 +838,50 @@ export function AddEditProductPage() {
 
         <div className="space-y-6">
           <Section title="Product Images">
-            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-center">
-              <Upload className="mb-2 h-8 w-8 text-gray-400" />
-              <p className="text-sm text-gray-600">Drag & drop or click to upload</p>
-              <p className="text-xs text-gray-500">Main product image</p>
-            </div>
-            <Field label="Image URL">
-              <input
-                required
-                value={product.image}
-                onChange={(e) => setProduct({ ...product, image: e.target.value })}
-                className={inputClass}
-              />
-            </Field>
-            {product.image && (
-              <img
-                src={product.image}
-                alt=""
-                className="h-32 w-full rounded-lg border border-gray-200 object-cover"
-              />
-            )}
-            <div className="grid grid-cols-3 gap-2">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="flex aspect-square items-center justify-center rounded-lg border-2 border-dashed border-gray-300 text-gray-400"
-                >
-                  <Plus className="h-6 w-6" />
-                </div>
-              ))}
+            <ImageUrlOrUploadField
+              label="Main product photo"
+              value={product.image}
+              onChange={(url) =>
+                setProduct((p) => ({
+                  ...p,
+                  image: url,
+                  images: url
+                    ? [url, ...p.images.filter((u) => u && u !== url)]
+                    : p.images.filter((u) => u && u !== p.image),
+                }))
+              }
+              remoteUpload={{ getObjectPath: mediaPathFor('products') }}
+              hint="Upload to cloud storage (Cloudinary). Paste a public URL only if the file is already hosted."
+            />
+            <div className="mt-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Extra gallery photos
+              </p>
+              {[0, 1, 2].map((slot) => {
+                const gallery = product.images.filter((u) => u && u !== product.image);
+                const value = gallery[slot] || '';
+                return (
+                  <ImageUrlOrUploadField
+                    key={slot}
+                    label={`Gallery photo ${slot + 1}`}
+                    value={value}
+                    onChange={(url) => {
+                      setProduct((p) => {
+                        const extras = p.images.filter((u) => u && u !== p.image);
+                        const next = [...extras];
+                        if (url) next[slot] = url;
+                        else next.splice(slot, 1);
+                        const cleaned = next.filter(Boolean);
+                        return {
+                          ...p,
+                          images: p.image ? [p.image, ...cleaned.filter((u) => u !== p.image)] : cleaned,
+                        };
+                      });
+                    }}
+                    remoteUpload={{ getObjectPath: mediaPathFor('products') }}
+                  />
+                );
+              })}
             </div>
           </Section>
 

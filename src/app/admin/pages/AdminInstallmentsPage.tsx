@@ -9,6 +9,7 @@ import {
 } from '../../data/installment-plans';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
 import { AdminToggle } from '../components/AdminToggle';
+import { mediaPathFor } from '../../lib/storage';
 import { adminUi } from '../lib/admin-ui';
 import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
@@ -206,6 +207,7 @@ export function AdminInstallmentsPage() {
                 value={plan.logoUrl || ''}
                 onChange={(v) => patchPlan(plan.id, { logoUrl: v })}
                 placeholder="/hamel/banks/…"
+                remoteUpload={{ getObjectPath: mediaPathFor('bank-logos') }}
               />
             </div>
 

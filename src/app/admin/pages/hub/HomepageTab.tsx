@@ -15,6 +15,7 @@ import { BannerLinkDestinationField } from '../../components/BannerLinkDestinati
 import { SortableList } from '../../components/SortableList';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { useAdminConfirm } from '../../components/AdminConfirmDialog';
+import { mediaPathFor } from '../../../lib/storage';
 import { PageEditorIntro } from './PageEditorIntro';
 
 type SlideRow = BannerConfig & { id: string };
@@ -155,7 +156,12 @@ export function HomepageTab() {
                       <Field label="Button text" value={slide.ctaLabel || ''} onChange={(v) => updateSlide(slide.id, { ctaLabel: v })} />
                       <Field label="Short line under title" value={slide.subtitle || ''} onChange={(v) => updateSlide(slide.id, { subtitle: v })} rows={2} />
                     </div>
-                    <ImageUrlOrUploadField label="Image" value={slide.imageUrl} onChange={(v) => updateSlide(slide.id, { imageUrl: v })} />
+                    <ImageUrlOrUploadField
+                      label="Image"
+                      value={slide.imageUrl}
+                      onChange={(v) => updateSlide(slide.id, { imageUrl: v })}
+                      remoteUpload={{ getObjectPath: mediaPathFor('banners') }}
+                    />
                     <div>
                       <p className="mb-1.5 text-xs font-medium text-gray-600">Color overlay (smoke)</p>
                       <div className="flex flex-wrap gap-2">
@@ -265,7 +271,12 @@ export function HomepageTab() {
                   />
                 </label>
               </div>
-              <ImageUrlOrUploadField label="Image" value={b.imageUrl || ''} onChange={(v) => updateSide(idx, { imageUrl: v })} />
+              <ImageUrlOrUploadField
+                label="Image"
+                value={b.imageUrl || ''}
+                onChange={(v) => updateSide(idx, { imageUrl: v })}
+                remoteUpload={{ getObjectPath: mediaPathFor('promo-banners') }}
+              />
               <BannerLinkDestinationField fields={b} onChange={(p) => updateSide(idx, p)} />
             </div>
           );

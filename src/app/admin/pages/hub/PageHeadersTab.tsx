@@ -6,6 +6,7 @@ import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
 import { BannerLinkDestinationField } from '../../components/BannerLinkDestinationField';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { useAdminConfirm } from '../../components/AdminConfirmDialog';
+import { mediaPathFor } from '../../../lib/storage';
 import { PageEditorIntro } from './PageEditorIntro';
 
 const PAGE_KEYS: PageKey[] = ['products', 'brands', 'why-hamel', 'contact'];
@@ -88,7 +89,12 @@ export function PageHeadersTab() {
         <Field label="Headline" value={banner.title} onChange={(v) => patch({ title: v })} />
         <Field label="Short description" value={banner.subtitle || ''} onChange={(v) => patch({ subtitle: v })} rows={2} />
         <Field label="Button text" value={banner.ctaLabel || ''} onChange={(v) => patch({ ctaLabel: v })} />
-        <ImageUrlOrUploadField label="Background photo" value={banner.imageUrl} onChange={(v) => patch({ imageUrl: v })} />
+        <ImageUrlOrUploadField
+          label="Background photo"
+          value={banner.imageUrl}
+          onChange={(v) => patch({ imageUrl: v })}
+          remoteUpload={{ getObjectPath: mediaPathFor('page-headers') }}
+        />
       </div>
 
       <AdminSaveBar

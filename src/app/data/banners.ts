@@ -14,6 +14,7 @@ import {
   normalizePromoAmbientDirection,
   DEFAULT_AMBIENT_DURATION_SEC,
 } from '../lib/promo-ambient-effects';
+import { resolveStorageImageUrl } from '../lib/storage';
 
 export type PageKey = 'home' | 'products' | 'brands' | 'why-hamel' | 'contact';
 
@@ -298,29 +299,65 @@ function mergeCoolDealsBanner(parsed?: LegacyCoolDealsBanner): CoolDealsBannerCo
   return base;
 }
 
+function resolveBannerImage(url?: string | null): string {
+  const trimmed = url?.trim() || '';
+  if (!trimmed) return '';
+  // Keep huge data URLs as-is (legacy embeds) so they still render until re-uploaded.
+  if (trimmed.startsWith('data:')) return trimmed;
+  return resolveStorageImageUrl(trimmed) || trimmed;
+}
+
+function mergePageBanner(
+  parsed: Partial<BannerConfig> | undefined,
+  fallback: BannerConfig
+): BannerConfig {
+  const merged = { ...fallback, ...parsed };
+  return {
+    ...merged,
+    imageUrl: resolveBannerImage(merged.imageUrl) || fallback.imageUrl,
+  };
+}
+
 function mergePromoBanners(
   parsed?: PromoBannerItem[] | null
 ): [PromoBannerItem, PromoBannerItem, PromoBannerItem] {
   return defaultPromoBanners.map((fallback, index) => {
     const saved = parsed?.[index];
-    return {
+    const merged = {
       ...fallback,
       ...saved,
-      // Saved banner sets created before this setting retain their original
-      // visible/spare positions instead of unexpectedly showing another tile.
       enabled: saved?.enabled ?? fallback.enabled,
+    };
+    return {
+      ...merged,
+      imageUrl: resolveBannerImage(merged.imageUrl) || undefined,
     };
   }) as [PromoBannerItem, PromoBannerItem, PromoBannerItem];
 }
 
 function normalizeStore(parsed: Partial<BannerStore> | null | undefined): BannerStore {
+  const pageKeys: PageKey[] = ['home', 'products', 'brands', 'why-hamel', 'contact'];
+  const pages = Object.fromEntries(
+    pageKeys.map((key) => [key, mergePageBanner(parsed?.[key], defaultBanners[key])])
+  ) as Pick<BannerStore, PageKey>;
+
+  const heroSlides = (parsed?.heroSlides ?? defaultBanners.heroSlides).map((slide, i) =>
+    mergePageBanner(slide, defaultHeroSlides[i] ?? defaultHeroSlides[0] ?? slide)
+  );
+
+  const cool = mergeCoolDealsBanner(parsed?.coolDealsBanner);
+
   return {
     ...defaultBanners,
     ...parsed,
-    heroSlides: parsed?.heroSlides ?? defaultBanners.heroSlides,
+    ...pages,
+    heroSlides,
     featuredCollection: mergeFeaturedCollection(parsed?.featuredCollection),
     promoBanners: mergePromoBanners(parsed?.promoBanners),
-    coolDealsBanner: mergeCoolDealsBanner(parsed?.coolDealsBanner),
+    coolDealsBanner: {
+      ...cool,
+      bannerImageUrl: resolveBannerImage(cool.bannerImageUrl) || cool.bannerImageUrl,
+    },
   };
 }
 

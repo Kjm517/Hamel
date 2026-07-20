@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Upload, X } from 'lucide-react';
 import {
-  buildTagIconStoragePath,
+  buildMediaStoragePath,
   isStorageObjectPath,
   resolveStorageImageUrl,
   uploadToPublicStorage,
@@ -20,8 +20,11 @@ interface ImageUrlOrUploadFieldProps {
   allowVideo?: boolean;
   previewAsVideo?: boolean;
   onMediaTypeChange?: (type: 'image' | 'video') => void;
-  /** Upload files to the API upload endpoint (auto-generated file name). */
-  remoteUpload?: {
+  /**
+   * Upload files to the API (Cloudinary / uploads). Default: on.
+   * Pass `false` only if you intentionally want a local data-URL embed (not for production banners).
+   */
+  remoteUpload?: false | {
     getObjectPath?: (file: File) => string;
   };
 }
@@ -35,12 +38,13 @@ export function ImageUrlOrUploadField({
   allowVideo = false,
   previewAsVideo = false,
   onMediaTypeChange,
-  remoteUpload,
+  remoteUpload = {},
 }: ImageUrlOrUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const useRemoteUpload = remoteUpload !== false;
 
   const previewSrc = resolveStorageImageUrl(value) ?? value;
   const isVideo = previewAsVideo || /\.(mp4)(?:[?#]|$)/i.test(value);
@@ -66,11 +70,12 @@ export function ImageUrlOrUploadField({
       setUploadError(`File must be ${maxUploadMB} MB or smaller.`);
       return;
     }
-    if (remoteUpload) {
+    if (useRemoteUpload) {
       setUploading(true);
       try {
         const objectPath =
-          remoteUpload.getObjectPath?.(file) ?? buildTagIconStoragePath(file);
+          (typeof remoteUpload === 'object' ? remoteUpload.getObjectPath?.(file) : undefined) ??
+          buildMediaStoragePath(file, 'media');
         const publicUrl = await uploadToPublicStorage(file, objectPath);
         onChange(publicUrl);
         onMediaTypeChange?.(mediaType);
@@ -164,7 +169,7 @@ export function ImageUrlOrUploadField({
         value={isDataUrl ? '' : value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={
-          remoteUpload ? 'Upload below, or paste a public image URL' : placeholder
+          useRemoteUpload ? 'Upload below, or paste a public image URL' : placeholder
         }
         className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
       />
@@ -201,10 +206,10 @@ export function ImageUrlOrUploadField({
           {uploading ? 'Uploading…' : allowVideo ? 'Upload image or MP4 video' : 'Upload image'}
         </span>
         <span className="text-[10px] text-gray-500">
-          {remoteUpload
+          {useRemoteUpload
             ? allowVideo
-              ? `→ API uploads · images max ${MAX_IMAGE_UPLOAD_MB} MB · MP4 max ${MAX_VIDEO_UPLOAD_MB} MB`
-              : `→ API uploads · max ${MAX_IMAGE_UPLOAD_MB} MB`
+              ? `→ Cloud storage · images max ${MAX_IMAGE_UPLOAD_MB} MB · MP4 max ${MAX_VIDEO_UPLOAD_MB} MB`
+              : `→ Cloud storage · max ${MAX_IMAGE_UPLOAD_MB} MB`
             : `or drag & drop · max ${MAX_IMAGE_UPLOAD_MB} MB`}
         </span>
       </div>

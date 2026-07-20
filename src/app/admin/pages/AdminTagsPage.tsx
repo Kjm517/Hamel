@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { CornerTag, PromoChip } from '../../components/PromoBadge';
 import { useProductTags } from '../../context/ProductTagsContext';
 import { useCatalog } from '../../context/CatalogContext';
-import { checkStorageBucket, DEFAULT_STORAGE_BUCKET } from '../../lib/storage';
+import { checkStorageBucket, DEFAULT_STORAGE_BUCKET, mediaPathFor } from '../../lib/storage';
 import {
   cornerTagBgColor,
   cornerTagTextColor,
@@ -396,7 +396,7 @@ export function AdminTagsPage() {
                     renderMode: url ? 'image' : f.renderMode ?? 'composed',
                   }))
                 }
-                remoteUpload={{}}
+                remoteUpload={{ getObjectPath: mediaPathFor('tag-icons') }}
               />
               )}
               {!isCornerForm && (
@@ -444,7 +444,7 @@ export function AdminTagsPage() {
                 onChange={(url) =>
                   setForm((f) => ({ ...f, iconUrl: url || undefined, iconEmoji: url ? undefined : f.iconEmoji }))
                 }
-                remoteUpload={{}}
+                remoteUpload={{ getObjectPath: mediaPathFor('tag-icons') }}
               />
               )}
               <div className="grid grid-cols-2 gap-3">

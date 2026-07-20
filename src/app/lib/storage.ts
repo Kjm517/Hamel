@@ -24,7 +24,21 @@ export function isStorageObjectPath(value: string): boolean {
 export function resolveStorageImageUrl(value: string | undefined): string | undefined {
   if (!value?.trim()) return undefined;
   const v = value.trim();
-  if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:') || v.startsWith('/')) {
+
+  // Stale absolute URLs from local dev — remap to current API uploads base.
+  const localUpload = v.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/uploads\/(.+)$/i);
+  if (localUpload?.[1]) {
+    return getPublicStorageUrl(localUpload[1]);
+  }
+
+  if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:')) {
+    return v;
+  }
+  // Site-relative paths like /hamel/... stay as-is; /uploads/... go through API base when needed.
+  if (v.startsWith('/uploads/')) {
+    return getPublicStorageUrl(v.replace(/^\/uploads\//, ''));
+  }
+  if (v.startsWith('/')) {
     return v;
   }
   return getPublicStorageUrl(v);
@@ -70,6 +84,11 @@ export function getDefaultTagIconPaths(tagId: string): string[] {
 }
 
 export function buildTagIconStoragePath(file: File): string {
+  return buildMediaStoragePath(file, 'tag-icons');
+}
+
+/** Generic media path for banners, heroes, cool-deals, etc. */
+export function buildMediaStoragePath(file: File, folder = 'media'): string {
   const ext = file.name.includes('.')
     ? (file.name.split('.').pop()?.toLowerCase() ?? 'png')
     : 'png';
@@ -78,12 +97,18 @@ export function buildTagIconStoragePath(file: File): string {
       .replace(/\.[^.]+$/, '')
       .replace(/[^a-zA-Z0-9._-]+/g, '-')
       .replace(/^-+|-+$/g, '')
-      .slice(0, 48) || 'icon';
+      .slice(0, 48) || 'image';
   const unique =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID().slice(0, 8)
       : String(Date.now());
-  return `tag-icons/${base}-${unique}.${ext}`;
+  const safeFolder = folder.replace(/^\/+|\/+$/g, '') || 'media';
+  return `${safeFolder}/${base}-${unique}.${ext}`;
+}
+
+/** Convenience for admin upload fields: `remoteUpload={{ getObjectPath: mediaPathFor('banners') }}`. */
+export function mediaPathFor(folder: string): (file: File) => string {
+  return (file) => buildMediaStoragePath(file, folder);
 }
 
 export async function checkStorageBucket(): Promise<{ ok: true } | { ok: false; message: string }> {
