@@ -96,8 +96,12 @@ export const env = {
   resendFrom: () => process.env.RESEND_FROM?.trim() || 'Hamel Trading <onboarding@resend.dev>',
 
   /** Free-tier Cloudinary (temporary media). When set, uploads skip local disk. */
-  cloudinaryCloudName: () => process.env.CLOUDINARY_CLOUD_NAME?.trim() || '',
-  cloudinaryApiKey: () => process.env.CLOUDINARY_API_KEY?.trim() || '',
-  cloudinaryApiSecret: () => process.env.CLOUDINARY_API_SECRET?.trim() || '',
-  cloudinaryFolder: () => process.env.CLOUDINARY_FOLDER?.trim() || 'hamel',
+  cloudinaryCloudName: () =>
+    (process.env.CLOUDINARY_CLOUD_NAME || '').trim().replace(/^["']|["']$/g, ''),
+  cloudinaryApiKey: () =>
+    (process.env.CLOUDINARY_API_KEY || '').trim().replace(/^["']|["']$/g, ''),
+  cloudinaryApiSecret: () =>
+    (process.env.CLOUDINARY_API_SECRET || '').trim().replace(/^["']|["']$/g, ''),
+  cloudinaryFolder: () =>
+    (process.env.CLOUDINARY_FOLDER || 'hamel').trim().replace(/^["']|["']$/g, '') || 'hamel',
 };

@@ -54,24 +54,34 @@ async function saveUploadedMedia(
       .slice(0, 48)}-${randomUUID().slice(0, 8)}.${safeExt}`;
 
   if (cloudinaryConfigured()) {
-    const result = await uploadBufferToCloudinary({
-      buffer,
-      objectPath,
-      contentType: file.type || (safeExt === 'mp4' ? 'video/mp4' : `image/${safeExt}`),
-      fileName: file.name || objectPath,
-    });
-    // Mirror to local disk so /uploads/<path> (and admin path normalization) still work in dev.
-    if (!process.env.VERCEL) {
-      try {
-        const uploadDir = env.uploadDir();
-        const fullPath = join(uploadDir, objectPath);
-        await mkdir(join(fullPath, '..'), { recursive: true });
-        await writeFile(fullPath, buffer);
-      } catch {
-        // Non-fatal — Cloudinary URL remains the source of truth.
+    try {
+      const result = await uploadBufferToCloudinary({
+        buffer,
+        objectPath,
+        contentType: file.type || (safeExt === 'mp4' ? 'video/mp4' : `image/${safeExt}`),
+        fileName: file.name || objectPath,
+      });
+      // Mirror to local disk so /uploads/<path> still works in dev.
+      if (!process.env.VERCEL) {
+        try {
+          const uploadDir = env.uploadDir();
+          const fullPath = join(uploadDir, objectPath);
+          await mkdir(join(fullPath, '..'), { recursive: true });
+          await writeFile(fullPath, buffer);
+        } catch {
+          // Non-fatal — Cloudinary URL remains the source of truth.
+        }
       }
+      return { ...result, storage: 'cloudinary' };
+    } catch (err) {
+      // On Vercel there is no durable disk — surface the Cloudinary error.
+      if (process.env.VERCEL) throw err;
+      // Local/dev: keep working with local uploads if Cloudinary credentials are wrong.
+      console.warn(
+        '[uploads] Cloudinary failed, falling back to local disk:',
+        err instanceof Error ? err.message : err
+      );
     }
-    return { ...result, storage: 'cloudinary' };
   }
 
   if (process.env.VERCEL) {
