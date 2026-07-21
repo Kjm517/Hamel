@@ -116,7 +116,7 @@ function MainBannerCarousel({ slides }: { slides: BannerConfig[] }) {
               src={s.imageUrl}
               alt={s.imageAlt ?? ''}
               loading={i === 0 ? 'eager' : 'lazy'}
-              className="absolute inset-0 w-full h-full object-cover object-right"
+              className="absolute inset-0 h-full w-full object-cover object-center md:object-right"
             />
             {/* Only apply color/smoke overlay when admin set one (empty = image only) */}
             {s.overlayColor ? (
@@ -124,7 +124,7 @@ function MainBannerCarousel({ slides }: { slides: BannerConfig[] }) {
             ) : null}
             {(s.tag || s.title || s.subtitle || (s.ctaLabel && href)) && (
               <div
-                className={`relative z-10 h-full flex flex-col justify-center px-5 md:px-8 max-w-[58%] ${
+                className={`relative z-10 flex h-full max-w-[90%] flex-col justify-center px-4 sm:px-5 md:max-w-[58%] md:px-8 ${
                   s.overlayColor ? '' : 'drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]'
                 }`}
               >
@@ -192,7 +192,7 @@ function MainBannerCarousel({ slides }: { slides: BannerConfig[] }) {
               stopNavClick(e);
               goTo((current - 1 + slides.length) % slides.length);
             }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-black/25 hover:bg-black/40 text-white transition-colors"
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center w-11 h-11 rounded-full bg-black/25 hover:bg-black/40 text-white transition-colors"
             aria-label="Previous slide"
           >
             <ChevronLeft size={18} strokeWidth={2.5} />
@@ -203,7 +203,7 @@ function MainBannerCarousel({ slides }: { slides: BannerConfig[] }) {
               stopNavClick(e);
               goTo((current + 1) % slides.length);
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-black/25 hover:bg-black/40 text-white transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center w-11 h-11 rounded-full bg-black/25 hover:bg-black/40 text-white transition-colors"
             aria-label="Next slide"
           >
             <ChevronRight size={18} strokeWidth={2.5} />
@@ -243,7 +243,12 @@ export function MarketplaceBannerGrid({ carouselSlides, sideBanners }: Marketpla
           {visibleSideBanners.length ? (
             <div className={`grid gap-2.5 md:gap-3 md:min-h-0 ${sideGridClass}`}>
               {visibleSideBanners.map((banner, index) => (
-                <div key={`${banner.title}-${index}`} className="min-h-0 h-full">
+                <div
+                  key={`${banner.title}-${index}`}
+                  className={`min-h-0 h-full ${
+                    visibleSideBanners.length === 3 && index === 2 ? 'col-span-2 md:col-span-1' : ''
+                  }`}
+                >
                   <PromoSideCard item={banner} />
                 </div>
               ))}

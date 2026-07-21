@@ -99,7 +99,7 @@ export function PromoSideBannerEditor({ label, badgeNumber, item, onChange }: Pr
             onChange={(v) => onChange({ imageUrl: v })}
             remoteUpload={{ getObjectPath: mediaPathFor('promo-banners') }}
           />
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">BG</label>
               <div className="flex items-center gap-1">

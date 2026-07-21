@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { hamelAssets } from '../../data/hamelAssets';
 
 const fieldClass =
-  'w-full h-12 rounded-xl border border-[#dbe4ee] bg-white px-[15px] text-[15px] text-[#17222f] placeholder:text-[#a7b6c6] transition-[border-color,box-shadow] focus:border-[#17abee] focus:outline-none focus:shadow-[0_0_0_3px_rgba(23,171,238,0.18)]';
+  'w-full h-12 rounded-xl border border-[#dbe4ee] bg-white px-[15px] text-base text-[#17222f] placeholder:text-[#a7b6c6] transition-[border-color,box-shadow] focus:border-[#17abee] focus:outline-none focus:shadow-[0_0_0_3px_rgba(23,171,238,0.18)]';
 
 const labelClass = 'text-[13px] font-bold text-[#3a4756]';
 

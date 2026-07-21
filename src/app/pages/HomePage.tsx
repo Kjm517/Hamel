@@ -67,13 +67,18 @@ export function HomePage() {
       />
 
       {/* Trust strip — below banners */}
-      <section className="bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-wrap items-center justify-around divide-x divide-gray-100">
+      <section className="border-b border-gray-100 bg-white shadow-sm">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="-mx-4 flex items-stretch gap-0 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:justify-around md:divide-x md:divide-gray-100 md:overflow-visible md:px-0">
             {TRUST_BADGES.map(({ icon, label }) => (
-              <div key={label} className="flex items-center gap-2 px-5 py-3.5">
+              <div
+                key={label}
+                className="flex shrink-0 items-center gap-2 border-r border-gray-100 px-4 py-3 last:border-r-0 md:border-r-0 md:px-5 md:py-3.5"
+              >
                 <span className="text-[#0EA5E9]">{icon}</span>
-                <span className="text-xs font-semibold text-gray-700 whitespace-nowrap tracking-wide">{label}</span>
+                <span className="whitespace-nowrap text-xs font-semibold tracking-wide text-gray-700">
+                  {label}
+                </span>
               </div>
             ))}
           </div>
@@ -117,7 +122,7 @@ export function HomePage() {
           <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-none">
+                <h2 className="text-2xl font-black leading-none tracking-tight sm:text-3xl md:text-5xl">
                   <span style={{ color: featuredCollection.titleColor }}>{featuredCollection.title} </span>
                   <span style={{ color: featuredCollection.highlightColor }}>{featuredCollection.titleHighlight}</span>
                 </h2>
@@ -158,7 +163,7 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 items-stretch">
+          <div className="grid grid-cols-2 items-stretch gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
             {featuredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

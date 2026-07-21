@@ -303,7 +303,7 @@ export function AdminEmployeesPage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-[13.5px]">
+            <table className="w-full min-w-[640px] border-collapse text-left text-[13.5px]">
               <thead>
                 <tr className={adminUi.tableHead}>
                   <th className="px-[18px] py-3">Name</th>

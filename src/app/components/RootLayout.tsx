@@ -26,7 +26,7 @@ function StorefrontShell() {
   }, [reload]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
       <SiteLoadingScreen />
       <Navigation />
       <main className="flex-1">

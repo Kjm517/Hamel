@@ -32,6 +32,15 @@ export function SelectOrEnterVoucher({ subtotal, applied, onApply, productId }: 
     void loadVouchers().then(setConfig);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   const discount = useMemo(
     () => (applied ? computeVoucherDiscount(applied, subtotal) : null),
     [applied, subtotal]
@@ -136,7 +145,8 @@ export function SelectOrEnterVoucher({ subtotal, applied, onApply, productId }: 
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="text-gray-400 hover:text-gray-700"
+                  className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                  aria-label="Close"
                 >
                   <X size={18} />
                 </button>

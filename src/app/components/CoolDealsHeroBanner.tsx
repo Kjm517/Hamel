@@ -34,7 +34,7 @@ export function CoolDealsHeroBanner({ config }: CoolDealsHeroBannerProps) {
             className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/55 to-transparent"
             aria-hidden
           />
-          <div className="relative z-10 flex h-full flex-col justify-center px-6 md:px-12 max-w-7xl mx-auto w-full">
+          <div className="relative z-10 mx-auto flex h-full w-full max-w-7xl flex-col justify-center px-4 sm:px-6 md:px-12">
             <div className="max-w-xl">
               {config.badge && (
                 <span className="inline-block text-xs font-extrabold uppercase tracking-widest px-3 py-1 rounded-md bg-red-500 text-white mb-3">

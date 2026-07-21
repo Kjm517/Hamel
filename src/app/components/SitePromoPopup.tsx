@@ -78,6 +78,15 @@ export function SitePromoPopup() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- showNextFromQueue uses refs
   }, [config, location.pathname]);
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open || !active || typeof document === 'undefined') return null;
 
   const dismiss = () => {

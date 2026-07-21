@@ -153,6 +153,14 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
     };
   }, []);
 
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   const addMessage = (text: string, sender: 'ai' | 'user', kind: Message['kind'] = 'text') => {
     const newMessage: Message = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -741,7 +749,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               Online
             </div>
-            <button type="button" onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+            <button type="button" onClick={onClose} className="p-2.5 hover:bg-gray-100 rounded-full" aria-label="Close">
               <X size={20} />
             </button>
           </div>
@@ -785,8 +793,9 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
           <div className="text-xs ml-3 text-blue-200">Step {currentStep} of {TOTAL_STEPS}</div>
         </div>
 
+        <div className="flex-1 overflow-y-auto">
         {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ maxHeight: '300px' }}>
+        <div className="p-4 space-y-3">
           {messages.map((message) => (
             <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               {message.sender === 'ai' && (
@@ -946,14 +955,14 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
                       backgroundColor: isSelected ? '#E0F2FE' : '#FFF',
                     }}
                   >
-                    <div className="font-bold text-gray-900" style={{ fontSize: 11 }}>{plan.months}mo</div>
-                    <div className="font-semibold" style={{ color: '#0EA5E9', fontSize: 10 }}>
+                    <div className="text-sm font-bold text-gray-900">{plan.months}mo</div>
+                    <div className="text-xs font-semibold" style={{ color: '#0EA5E9' }}>
                       ₱{monthly.toLocaleString()}
                     </div>
                     {plan.interestRate === 0 ? (
-                      <div className="text-green-600" style={{ fontSize: 8 }}>0% int.</div>
+                      <div className="text-xs text-green-600">0% int.</div>
                     ) : (
-                      <div className="text-orange-500" style={{ fontSize: 8 }}>{plan.interestRate * 100}% p.a.</div>
+                      <div className="text-xs text-orange-500">{plan.interestRate * 100}% p.a.</div>
                     )}
                   </button>
                 );
@@ -987,7 +996,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
                   if (e.key === 'Enter') handlePromoCodeApply();
                 }}
                 placeholder="e.g. HAMEL10"
-                className="flex-1 px-3 py-2 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5E9] text-sm font-mono uppercase"
+                className="flex-1 px-3 py-2 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5E9] text-base font-mono uppercase"
               />
               <button
                 onClick={handlePromoCodeApply}
@@ -1061,19 +1070,21 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
             </div>
           </div>
         )}
+        </div>
 
         {/* Input Bar */}
         {!showSendButtons && !showPostSubmitButtons && !showInstallmentPicker && !showPromoCodeUI && (
           <div className="p-4 border-t">
             <div className="flex gap-2">
               <input
-                type="text"
+                type={currentStep === 9 && !formData.contactNumber ? 'tel' : 'text'}
+                inputMode={currentStep === 9 && !formData.contactNumber ? 'tel' : 'text'}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder={getPlaceholder()}
                 disabled={isTyping || submitting}
-                className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-[#0EA5E9] text-sm disabled:opacity-60"
+                className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-[#0EA5E9] text-base disabled:opacity-60"
               />
               <button
                 type="button"

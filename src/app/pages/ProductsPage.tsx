@@ -22,6 +22,12 @@ import {
   toggleCompare,
 } from '../lib/product-actions';
 import { usePageLoading } from '../context/SiteLoadingContext';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '../components/ui/sheet';
 
 export function ProductsPage() {
   const { products, loading, error } = useCatalog();
@@ -34,6 +40,7 @@ export function ProductsPage() {
   const pickForCompare = searchParams.get('pickForCompare') === '1';
   const [, bumpCompare] = useState(0);
   const [compareLimitOpen, setCompareLimitOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     const refresh = () => bumpCompare((n) => n + 1);
@@ -137,12 +144,47 @@ export function ProductsPage() {
     }
   };
 
+  const activeFilterCount = [selectedBrand, selectedCategory, selectedHP].filter(
+    (v) => v !== 'All'
+  ).length;
+
+  const filterPanel = (
+    <>
+      <FilterGroup
+        label="Brand"
+        options={brandOptions}
+        selected={selectedBrand}
+        onSelect={setSelectedBrand}
+      />
+      <FilterGroup
+        label="Category"
+        options={categoryOptions}
+        selected={selectedCategory}
+        onSelect={setSelectedCategory}
+      />
+      <FilterGroup
+        label="Horsepower"
+        options={hpOptions}
+        selected={selectedHP}
+        onSelect={setSelectedHP}
+      />
+      <button
+        type="button"
+        onClick={resetFilters}
+        className="w-full rounded-lg border-2 px-4 py-2 font-semibold transition-colors hover:bg-gray-50"
+        style={{ borderColor: '#0EA5E9', color: '#0EA5E9' }}
+      >
+        Reset Filters
+      </button>
+    </>
+  );
+
   return (
     <>
-      <div className="bg-gray-50 min-h-screen">
+      <div className="min-h-screen bg-gray-50">
       <PageBanner config={productsBanner} />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
         {pickForCompare && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#BAE6FD] bg-[#F0F9FF] px-4 py-3">
             <div>
@@ -165,47 +207,20 @@ export function ProductsPage() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-[250px_1fr] gap-8">
-          <div className="bg-white p-6 rounded-lg shadow-sm h-fit lg:sticky lg:top-24">
-            <div className="flex items-center gap-2 mb-6">
+        <div className="grid gap-6 lg:grid-cols-[250px_1fr] lg:gap-8">
+          <aside className="hidden h-fit rounded-lg bg-white p-6 shadow-sm lg:sticky lg:top-24 lg:block">
+            <div className="mb-6 flex items-center gap-2">
               <Filter size={20} style={{ color: '#0EA5E9' }} />
-              <h2 className="font-bold text-lg" style={{ color: '#0EA5E9' }}>
+              <h2 className="text-lg font-bold" style={{ color: '#0EA5E9' }}>
                 Filters
               </h2>
             </div>
-
-            <FilterGroup
-              label="Brand"
-              options={brandOptions}
-              selected={selectedBrand}
-              onSelect={setSelectedBrand}
-            />
-            <FilterGroup
-              label="Category"
-              options={categoryOptions}
-              selected={selectedCategory}
-              onSelect={setSelectedCategory}
-            />
-            <FilterGroup
-              label="Horsepower"
-              options={hpOptions}
-              selected={selectedHP}
-              onSelect={setSelectedHP}
-            />
-
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="w-full px-4 py-2 border-2 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
-              style={{ borderColor: '#0EA5E9', color: '#0EA5E9' }}
-            >
-              Reset Filters
-            </button>
-          </div>
+            {filterPanel}
+          </aside>
 
           <div>
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-gray-600">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
+              <p className="text-sm text-gray-600 sm:text-base">
                 {loading ? (
                   'Loading products…'
                 ) : (
@@ -223,17 +238,30 @@ export function ProductsPage() {
                   </>
                 )}
               </p>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm lg:hidden"
+              >
+                <Filter size={16} style={{ color: '#0EA5E9' }} />
+                Filters
+                {activeFilterCount > 0 ? (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#0EA5E9] px-1.5 text-[11px] font-bold text-white">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </button>
             </div>
 
             {loading ? (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {[1, 2, 3].map((n) => (
-                  <div key={n} className="bg-white rounded-lg h-96 animate-pulse shadow-sm" />
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3 xl:gap-6">
+                {[1, 2, 3, 4].map((n) => (
+                  <div key={n} className="h-72 animate-pulse rounded-lg bg-white shadow-sm sm:h-96" />
                 ))}
               </div>
             ) : visibleProducts.length === 0 ? (
-              <div className="bg-white rounded-lg p-12 text-center">
-                <p className="text-gray-600 text-lg">
+              <div className="rounded-lg bg-white p-8 text-center sm:p-12">
+                <p className="text-base text-gray-600 sm:text-lg">
                   {pickForCompare
                     ? 'No more products to add — everything matching your filters is already in compare.'
                     : 'No products match your filters.'}
@@ -250,7 +278,7 @@ export function ProductsPage() {
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="mt-4 px-6 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity text-gray-900"
+                  className="mt-4 rounded-full px-6 py-3 font-semibold text-gray-900 transition-opacity hover:opacity-90"
                   style={{ backgroundColor: '#FFC107' }}
                 >
                   Clear Filters
@@ -258,7 +286,7 @@ export function ProductsPage() {
                 )}
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
+              <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3 xl:gap-6">
                 {visibleProducts.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -284,6 +312,29 @@ export function ProductsPage() {
         </div>
       </div>
       </div>
+
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="left" className="w-[min(100vw-2rem,20rem)] gap-0 bg-white p-0">
+          <SheetHeader className="border-b border-gray-100 px-4 py-4 text-left">
+            <SheetTitle className="flex items-center gap-2 text-lg font-bold text-[#0EA5E9]">
+              <Filter size={18} />
+              Filters
+            </SheetTitle>
+          </SheetHeader>
+          <div className="overflow-y-auto p-4 pb-8">
+            {filterPanel}
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(false)}
+              className="mt-4 w-full rounded-full py-3 font-semibold text-gray-900"
+              style={{ backgroundColor: '#FFC107' }}
+            >
+              Show {visibleProducts.length} products
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <CompareLimitModal
         isOpen={compareLimitOpen}
         onClose={() => setCompareLimitOpen(false)}

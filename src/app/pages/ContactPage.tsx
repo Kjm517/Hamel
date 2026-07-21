@@ -46,9 +46,9 @@ export function ContactPage() {
     <div className="bg-gray-50 min-h-screen">
       <PageBanner config={contactBanner} />
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-[1fr_400px] gap-8">
-          <div className="bg-white rounded-lg p-8 shadow-sm">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12">
+        <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-8">
+          <div className="rounded-lg bg-white p-5 shadow-sm sm:p-8">
             <h2 className="text-2xl font-bold mb-6" style={{ color: '#0EA5E9' }}>
               Send us a Message
             </h2>
@@ -106,7 +106,7 @@ export function ContactPage() {
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   rows={6}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5E9] focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-[#0EA5E9] focus:border-transparent resize-none"
                   placeholder="Tell us what you need help with..."
                 />
               </div>

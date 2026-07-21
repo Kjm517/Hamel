@@ -575,6 +575,7 @@ export function AdminTagsPage() {
       )}
 
       <div className={`${adminUi.card} overflow-hidden`}>
+        <div className="overflow-x-auto">
         <table className="w-full text-left text-[13.5px]">
           <thead>
             <tr className={adminUi.tableHead}>
@@ -685,6 +686,7 @@ export function AdminTagsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

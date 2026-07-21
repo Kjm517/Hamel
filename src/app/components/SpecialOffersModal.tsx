@@ -62,7 +62,7 @@ export function SpecialOffersModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+            className="rounded-lg p-2.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
             aria-label="Close"
           >
             <X size={18} />

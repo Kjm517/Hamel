@@ -71,6 +71,15 @@ export function ShareProductModal({ open, onClose, title, url, text }: ShareProd
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const shareText = text?.trim() || `Check out ${title}`;
@@ -177,7 +186,7 @@ export function ShareProductModal({ open, onClose, title, url, text }: ShareProd
           Share
         </h2>
 
-        <div className="flex items-start justify-between gap-1 px-0.5">
+        <div className="flex flex-wrap items-start justify-center gap-x-2 gap-y-3 px-0.5">
           {actions.map((action) => (
             <button
               key={action.id}

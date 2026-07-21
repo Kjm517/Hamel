@@ -231,6 +231,7 @@ export function AdminInquiriesPage() {
       )}
 
       <div className={`${adminUi.card} overflow-hidden`}>
+        <div className="overflow-x-auto">
         <table className="min-w-full text-left text-[13.5px]">
           <thead>
             <tr className={adminUi.tableHead}>
@@ -270,7 +271,7 @@ export function AdminInquiriesPage() {
                       e.stopPropagation();
                       void handleDelete(row);
                     }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#9aa7b5] transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#9aa7b5] transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                     title="Delete"
                     aria-label={`Delete inquiry from ${row.customerName}`}
                   >
@@ -281,6 +282,7 @@ export function AdminInquiriesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {selected && (

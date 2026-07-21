@@ -85,6 +85,15 @@ export function GlobalAIChatBot() {
     scrollToBottom();
   }, [messages, isTyping, windowSize]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen]);
+
   const handleSendMessage = async (text?: string, imageUrl?: string | null) => {
     const messageText = (text || inputText).trim();
     const img = imageUrl === undefined ? pendingImage : imageUrl;
@@ -410,7 +419,7 @@ export function GlobalAIChatBot() {
                 onKeyPress={handleKeyPress}
                 placeholder="Ask in English, Tagalog, or Cebuano…"
                 disabled={isTyping}
-                className="min-w-0 flex-1 rounded-full border border-gray-300 px-4 py-2.5 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0EA5E9] disabled:bg-gray-50"
+                className="min-w-0 flex-1 rounded-full border border-gray-300 px-4 py-2.5 text-base focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0EA5E9] disabled:bg-gray-50"
               />
               <button
                 type="button"
@@ -433,7 +442,7 @@ export function GlobalAIChatBot() {
             setWindowSize('default');
             setIsOpen(true);
           }}
-          className="fixed bottom-6 right-4 z-50 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#0EA5E9] bg-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:right-6"
+          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-50 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#0EA5E9] bg-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:right-6 lg:bottom-6"
           aria-label="Chat with AI Assistant"
         >
           <img

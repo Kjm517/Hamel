@@ -166,7 +166,7 @@ export function ComparePage() {
                         <button
                           type="button"
                           onClick={() => clearSlot(product.id)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-600"
+                          className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full p-2 text-red-500 hover:bg-red-50 hover:text-red-600"
                           aria-label="Remove"
                         >
                           <X size={14} />

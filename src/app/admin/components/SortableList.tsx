@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 
 export interface SortableItem {
   id: string;
@@ -54,6 +54,15 @@ export function SortableList<T extends SortableItem>({
     setOverId(null);
   };
 
+  const move = (index: number, delta: number) => {
+    const to = index + delta;
+    if (to < 0 || to >= items.length) return;
+    const next = [...items];
+    const [moved] = next.splice(index, 1);
+    next.splice(to, 0, moved);
+    onReorder(next);
+  };
+
   return (
     <div className="space-y-2">
       {items.map((item, index) => (
@@ -69,10 +78,32 @@ export function SortableList<T extends SortableItem>({
             draggable
             onDragStart={() => handleDragStart(item.id)}
             onDragEnd={handleDragEnd}
-            className="flex shrink-0 cursor-grab active:cursor-grabbing items-center justify-center px-2 text-gray-400 hover:text-[#0EA5E9] bg-gray-50 rounded-l-lg border-r border-gray-100 self-stretch"
+            className="hidden shrink-0 cursor-grab active:cursor-grabbing items-center justify-center px-2 text-gray-400 hover:text-[#0EA5E9] bg-gray-50 rounded-l-lg border-r border-gray-100 self-stretch sm:flex"
             title="Drag to reorder"
           >
             <GripVertical size={18} />
+          </div>
+          <div className="flex shrink-0 flex-col items-center justify-center gap-0.5 self-stretch rounded-l-lg border-r border-gray-100 bg-gray-50 px-1 py-1 sm:hidden">
+            <button
+              type="button"
+              onClick={() => move(index, -1)}
+              disabled={index === 0}
+              className="flex h-8 w-8 items-center justify-center rounded text-gray-400 transition-colors hover:bg-white hover:text-[#0EA5E9] disabled:opacity-30"
+              aria-label="Move up"
+              title="Move up"
+            >
+              <ChevronUp size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => move(index, 1)}
+              disabled={index === items.length - 1}
+              className="flex h-8 w-8 items-center justify-center rounded text-gray-400 transition-colors hover:bg-white hover:text-[#0EA5E9] disabled:opacity-30"
+              aria-label="Move down"
+              title="Move down"
+            >
+              <ChevronDown size={16} />
+            </button>
           </div>
           <div className="flex-1 min-w-0 py-1">{renderItem(item, index)}</div>
         </div>

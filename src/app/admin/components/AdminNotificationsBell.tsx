@@ -175,7 +175,7 @@ export function AdminNotificationsBell() {
       {open ? (
         <>
           <div className="fixed inset-0 z-[55]" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[50px] z-[60] w-[380px] overflow-hidden rounded-2xl border border-[#e8eef4] bg-white shadow-[0_20px_48px_-16px_rgba(15,31,46,0.35)]">
+          <div className="absolute right-0 top-[50px] z-[60] w-[calc(100vw-2rem)] max-w-[380px] overflow-hidden rounded-2xl border border-[#e8eef4] bg-white shadow-[0_20px_48px_-16px_rgba(15,31,46,0.35)]">
             <div className="flex items-start justify-between gap-2.5 px-[18px] pb-3 pt-4">
               <div>
                 <p className="text-[15px] font-extrabold text-[#1e2a38]">Notifications</p>

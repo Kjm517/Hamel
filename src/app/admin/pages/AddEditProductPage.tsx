@@ -915,7 +915,7 @@ export function AddEditProductPage() {
           </Section>
         </div>
 
-        <div className="fixed bottom-0 left-[260px] right-0 z-20 flex justify-end gap-3 border-t border-[#e8eef4] bg-white px-6 py-4 shadow-[0_-4px_20px_rgba(30,42,56,0.06)]">
+        <div className="fixed bottom-0 left-0 right-0 z-20 flex justify-end gap-2 border-t border-[#e8eef4] bg-white px-3 py-3 shadow-[0_-4px_20px_rgba(30,42,56,0.06)] sm:gap-3 sm:px-6 sm:py-4 lg:left-[260px]">
           <Link to="/admin/products" className={adminUi.btnGhost}>
             Cancel
           </Link>

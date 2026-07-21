@@ -76,7 +76,7 @@ export function BannerLinkDestinationField({
         {label}
       </label>
 
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-1 gap-2 mb-4 sm:grid-cols-3">
         {(
           [
             { id: 'none' as const, label: 'None', desc: 'Not clickable' },

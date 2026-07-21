@@ -163,7 +163,7 @@ export function WhyHamelPage() {
             >
               Shop Aircons
             </button>
-            <button className="px-8 py-4 rounded-full font-bold text-white border-2 border-white hover:bg-white transition-colors" style={{ color: 'white' }} onMouseEnter={(e) => e.currentTarget.style.color = '#0EA5E9'} onMouseLeave={(e) => e.currentTarget.style.color = 'white'}>
+            <button className="px-8 py-4 rounded-full font-bold text-white border-2 border-white transition-colors hover:bg-white hover:text-[#0EA5E9]">
               Contact Our Team
             </button>
           </div>

@@ -108,17 +108,17 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
         style={{ borderRadius: '8px' }}
       >
         {/* Product Image */}
-        <div className="relative bg-gray-50 aspect-square shrink-0 flex items-center justify-center p-4">
+        <div className="relative flex aspect-square shrink-0 items-center justify-center bg-gray-50 p-3 sm:p-4">
           <ImageWithFallback
             src={product.image}
             alt={product.model}
             loading="lazy"
-            className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
+            className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
           />
         </div>
 
         {/* Product Info — fixed blocks + flex spacer so CTA sits on one baseline */}
-        <div className="flex min-h-0 flex-1 flex-col p-4">
+        <div className="flex min-h-0 flex-1 flex-col p-2.5 sm:p-4">
           {/* TAG-D: pill tags above title (−20% solid + INVERTER outline) */}
           {cornerTags.length > 0 && (
             <div className="mb-2 flex min-h-[22px] shrink-0 flex-wrap gap-1.5">
@@ -155,8 +155,8 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
                   alt={product.brand}
                   className={
                     isSamsung
-                      ? 'h-auto w-[118px] max-h-7 object-contain object-left'
-                      : 'h-6 w-auto max-w-[100px] object-contain object-left'
+                      ? 'h-auto w-full max-w-[90px] max-h-6 object-contain object-left sm:max-h-7 sm:max-w-[118px]'
+                      : 'h-5 w-auto max-w-[80px] object-contain object-left sm:h-6 sm:max-w-[100px]'
                   }
                 />
               ) : (
@@ -166,12 +166,12 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
           </div>
 
           {/* Model Name */}
-          <h3 className="mb-3 line-clamp-2 min-h-[2.75rem] shrink-0 text-sm font-bold leading-snug text-gray-900">
+          <h3 className="mb-2 line-clamp-2 min-h-[2.5rem] shrink-0 text-xs font-bold leading-snug text-gray-900 sm:mb-3 sm:min-h-[2.75rem] sm:text-sm">
             {product.model}
           </h3>
 
-          {/* HP Options — compact single-line chips (max 4) */}
-          <div className="mb-2 flex h-5 shrink-0 flex-nowrap items-center gap-0.5 overflow-hidden">
+          {/* HP Options — compact chips (max 4) */}
+          <div className="mb-2 flex min-h-5 shrink-0 flex-wrap items-center gap-0.5">
             {product.hp.slice(0, 4).map((hp) => (
               <span
                 key={hp}
@@ -183,8 +183,8 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
           </div>
 
           {/* Price — fixed two-row slot so sale & regular prices share one baseline */}
-          <div className="mb-1 flex h-[3.25rem] shrink-0 flex-col justify-end gap-0.5">
-            <div className="h-4 text-xs leading-4 text-gray-400 line-through">
+          <div className="mb-1 flex min-h-[2.75rem] shrink-0 flex-col justify-end gap-0.5 sm:h-[3.25rem] sm:min-h-0">
+            <div className="h-4 text-[10px] leading-4 text-gray-400 line-through sm:text-xs">
               {hasDiscount
                 ? product.priceStart === product.priceEnd
                   ? `₱${product.priceStart.toLocaleString()}`
@@ -192,7 +192,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
                 : '\u00A0'}
             </div>
             <div
-              className="truncate text-lg font-bold leading-tight"
+              className="text-sm font-bold leading-tight sm:truncate sm:text-lg"
               style={{ color: priceColor }}
               title={
                 hasDiscount
@@ -216,7 +216,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
 
           {/* Compact promo stickers — one row, maximum four */}
           {resolvedPromos.length > 0 && (
-            <div className="mb-2 flex h-8 shrink-0 flex-nowrap items-center gap-1 overflow-hidden">
+            <div className="-mx-0.5 mb-2 flex min-h-7 shrink-0 items-center gap-1 overflow-x-auto px-0.5 sm:h-8 sm:min-h-0 sm:overflow-hidden">
               {resolvedPromos.map((promo, i) => (
                 <PromoChip
                   key={`${promo.chipImageUrl ?? promo.label}-${promo.badgeType}-${i}`}
@@ -297,7 +297,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
 
           {/* CTA */}
           <div
-            className={`w-full shrink-0 py-2.5 text-center text-sm font-semibold transition-opacity ${
+            className={`w-full shrink-0 py-3 text-center text-sm font-semibold transition-opacity ${
               disabled
                 ? 'cursor-not-allowed text-gray-500'
                 : 'text-gray-900 group-hover:opacity-90'

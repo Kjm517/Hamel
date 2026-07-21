@@ -278,39 +278,39 @@ export function ProductDetailPage() {
       />
 
       {/* Breadcrumb */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Link to="/" className="hover:text-[#0EA5E9]">Home</Link>
-            <span>/</span>
-            <Link to="/products" className="hover:text-[#0EA5E9]">Products</Link>
-            <span>/</span>
-            <span className="hover:text-[#0EA5E9]">{product.brand}</span>
-            <span>/</span>
-            <span className="text-gray-900 font-medium">{product.model}</span>
+      <div className="border-b bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-3">
+          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm text-gray-600">
+            <Link to="/" className="shrink-0 hover:text-[#0EA5E9]">Home</Link>
+            <span className="shrink-0">/</span>
+            <Link to="/products" className="shrink-0 hover:text-[#0EA5E9]">Products</Link>
+            <span className="shrink-0">/</span>
+            <span className="shrink-0 hover:text-[#0EA5E9]">{product.brand}</span>
+            <span className="shrink-0">/</span>
+            <span className="truncate font-medium text-gray-900">{product.model}</span>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
         {/* Back Button */}
         <Link
-          to="/"
-          className="inline-flex items-center gap-2 hover:opacity-80 mb-6"
+          to="/products"
+          className="mb-6 inline-flex items-center gap-2 hover:opacity-80"
           style={{ color: '#0EA5E9' }}
         >
           <ChevronLeft size={20} />
           Back to Products
         </Link>
 
-        <div className="grid lg:grid-cols-[60%_40%] gap-8">
+        <div className="grid gap-6 lg:grid-cols-[60%_40%] lg:gap-8">
           {/* Left: Image Gallery */}
           <div>
-            <div className="bg-white rounded-lg p-8 mb-4 relative">
+            <div className="relative mb-4 rounded-lg bg-white p-4 sm:p-8">
               <img
                 src={product.images[selectedImage]}
                 alt={product.model}
-                className="w-full h-96 object-contain"
+                className="h-64 w-full object-contain sm:h-80 md:h-96"
               />
             </div>
             <div className="flex gap-3">
@@ -367,7 +367,7 @@ export function ProductDetailPage() {
                       setComparing(result.ids.includes(product.id));
                       if (result.added) navigate(`/compare?ids=${result.ids.join(',')}`);
                     }}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2.5 text-xs font-semibold ${
                       comparing
                         ? 'border-[#0EA5E9] bg-[#E0F2FE] text-[#0369A1]'
                         : 'border-[#BAE6FD] bg-white text-[#0369A1] hover:bg-[#F0F9FF]'
@@ -379,7 +379,7 @@ export function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => setWishlisted(toggleWishlist(product.id))}
-                    className={`rounded-full border p-2 ${
+                    className={`rounded-full border p-2.5 ${
                       wishlisted
                         ? 'border-rose-300 bg-rose-50 text-rose-600'
                         : 'border-gray-200 text-gray-500 hover:border-rose-200 hover:text-rose-500'
@@ -392,7 +392,7 @@ export function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShareOpen(true)}
-                    className="rounded-full border border-gray-200 p-2 text-gray-500 hover:border-[#0EA5E9] hover:text-[#0EA5E9]"
+                    className="rounded-full border border-gray-200 p-2.5 text-gray-500 hover:border-[#0EA5E9] hover:text-[#0EA5E9]"
                     aria-label="Share product"
                     title="Share"
                   >
@@ -688,12 +688,12 @@ export function ProductDetailPage() {
         </div>
 
         {/* Tabs Section */}
-        <div className="bg-white rounded-lg mt-8">
+        <div className="mt-8 rounded-lg bg-white">
           {/* Tab Headers */}
-          <div className="border-b flex">
+          <div className="flex overflow-x-auto border-b">
             <button
               onClick={() => setActiveTab('description')}
-              className={`px-6 py-4 font-semibold transition-colors ${
+              className={`shrink-0 px-4 py-3 text-sm font-semibold transition-colors sm:px-6 sm:py-4 sm:text-base ${
                 activeTab === 'description'
                   ? 'border-b-2'
                   : 'text-gray-600 hover:text-gray-900'
@@ -704,7 +704,7 @@ export function ProductDetailPage() {
             </button>
             <button
               onClick={() => setActiveTab('specifications')}
-              className={`px-6 py-4 font-semibold transition-colors ${
+              className={`shrink-0 px-4 py-3 text-sm font-semibold transition-colors sm:px-6 sm:py-4 sm:text-base ${
                 activeTab === 'specifications'
                   ? 'border-b-2'
                   : 'text-gray-600 hover:text-gray-900'
@@ -715,7 +715,7 @@ export function ProductDetailPage() {
             </button>
             <button
               onClick={() => setActiveTab('reviews')}
-              className={`px-6 py-4 font-semibold transition-colors ${
+              className={`shrink-0 px-4 py-3 text-sm font-semibold transition-colors sm:px-6 sm:py-4 sm:text-base ${
                 activeTab === 'reviews'
                   ? 'border-b-2'
                   : 'text-gray-600 hover:text-gray-900'

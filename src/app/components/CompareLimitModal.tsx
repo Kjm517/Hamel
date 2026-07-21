@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { GitCompare, X } from 'lucide-react';
 import { Link } from 'react-router';
 
@@ -12,6 +13,15 @@ export function CompareLimitModal({
   onClose,
   maxProducts,
 }: CompareLimitModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (

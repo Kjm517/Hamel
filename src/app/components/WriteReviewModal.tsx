@@ -229,7 +229,7 @@ export function WriteReviewModal({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Display email for this review"
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25"
                 />
               </div>
               <div>
@@ -241,7 +241,7 @@ export function WriteReviewModal({
                   disabled={anonymous}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25 disabled:opacity-60"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25 disabled:opacity-60"
                 />
               </div>
             </div>
@@ -256,7 +256,7 @@ export function WriteReviewModal({
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Write review here"
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25"
               />
               <p className="mt-1.5 text-xs text-gray-500">
                 Please note that your review will be moderated. Abusive comments will be deleted.

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { X, Phone } from 'lucide-react';
 import { useStoreSettings } from '../context/StoreSettingsContext';
 import { hamelAssets } from '../data/hamelAssets';
@@ -17,6 +18,15 @@ function SocialLogo({ src, alt }: { src: string; alt: string }) {
 
 export function ContactOptionsModal({ isOpen, onClose }: ContactOptionsModalProps) {
   const { settings, whatsappUrl, viberUrl, telHref, whatsappDisplay } = useStoreSettings();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, Package, ClipboardList, Users, Loader2 } from 'lucide-react';
+import { Search, Package, ClipboardList, Users, Loader2, X } from 'lucide-react';
 import { useCatalog } from '../../context/CatalogContext';
 import { isStorefrontProduct } from '../../lib/catalog-product';
 import { fetchInquiries } from '../lib/inquiries-api';
@@ -28,6 +28,7 @@ export function AdminGlobalSearch() {
   const [loading, setLoading] = useState(false);
   const [remoteHits, setRemoteHits] = useState<SearchHit[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -162,6 +163,90 @@ export function AdminGlobalSearch() {
   const showPanel = open && q.length > 0;
 
   return (
+    <>
+    <button
+      type="button"
+      onClick={() => setMobileOpen(true)}
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#516171] transition hover:bg-[#f0f9ff] hover:text-[#0369a1] md:hidden"
+      aria-label="Search"
+    >
+      <Search className="h-[18px] w-[18px]" />
+    </button>
+
+    {mobileOpen ? (
+      <div className="fixed inset-0 z-[70] flex flex-col bg-white md:hidden">
+        <div className="flex items-center gap-2 border-b border-[#e8eef4] px-4 py-3">
+          <Search className="h-[18px] w-[18px] shrink-0 text-[#9aa7b5]" />
+          <input
+            autoFocus
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search products, inquiries, customers…"
+            className="h-10 flex-1 min-w-0 border-none bg-transparent text-base text-[#1e2a38] placeholder:text-[#9aa7b5] focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setMobileOpen(false);
+              setQuery('');
+            }}
+            className="shrink-0 rounded-full p-2 text-[#516171] hover:bg-[#f0f9ff]"
+            aria-label="Close search"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {loading && hits.length === 0 ? (
+            <div className="flex items-center gap-2 px-4 py-6 text-sm text-[#9aa7b5]">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Searching…
+            </div>
+          ) : q.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-[#9aa7b5]">Start typing to search.</p>
+          ) : hits.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-[#9aa7b5]">
+              No matches for “{query.trim()}”.
+            </p>
+          ) : (
+            <ul className="py-1">
+              {hits.map((hit) => {
+                const meta = KIND_META[hit.kind];
+                const Icon = meta.icon;
+                return (
+                  <li key={hit.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        go(hit);
+                        setMobileOpen(false);
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#f7fbfe]"
+                    >
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${meta.tone}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] font-bold text-[#1e2a38]">
+                          {hit.title}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-[#7a8899]">
+                          {meta.label} · {hit.detail}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+    ) : null}
+
     <div className="relative ml-2 hidden max-w-[380px] flex-1 md:block" ref={rootRef}>
       <Search className="pointer-events-none absolute left-[13px] top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#9aa7b5]" />
       <input
@@ -237,5 +322,6 @@ export function AdminGlobalSearch() {
         </div>
       ) : null}
     </div>
+    </>
   );
 }

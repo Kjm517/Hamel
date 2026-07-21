@@ -9,11 +9,11 @@ export const adminUi = {
   label: 'text-[13px] font-semibold text-[#516171]',
   labelMuted: 'text-[11px] font-semibold text-[#9aa7b5]',
   input:
-    'mt-1.5 h-[42px] w-full rounded-[10px] border border-[#e4ebf2] bg-[#f7fafd] px-[13px] text-[14px] text-[#1e2a38] transition placeholder:text-[#9aa7b5] focus:border-sky-300 focus:bg-white focus:outline-none',
+    'mt-1.5 h-[42px] w-full rounded-[10px] border border-[#e4ebf2] bg-[#f7fafd] px-[13px] text-base text-[#1e2a38] transition placeholder:text-[#9aa7b5] focus:border-sky-300 focus:bg-white focus:outline-none',
   select:
-    'mt-1.5 h-[42px] w-full rounded-[10px] border border-[#e4ebf2] bg-[#f7fafd] px-[13px] text-[14px] text-[#1e2a38] transition focus:border-sky-300 focus:bg-white focus:outline-none',
+    'mt-1.5 h-[42px] w-full rounded-[10px] border border-[#e4ebf2] bg-[#f7fafd] px-[13px] text-base text-[#1e2a38] transition focus:border-sky-300 focus:bg-white focus:outline-none',
   textarea:
-    'mt-1.5 w-full rounded-[10px] border border-[#e4ebf2] bg-[#f7fafd] px-[13px] py-2.5 text-[14px] text-[#1e2a38] transition placeholder:text-[#9aa7b5] focus:border-sky-300 focus:bg-white focus:outline-none',
+    'mt-1.5 w-full rounded-[10px] border border-[#e4ebf2] bg-[#f7fafd] px-[13px] py-2.5 text-base text-[#1e2a38] transition placeholder:text-[#9aa7b5] focus:border-sky-300 focus:bg-white focus:outline-none',
   btnPrimary:
     'inline-flex h-11 items-center gap-2 rounded-xl bg-[#0ea5e9] px-[18px] text-[14px] font-bold text-white shadow-[0_6px_16px_-8px_rgba(14,165,233,0.8)] transition hover:bg-[#0284c7] disabled:opacity-60',
   btnAmber:

@@ -41,6 +41,7 @@ export function AdminPromotionsPage() {
         <p className="text-sm text-[#9aa7b5]">No products with promos yet.</p>
       )}
       <div className={`${adminUi.card} overflow-hidden`}>
+        <div className="overflow-x-auto">
         <table className="min-w-full text-left text-[13.5px]">
           <thead>
             <tr className={adminUi.tableHead}>
@@ -73,6 +74,7 @@ export function AdminPromotionsPage() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

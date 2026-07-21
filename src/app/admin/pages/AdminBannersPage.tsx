@@ -339,21 +339,21 @@ export function AdminBannersPage() {
 
         {/* ── Homepage marketplace grid (carousel + 2 side banners) ── */}
         <div className="mb-4 overflow-hidden rounded-2xl border-2 border-[#bfe6fb] bg-white shadow-[0_1px_2px_rgba(30,42,56,0.03)]">
-          <div className="flex items-center justify-between border-b border-[#eef3f8] bg-[#f9fbfd] px-[18px] py-3.5">
+          <div className="flex flex-col gap-2 border-b border-[#eef3f8] bg-[#f9fbfd] px-[18px] py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <button
               onClick={() => setHomeGridOpen(!homeGridOpen)}
-              className="flex flex-1 items-center gap-2.5 text-left"
+              className="flex flex-1 flex-wrap items-center gap-2.5 text-left"
             >
-              <Layers size={17} className="text-[#0EA5E9]" />
+              <Layers size={17} className="shrink-0 text-[#0EA5E9]" />
               <span className="text-[14px] font-extrabold text-[#1e2a38]">Homepage hero banners</span>
               <span className="text-xs text-[#9aa7b5]">carousel + right promos</span>
               {homeGridOpen ? (
-                <ChevronUp size={16} className="ml-auto text-[#9aa7b5]" />
+                <ChevronUp size={16} className="ml-auto shrink-0 text-[#9aa7b5]" />
               ) : (
-                <ChevronDown size={16} className="ml-auto text-[#9aa7b5]" />
+                <ChevronDown size={16} className="ml-auto shrink-0 text-[#9aa7b5]" />
               )}
             </button>
-            <div className="ml-4 flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2 sm:ml-4">
               <Link
                 to="/"
                 target="_blank"
@@ -712,7 +712,7 @@ export function AdminBannersPage() {
                 className="bg-white rounded-xl border-2 overflow-hidden shadow-sm transition-all"
                 style={{ borderColor: isSwapSelected ? '#7C3AED' : '#E5E7EB' }}
               >
-                <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+                <div className="flex flex-col gap-2 px-5 py-3 border-b bg-gray-50 sm:flex-row sm:items-center sm:justify-between">
                   <button
                     onClick={() => setExpanded(isExpanded ? null : page)}
                     className="flex items-center gap-2 text-left flex-1"
@@ -720,7 +720,7 @@ export function AdminBannersPage() {
                     <span className="font-bold text-gray-900 text-sm">{PAGE_LABELS[page]}</span>
                     {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                   </button>
-                  <div className="flex items-center gap-2 shrink-0 ml-4">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0 sm:ml-4">
                     <button
                       onClick={() => setPreviewPage(previewPage === page ? null : page)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border border-gray-200 hover:bg-gray-100 text-gray-600"

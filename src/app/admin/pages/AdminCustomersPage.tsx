@@ -69,6 +69,7 @@ export function AdminCustomersPage() {
         <p className="text-sm text-[#9aa7b5]">No customers yet.</p>
       )}
       <div className={`${adminUi.card} overflow-hidden`}>
+        <div className="overflow-x-auto">
         <table className="min-w-full text-left text-[13.5px]">
           <thead>
             <tr className={adminUi.tableHead}>
@@ -91,7 +92,7 @@ export function AdminCustomersPage() {
                     type="button"
                     disabled={deletingId === c.id}
                     onClick={() => void handleDelete(c)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#9aa7b5] transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#9aa7b5] transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                     title="Delete"
                     aria-label={`Delete ${c.name}`}
                   >
@@ -102,6 +103,7 @@ export function AdminCustomersPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
