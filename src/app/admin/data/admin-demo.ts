@@ -1,4 +1,5 @@
 import type { Product } from '../../data/products';
+import { deriveStockStatus } from '../../data/products';
 
 export type InquiryStatus = 'pending' | 'confirmed' | 'completed';
 
@@ -240,10 +241,12 @@ const DEFAULT_META: AdminProductMeta = {
 export function enrichProductForAdmin(product: Product, index = 0): AdminProductRow {
   const extra = META_BY_ID[product.id] ?? {};
   const stockCycle: AdminProductMeta['stockStatus'][] = ['In Stock', 'In Stock', 'Low Stock', 'In Stock'];
+  const liveStatus =
+    product.stockQty !== undefined ? deriveStockStatus(product.stockQty, product.stockCapacity) : null;
   return {
     ...product,
     ...DEFAULT_META,
-    stockStatus: extra.stockStatus ?? stockCycle[index % stockCycle.length],
+    stockStatus: liveStatus ?? extra.stockStatus ?? stockCycle[index % stockCycle.length],
     isActive: extra.isActive ?? product.isActive ?? true,
     lastModifiedBy: extra.lastModifiedBy ?? 'Maria Santos',
     lastModifiedAgo: extra.lastModifiedAgo ?? `${index + 1} days ago`,
@@ -272,5 +275,8 @@ export function demoNewProductTemplate(): Product {
       { label: 'Coverage Area', value: '15-20 sqm' },
       { label: 'Energy Rating', value: '5 Star' },
     ],
+    tier: 'premium',
+    stockQty: 20,
+    stockCapacity: 20,
   };
 }

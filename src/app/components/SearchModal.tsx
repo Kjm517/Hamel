@@ -20,7 +20,6 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       )
     : [];
 
-  // Close modal on Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -39,15 +38,15 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
-      {/* Overlay */}
+      {}
       <div
         className="absolute inset-0 bg-black/20 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Modal */}
+      {}
       <div className="relative w-full max-w-2xl mx-4 bg-white rounded-lg shadow-2xl">
-        {/* Header */}
+        {}
         <div className="flex items-center gap-3 p-4 border-b">
           <Search size={24} style={{ color: '#0EA5E9' }} />
           <input
@@ -66,7 +65,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           </button>
         </div>
 
-        {/* Results */}
+        {}
         <div className="max-h-96 overflow-y-auto">
           {searchQuery.trim() === '' ? (
             <div className="p-8 text-center text-gray-500">
@@ -110,7 +109,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           )}
         </div>
 
-        {/* Footer */}
+        {}
         {searchQuery.trim() && searchResults.length > 0 && (
           <div className="p-4 border-t bg-gray-50 text-center text-sm text-gray-600">
             Found {searchResults.length} product{searchResults.length !== 1 ? 's' : ''}

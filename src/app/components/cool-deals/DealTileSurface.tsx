@@ -112,7 +112,7 @@ export function DealTileSurface({ card, compact }: DealTileSurfaceProps) {
             alt=""
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
-          {/* Tint only the lower area so the photo stays visible at the top */}
+          {}
           <div
             className="absolute inset-0 transition-opacity duration-300 group-hover:opacity-95"
             style={{

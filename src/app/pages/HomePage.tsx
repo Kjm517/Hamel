@@ -1,9 +1,14 @@
 import { ProductCard } from '../components/ProductCard';
 import { useCatalog } from '../context/CatalogContext';
-import { homepageTestimonials, FACEBOOK_REVIEWS_URL, FACEBOOK_RECOMMEND_SUMMARY } from '../data/testimonials';
+import {
+  defaultTestimonials,
+  homepageTestimonialsFrom,
+  loadTestimonials,
+  type TestimonialsConfig,
+} from '../data/testimonials';
 import { FEATURED_PRODUCT_LIMIT } from '../data/banners';
 import { Shield, Wrench, Headset, Star, Truck, MessageCircle, Award, CheckCircle, ClipboardList, ChevronRight, ArrowRight } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { ContactOptionsModal } from '../components/ContactOptionsModal';
 import { MarketplaceBannerGrid } from '../components/MarketplaceBannerGrid';
@@ -33,6 +38,17 @@ export function HomePage() {
   const brandsConfig = useBrandsPage({ trackPageLoading: false });
   const homepageBrands = useMemo(() => enabledBrands(brandsConfig).slice(0, 6), [brandsConfig]);
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const [testimonialsConfig, setTestimonialsConfig] =
+    useState<TestimonialsConfig>(defaultTestimonials);
+
+  useEffect(() => {
+    void loadTestimonials().then(setTestimonialsConfig);
+  }, []);
+
+  const homepageTestimonials = useMemo(
+    () => homepageTestimonialsFrom(testimonialsConfig),
+    [testimonialsConfig]
+  );
 
   const storefront = useMemo(() => products.filter(isStorefrontProduct), [products]);
 
@@ -60,13 +76,13 @@ export function HomePage() {
 
   return (
     <div className="bg-white">
-      {/* Shopee / Abenson-style banners: carousel + side promos */}
+      {}
       <MarketplaceBannerGrid
         carouselSlides={heroSlides}
         sideBanners={promoBanners}
       />
 
-      {/* Trust strip — below banners */}
+      {}
       <section className="border-b border-gray-100 bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-4">
           <div className="-mx-4 flex items-stretch gap-0 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:justify-around md:divide-x md:divide-gray-100 md:overflow-visible md:px-0">
@@ -85,7 +101,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Promo event section (Cool Summer / Birthday Sale / etc.) */}
+      {}
       {featuredCollection.enabled !== false && featuredProducts.length > 0 ? (
       <section
         className={`relative overflow-hidden py-10 ${promoAnimationClass(featuredCollection.animation)}`}
@@ -131,6 +147,11 @@ export function HomePage() {
                     endsAt={featuredCollection.countdownEndsAt!}
                     label={featuredCollection.countdownLabel || 'ENDS IN'}
                     labelColor={featuredCollection.titleColor}
+                    urgentUnderMs={
+                      Math.max(1, Number(featuredCollection.urgencyThresholdHours) || 72) * 3.6e6
+                    }
+                    forceUrgent={featuredCollection.forceUrgentRed === true}
+                    autoUrgent={featuredCollection.urgentWhenEndingSoon !== false}
                   />
                 ) : null}
               </div>
@@ -194,7 +215,7 @@ export function HomePage() {
       </section>
       ) : null}
 
-      {/* Why Choose Hamel */}
+      {}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
@@ -226,7 +247,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* How It Works */}
+      {}
       <section className="py-16 bg-white">
         <div className="max-w-5xl mx-auto px-4">
           <div className="text-center mb-12">
@@ -258,7 +279,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Brands */}
+      {}
       {homepageBrands.length > 0 ? (
         <section className="py-12" style={{ backgroundColor: '#F0F9FF' }}>
           <div className="max-w-7xl mx-auto px-4">
@@ -295,13 +316,22 @@ export function HomePage() {
         </section>
       ) : null}
 
-      {/* Testimonials — from Facebook reviews */}
+      {}
+      {homepageTestimonials.length > 0 ? (
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-10">
-            <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#FFC107' }}>Happy Customers</p>
-            <h2 className="text-3xl md:text-4xl font-bold" style={{ color: '#0EA5E9' }}>What Cebu Families Say</h2>
-            <p className="mt-2 text-sm text-gray-500">{FACEBOOK_RECOMMEND_SUMMARY}</p>
+            <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#FFC107' }}>
+              {testimonialsConfig.sectionEyebrow}
+            </p>
+            <h2 className="text-3xl md:text-4xl font-bold" style={{ color: '#0EA5E9' }}>
+              {testimonialsConfig.sectionTitle}
+            </h2>
+            {testimonialsConfig.facebookRecommendSummary ? (
+              <p className="mt-2 text-sm text-gray-500">
+                {testimonialsConfig.facebookRecommendSummary}
+              </p>
+            ) : null}
           </div>
           <div
             className={`grid gap-6 ${
@@ -343,33 +373,38 @@ export function HomePage() {
                       <div className="truncate text-sm font-semibold text-gray-900">{t.name}</div>
                       <div className="truncate text-xs text-gray-500">{t.location}</div>
                     </div>
-                    <div
-                      className="max-w-[40%] shrink-0 truncate rounded-full px-2 py-1 text-xs font-semibold"
-                      style={{ backgroundColor: '#FFF9E6', color: '#B45309' }}
-                      title={t.model}
-                    >
-                      {t.model}
-                    </div>
+                    {t.model ? (
+                      <div
+                        className="max-w-[40%] shrink-0 truncate rounded-full px-2 py-1 text-xs font-semibold"
+                        style={{ backgroundColor: '#FFF9E6', color: '#B45309' }}
+                        title={t.model}
+                      >
+                        {t.model}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="mt-8 text-center">
-            <a
-              href={FACEBOOK_REVIEWS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[#1877F2] hover:underline"
-            >
-              Read more reviews on Facebook
-              <ArrowRight size={16} />
-            </a>
-          </div>
+          {testimonialsConfig.facebookReviewsUrl ? (
+            <div className="mt-8 text-center">
+              <a
+                href={testimonialsConfig.facebookReviewsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[#1877F2] hover:underline"
+              >
+                Read more reviews on Facebook
+                <ArrowRight size={16} />
+              </a>
+            </div>
+          ) : null}
         </div>
       </section>
+      ) : null}
 
-      {/* Final CTA */}
+      {}
       <section className="py-16" style={{ backgroundColor: '#0EA5E9' }}>
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-3">

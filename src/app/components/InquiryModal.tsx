@@ -55,7 +55,7 @@ export function InquiryModal({ product, onClose, onChatWithAI }: InquiryModalPro
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        {/* Header */}
+        {}
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between rounded-t-xl">
           <h2 className="text-xl font-bold" style={{ color: '#0EA5E9' }}>Send Inquiry</h2>
           <button
@@ -66,7 +66,7 @@ export function InquiryModal({ product, onClose, onChatWithAI }: InquiryModalPro
           </button>
         </div>
 
-        {/* Product Summary */}
+        {}
         <div className="px-6 py-4 border-b" style={{ backgroundColor: '#E0F2FE' }}>
           <div className="flex gap-4">
             <img
@@ -84,9 +84,9 @@ export function InquiryModal({ product, onClose, onChatWithAI }: InquiryModalPro
           </div>
         </div>
 
-        {/* Form */}
+        {}
         <div className="px-6 py-6 space-y-4">
-          {/* HP Selection */}
+          {}
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: '#0EA5E9' }}>
               Select HP <span className="text-red-500">*</span>
@@ -104,7 +104,7 @@ export function InquiryModal({ product, onClose, onChatWithAI }: InquiryModalPro
             </select>
           </div>
 
-          {/* Quantity */}
+          {}
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: '#0EA5E9' }}>
               Quantity <span className="text-red-500">*</span>
@@ -118,7 +118,7 @@ export function InquiryModal({ product, onClose, onChatWithAI }: InquiryModalPro
             />
           </div>
 
-          {/* Delivery Address */}
+          {}
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: '#0EA5E9' }}>
               Delivery Address <span className="text-red-500">*</span>
@@ -132,7 +132,7 @@ export function InquiryModal({ product, onClose, onChatWithAI }: InquiryModalPro
             />
           </div>
 
-          {/* Preferred Schedule */}
+          {}
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: '#0EA5E9' }}>
               Preferred Delivery/Installation Date
@@ -145,7 +145,7 @@ export function InquiryModal({ product, onClose, onChatWithAI }: InquiryModalPro
             />
           </div>
 
-          {/* Contact Number */}
+          {}
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: '#0EA5E9' }}>
               Contact Number <span className="text-red-500">*</span>
@@ -160,9 +160,9 @@ export function InquiryModal({ product, onClose, onChatWithAI }: InquiryModalPro
           </div>
         </div>
 
-        {/* Actions */}
+        {}
         <div className="px-6 py-6 border-t bg-gray-50 space-y-4 rounded-b-xl">
-          {/* Primary CTA */}
+          {}
           <div>
             <button
               onClick={handleChatWithAI}
@@ -177,14 +177,14 @@ export function InquiryModal({ product, onClose, onChatWithAI }: InquiryModalPro
             </p>
           </div>
 
-          {/* Divider */}
+          {}
           <div className="flex items-center gap-3">
             <div className="flex-1 border-t border-gray-300"></div>
             <span className="text-sm text-gray-500">Prefer to contact directly?</span>
             <div className="flex-1 border-t border-gray-300"></div>
           </div>
 
-          {/* Secondary Buttons */}
+          {}
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleDirectContact('messenger')}

@@ -15,6 +15,9 @@ export function AdminLoginPage() {
   const { session, loading, refreshSession } = useAdminAuth();
   const from =
     (location.state as { from?: string } | null)?.from ?? '/admin/dashboard';
+  const idleLogout = Boolean(
+    (location.state as { idleLogout?: boolean } | null)?.idleLogout
+  );
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -52,6 +55,11 @@ export function AdminLoginPage() {
       subtitle="Welcome back. Use your Hamel admin account to access the dashboard."
     >
       <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-[18px]">
+        {idleLogout && !error && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            You were signed out after 15 minutes of inactivity.
+          </div>
+        )}
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
             {error}

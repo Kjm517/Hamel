@@ -1,11 +1,24 @@
-import { Search, MessageCircle, Menu, Home, Package, Percent, Mail } from 'lucide-react';
+import { Search, MessageCircle, Menu, Home, Package, Percent, Mail, Wrench, User, LogOut, Ticket, UserRoundPen, KeyRound } from 'lucide-react';
 import { Link, NavLink, useLocation } from 'react-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { SearchModal } from './SearchModal';
 import { ContactOptionsModal } from './ContactOptionsModal';
+import { BookMaintenanceModal } from './BookMaintenanceModal';
+import { MyVouchersModal } from './MyVouchersModal';
+import { AccountSettingsModal } from './AccountSettingsModal';
+import { LoyaltyBadge } from './LoyaltyBadge';
 import { hamelAssets } from '../data/hamelAssets';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useStoreSettings } from '../context/StoreSettingsContext';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import {
   Sheet,
   SheetContent,
@@ -22,23 +35,23 @@ import {
 } from '../data/promo-pages';
 
 function navLinkClass(isActive: boolean) {
-  return `font-medium pb-0.5 border-b-2 transition-colors ${
+  return `relative inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[14px] font-medium transition-colors xl:px-3 xl:text-[15px] ${
     isActive
-      ? 'text-[#0EA5E9] border-[#0EA5E9]'
-      : 'text-gray-700 border-transparent hover:text-[#0EA5E9]'
+      ? 'font-semibold text-[#0EA5E9] after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-[#0EA5E9]'
+      : 'text-[#535763] hover:text-[#0EA5E9] hover:after:absolute hover:after:inset-x-2 hover:after:bottom-0 hover:after:h-0.5 hover:after:rounded-full hover:after:bg-[#7DD3FC]'
   }`;
 }
 
 function mobileNavLinkClass(isActive: boolean) {
-  return `block rounded-lg px-3 py-3 text-base font-semibold transition-colors ${
-    isActive ? 'bg-[#E0F2FE] text-[#0EA5E9]' : 'text-gray-800 hover:bg-gray-50'
+  return `block rounded-2xl px-3 py-3 text-base font-semibold transition-colors ${
+    isActive ? 'bg-[#E0F2FE] text-[#0EA5E9]' : 'text-[#0E1C3A] hover:bg-[#FBFBFD]'
   }`;
 }
 
 function CoolDealsPercentIcon() {
   return (
     <span
-      className="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[#0EA5E9] text-[10px] font-black leading-none text-white shadow-sm"
+      className="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[#0EA5E9] text-[10px] font-extrabold leading-none text-white"
       aria-hidden
     >
       %
@@ -83,11 +96,13 @@ function NavLinks({
   showCoolDealsIcon,
   mobile,
   onNavigate,
+  onRequestService,
 }: {
   customNav: PromoPage[];
   showCoolDealsIcon: boolean;
   mobile?: boolean;
   onNavigate?: () => void;
+  onRequestService?: () => void;
 }) {
   return (
     <>
@@ -107,13 +122,18 @@ function NavLinks({
       </MainNavLink>
       <MainNavLink to="/cool-deals" mobile={mobile} onNavigate={onNavigate}>
         <span className="inline-flex items-center gap-1.5">
-          {showCoolDealsIcon ? <CoolDealsPercentIcon /> : null}
+          {showCoolDealsIcon && !mobile ? <CoolDealsPercentIcon /> : null}
           Cool Deals
         </span>
       </MainNavLink>
       <MainNavLink to="/why-hamel" mobile={mobile} onNavigate={onNavigate}>
         Why Hamel
       </MainNavLink>
+      {onRequestService && !mobile ? (
+        <button type="button" onClick={onRequestService} className={navLinkClass(false)}>
+          Service
+        </button>
+      ) : null}
       {customNav.map((page) => {
         const href = getPromoPageHref(page);
         if (isExternalPromoLink(page)) {
@@ -164,7 +184,7 @@ function BottomTabBar({
 }) {
   const tabClass = (active: boolean) =>
     `flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold leading-tight ${
-      active ? 'text-[#0EA5E9]' : 'text-gray-500'
+      active ? 'text-[#0EA5E9]' : 'text-[#889296]'
     }`;
 
   return (
@@ -195,12 +215,22 @@ function BottomTabBar({
 function MoreMenu({
   customNav,
   onNavigate,
+  onBook,
 }: {
   customNav: PromoPage[];
   onNavigate: () => void;
+  onBook: () => void;
 }) {
   return (
     <div className="flex flex-col gap-1 p-3 pb-8">
+      <button
+        type="button"
+        onClick={onBook}
+        className="mb-1 flex items-center gap-2.5 rounded-2xl bg-[#E0F2FE] px-3 py-3 text-base font-bold text-[#0E1C3A] transition-colors hover:bg-[#BAE6FD]/70"
+      >
+        <Wrench size={20} className="text-[#0EA5E9]" />
+        Request a Service
+      </button>
       <MainNavLink to="/brands" mobile onNavigate={onNavigate}>
         Brands
       </MainNavLink>
@@ -238,11 +268,132 @@ function MoreMenu({
   );
 }
 
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'U';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function AccountControl() {
+  const { isAuthenticated, customer, openAuth, signOut, refresh } = useCustomerAuth();
+  const [vouchersOpen, setVouchersOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsPanel, setSettingsPanel] = useState<
+    'menu' | 'profile' | 'password' | 'email'
+  >('menu');
+
+  const openSettings = (panel: 'menu' | 'profile' | 'password' | 'email' = 'menu') => {
+    setSettingsPanel(panel);
+    setSettingsOpen(true);
+    void refresh();
+  };
+
+  if (!isAuthenticated || !customer) {
+    return (
+      <button
+        type="button"
+        onClick={() => openAuth({ view: 'login' })}
+        className="hidden text-[15px] font-semibold text-[#5A6B72] transition-colors hover:text-[#0EA5E9] lg:inline"
+        aria-label="Sign in"
+      >
+        Sign in
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) void refresh();
+        }}
+      >
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex h-10 items-center gap-2 rounded-2xl border border-[#C5C1BD] bg-white py-1 pl-1 pr-1 transition-colors hover:border-[#0EA5E9] lg:pr-3"
+            aria-label="Account menu"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0EA5E9] text-[13px] font-bold text-white">
+              {initialsOf(customer.name)}
+            </span>
+            <span className="hidden max-w-[120px] truncate text-sm font-semibold text-[#0E1C3A] lg:inline">
+              {customer.name.split(/\s+/)[0]}
+            </span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuLabel className="flex flex-col gap-1.5">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-gray-900">{customer.name}</span>
+              <LoyaltyBadge tier={customer.loyaltyTier} />
+            </span>
+            <span className="truncate text-xs font-normal text-gray-500">{customer.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => openSettings('menu')}
+            className="flex cursor-pointer items-center gap-2"
+          >
+            <UserRoundPen size={16} className="text-[#0EA5E9]" />
+            Account settings
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => openSettings('profile')}
+            className="flex cursor-pointer items-center gap-2"
+          >
+            <User size={16} className="text-[#0EA5E9]" />
+            Edit profile
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => openSettings('email')}
+            className="flex cursor-pointer items-center gap-2"
+          >
+            <Mail size={16} className="text-[#0EA5E9]" />
+            Change email
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => openSettings('password')}
+            className="flex cursor-pointer items-center gap-2"
+          >
+            <KeyRound size={16} className="text-[#0EA5E9]" />
+            Change password
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => setVouchersOpen(true)}
+            className="flex cursor-pointer items-center gap-2"
+          >
+            <Ticket size={16} className="text-[#0EA5E9]" />
+            My vouchers
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => void signOut()}
+            className="flex cursor-pointer items-center gap-2 text-red-600 focus:text-red-600"
+          >
+            <LogOut size={16} />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <MyVouchersModal open={vouchersOpen} onOpenChange={setVouchersOpen} />
+      <AccountSettingsModal
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        initialPanel={settingsPanel}
+      />
+    </>
+  );
+}
+
 export function Navigation() {
   const { settings } = useStoreSettings();
   const { pathname } = useLocation();
+  const { openAuth, isAuthenticated } = useCustomerAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const [isBookOpen, setIsBookOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [customNav, setCustomNav] = useState<PromoPage[]>(() => getNavPromoPages());
   const showCoolDealsIcon = settings.showCoolDealsNavIcon !== false;
@@ -273,49 +424,81 @@ export function Navigation() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-white shadow-sm">
-        <div className="border-b border-gray-200">
-          <div className="mx-auto max-w-7xl px-4 py-3 sm:py-4">
-            <div className="flex items-center justify-between gap-3 sm:gap-6 lg:gap-8">
-              <Link to="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
-                <ImageWithFallback
-                  src={hamelAssets.branding.soloLogo}
-                  alt="Hamel Trading"
-                  className="h-9 w-auto shrink-0 object-contain sm:h-11"
-                />
-                <div className="min-w-0">
-                  <div className="text-xl font-bold leading-tight sm:text-2xl" style={{ color: '#0EA5E9' }}>
-                    HAMEL
-                  </div>
-                  <div className="hidden text-xs text-gray-600 sm:block">The Cooling Experts</div>
+      <header className="sticky top-0 z-50 border-b border-[#C5C1BD]/60 bg-[#FBFBFD]">
+        <div className="mx-auto flex h-[72px] max-w-[1400px] items-center gap-3 px-4 sm:h-[80px] sm:gap-5 sm:px-6 lg:gap-8 lg:px-8 xl:gap-10 xl:px-10">
+            {/* Brand */}
+            <Link to="/" className="flex shrink-0 items-center gap-3" aria-label="Hamel Trading home">
+              <ImageWithFallback
+                src={hamelAssets.branding.soloLogo}
+                alt=""
+                className="h-10 w-10 shrink-0 object-contain sm:h-[46px] sm:w-[46px]"
+              />
+              <div className="leading-none">
+                <div className="text-[20px] font-extrabold tracking-tight text-[#0E1C3A] sm:text-[23px]">
+                  HAMEL
                 </div>
-              </Link>
-
-              <nav className="hidden items-center gap-8 lg:flex">
-                <NavLinks customNav={customNav} showCoolDealsIcon={showCoolDealsIcon} />
-              </nav>
-
-              <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsSearchOpen(true)}
-                  className="flex h-11 w-11 items-center justify-center text-gray-600 hover:text-[#0EA5E9]"
-                  aria-label="Search"
-                >
-                  <Search size={22} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsContactOpen(true)}
-                  className="flex items-center gap-2 rounded-full px-3 py-2 font-semibold text-gray-900 transition-opacity hover:opacity-90 sm:px-6 sm:py-2.5"
-                  style={{ backgroundColor: '#FFC107' }}
-                >
-                  <MessageCircle size={18} />
-                  <span className="hidden md:inline">Chat with Us</span>
-                </button>
+                <div className="mt-1 hidden text-[11px] font-medium text-[#889296] sm:block">
+                  The Cooling Experts
+                </div>
               </div>
+            </Link>
+
+            {/* Center nav — desktop */}
+            <nav
+              className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 overflow-x-auto lg:flex xl:gap-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              aria-label="Primary"
+            >
+              <NavLinks
+                customNav={customNav}
+                showCoolDealsIcon={showCoolDealsIcon}
+                onRequestService={() => setIsBookOpen(true)}
+              />
+            </nav>
+
+            {/* Actions */}
+            <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3.5 lg:ml-0">
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(true)}
+                className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-2xl bg-[#DDE6F0] text-[#535763] transition-colors hover:bg-[#7DD3FC]/40 hover:text-[#0EA5E9]"
+                aria-label="Search"
+              >
+                <Search size={19} strokeWidth={2.2} />
+              </button>
+
+              {!isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => openAuth({ view: 'login' })}
+                  className="hidden text-[15px] font-semibold text-[#535763] transition-colors hover:text-[#0EA5E9] lg:inline"
+                >
+                  Sign in
+                </button>
+              ) : (
+                <AccountControl />
+              )}
+
+              {/* Mobile sign-in icon when logged out */}
+              {!isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => openAuth({ view: 'login' })}
+                  className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-2xl border border-[#C5C1BD] text-[#535763] transition-colors hover:text-[#0EA5E9] lg:hidden"
+                  aria-label="Sign in"
+                >
+                  <User size={18} />
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => setIsContactOpen(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#F5B301] px-3 text-[14px] font-bold text-[#0E1C3A] shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-colors hover:bg-[#E6A600] sm:px-5 sm:text-[15px]"
+              >
+                <MessageCircle size={17} strokeWidth={2.2} />
+                <span className="hidden sm:inline">Chat with Us</span>
+              </button>
             </div>
-          </div>
         </div>
       </header>
 
@@ -327,13 +510,21 @@ export function Navigation() {
             <SheetTitle className="text-lg font-bold text-[#0EA5E9]">More</SheetTitle>
           </SheetHeader>
           <div className="overflow-y-auto">
-            <MoreMenu customNav={customNav} onNavigate={() => setMoreOpen(false)} />
+            <MoreMenu
+              customNav={customNav}
+              onNavigate={() => setMoreOpen(false)}
+              onBook={() => {
+                setMoreOpen(false);
+                setIsBookOpen(true);
+              }}
+            />
           </div>
         </SheetContent>
       </Sheet>
 
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
       <ContactOptionsModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
+      <BookMaintenanceModal isOpen={isBookOpen} onClose={() => setIsBookOpen(false)} />
     </>
   );
 }

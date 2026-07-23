@@ -11,6 +11,7 @@ import {
 import type { BannerConfig } from '../../../components/PageBanner';
 import { MarketplaceBannerGrid } from '../../../components/MarketplaceBannerGrid';
 import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../../lib/image-size-guides';
 import { BannerLinkDestinationField } from '../../components/BannerLinkDestinationField';
 import { SortableList } from '../../components/SortableList';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
@@ -161,6 +162,7 @@ export function HomepageTab() {
                       value={slide.imageUrl}
                       onChange={(v) => updateSlide(slide.id, { imageUrl: v })}
                       remoteUpload={{ getObjectPath: mediaPathFor('banners') }}
+                      sizeGuide={IMAGE_SIZE_GUIDES.heroBanner}
                     />
                     <div>
                       <p className="mb-1.5 text-xs font-medium text-gray-600">Color overlay (smoke)</p>
@@ -241,7 +243,7 @@ export function HomepageTab() {
               <Field label="Title accent / pill" value={b.titleAccent || ''} onChange={(v) => updateSide(idx, { titleAccent: v })} />
               <Field label="Badge" value={b.badge || ''} onChange={(v) => updateSide(idx, { badge: v })} />
               <Field label="Subtitle" value={b.subtitle || ''} onChange={(v) => updateSide(idx, { subtitle: v })} />
-              <Field label="CTA label" value={b.ctaLabel || ''} onChange={(v) => updateSide(idx, { ctaLabel: v })} />
+              <Field label="Button text" value={b.ctaLabel || ''} onChange={(v) => updateSide(idx, { ctaLabel: v })} />
               <div className="mb-3 grid grid-cols-3 gap-2">
                 <label className="block text-xs">
                   <span className="font-medium text-gray-600">Background</span>
@@ -276,6 +278,7 @@ export function HomepageTab() {
                 value={b.imageUrl || ''}
                 onChange={(v) => updateSide(idx, { imageUrl: v })}
                 remoteUpload={{ getObjectPath: mediaPathFor('promo-banners') }}
+                sizeGuide={IMAGE_SIZE_GUIDES.promoSideBanner}
               />
               <BannerLinkDestinationField fields={b} onChange={(p) => updateSide(idx, p)} />
             </div>

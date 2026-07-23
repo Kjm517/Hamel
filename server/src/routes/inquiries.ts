@@ -4,6 +4,7 @@ import { loadCatalogProducts, loadStoreSettings } from '../ai/context';
 import { scoreInquiryLead } from '../ai/lead-score';
 import { buildInquiryReplyDraftPrompt } from '../ai/prompt';
 import { getSql } from '../db';
+import { allocateCustomerCode } from '../customer-code';
 import { requireAuth, type AuthVariables } from '../middleware/auth';
 
 type InquiryInput = {
@@ -50,9 +51,10 @@ async function upsertCustomer(input: {
     }
   }
 
+  const code = await allocateCustomerCode();
   const rows = (await sql`
-    insert into customers (name, phone, address)
-    values (${name}, ${phone}, ${address})
+    insert into customers (name, phone, address, customer_code)
+    values (${name}, ${phone}, ${address}, ${code})
     returning id::text as id
   `) as { id: string }[];
   return rows[0]?.id ?? null;
@@ -538,7 +540,7 @@ inquiryRoutes.post('/:id/draft-reply', requireAuth, async (c) => {
         where id = ${id}::uuid
       `;
     } catch {
-      // migration may not be applied yet — still return draft
+
     }
 
     return c.json({

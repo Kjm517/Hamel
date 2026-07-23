@@ -21,6 +21,7 @@ import {
   type PromoPage,
 } from '../../../data/promo-pages';
 import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../../lib/image-size-guides';
 import { SortableList } from '../../components/SortableList';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { useAdminConfirm } from '../../components/AdminConfirmDialog';
@@ -93,6 +94,7 @@ function BlockEditor({
             value={block.imageUrl || ''}
             onChange={(v) => onChange({ imageUrl: v })}
             remoteUpload={{ getObjectPath: mediaPathFor('promo-pages') }}
+            sizeGuide={IMAGE_SIZE_GUIDES.promoPageBlock}
           />
           <div className="grid sm:grid-cols-2 gap-2">
             <Field label="Button text" value={block.buttonLabel || ''} onChange={(v) => onChange({ buttonLabel: v })} />
@@ -120,6 +122,7 @@ function BlockEditor({
             value={block.imageUrl}
             onChange={(v) => onChange({ imageUrl: v })}
             remoteUpload={{ getObjectPath: mediaPathFor('promo-pages') }}
+            sizeGuide={IMAGE_SIZE_GUIDES.promoPagePhoto}
           />
           <Field label="Caption (optional)" value={block.caption || ''} onChange={(v) => onChange({ caption: v })} />
         </>

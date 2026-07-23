@@ -16,7 +16,6 @@ await client.connect();
 try {
   const deleted = await client.query(`delete from customer_reviews returning product_id`);
 
-  // Reset ALL products — seeded rating/reviews linger even when no review rows exist.
   const reset = await client.query(
     `update products
      set data = jsonb_set(

@@ -22,6 +22,7 @@ import {
   Plus,
   BarChart3,
   Package,
+  Wrench,
 } from 'lucide-react';
 import {
   fetchRecentInquiries,
@@ -35,8 +36,10 @@ import {
   type DashboardCard,
 } from '../lib/ops-api';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { employeeHasPermission } from '../types/employee';
 import { useCatalog } from '../../context/CatalogContext';
 import { isStorefrontProduct } from '../../lib/catalog-product';
+import { deriveStockStatus } from '../../data/products';
 import { hamelAssets } from '../../data/hamelAssets';
 import { fetchMessages } from '../lib/messages-api';
 
@@ -109,6 +112,55 @@ export function DashboardPage() {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [loadingInquiries, setLoadingInquiries] = useState(true);
 
+  const quickActions = useMemo(() => {
+    const allowed = (permission: string) =>
+      employeeHasPermission(employee?.role, employee?.permissions, permission);
+    return [
+      {
+        permission: 'products',
+        to: '/admin/products/new',
+        label: 'Add new product',
+        icon: Plus,
+        iconWrap: 'bg-[#e0f2fe] text-[#0ea5e9]',
+      },
+      {
+        permission: 'inquiries',
+        to: '/admin/inquiries',
+        label: 'Review pending orders',
+        icon: ClipboardList,
+        iconWrap: 'bg-[#fef3c7] text-[#d97706]',
+      },
+      {
+        permission: 'services',
+        to: '/admin/services',
+        label: 'Open services',
+        icon: Wrench,
+        iconWrap: 'bg-[#e0f2fe] text-[#0369a1]',
+      },
+      {
+        permission: 'customers',
+        to: '/admin/customers',
+        label: 'View customers',
+        icon: Users,
+        iconWrap: 'bg-[#f3e8ff] text-[#7c3aed]',
+      },
+      {
+        permission: 'messages',
+        to: '/admin/messages',
+        label: 'Open messages',
+        icon: MessageSquare,
+        iconWrap: 'bg-[#e0f2fe] text-[#0ea5e9]',
+      },
+      {
+        permission: 'analytics',
+        to: '/admin/analytics',
+        label: 'Open analytics',
+        icon: BarChart3,
+        iconWrap: 'bg-[#dcfce7] text-[#16a34a]',
+      },
+    ].filter((action) => allowed(action.permission));
+  }, [employee?.role, employee?.permissions]);
+
   const loadInquiries = useCallback(async () => {
     setLoadingInquiries(true);
     try {
@@ -170,6 +222,9 @@ export function DashboardPage() {
   const lowStockCount = useMemo(() => {
     return products.filter((p) => {
       if (!isStorefrontProduct(p)) return false;
+      if (p.stockQty !== undefined) {
+        return deriveStockStatus(p.stockQty, p.stockCapacity) === 'Low Stock';
+      }
       const stock = (p as { stockStatus?: string; stock?: number }).stockStatus;
       if (stock === 'Low Stock') return true;
       const n = (p as { stock?: number }).stock;
@@ -179,7 +234,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-[22px]">
-      {/* Hero */}
+      {}
       <div className="relative mb-0 flex items-center gap-[18px] overflow-hidden rounded-[18px] bg-gradient-to-br from-[#0ea5e9] via-[#0284c7] to-[#075985] px-[26px] py-[22px] text-white">
         <div className="relative z-[1] min-w-0 flex-1">
           <div className="text-[13px] font-semibold opacity-85">
@@ -214,7 +269,7 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* KPI cards */}
+      {}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {(cards.length > 0 ? cards : Array.from({ length: 4 })).map((card, i) => {
           if (!card || typeof card === 'number') {
@@ -254,10 +309,10 @@ export function DashboardPage() {
         })}
       </div>
 
-      {/* Main + sidebar */}
+      {}
       <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex flex-col gap-[18px]">
-          {/* Traffic */}
+          {}
           <div className="rounded-2xl border border-[#e8eef4] bg-white px-[22px] py-5 shadow-[0_1px_2px_rgba(30,42,56,0.03)]">
             <div className="mb-1.5 flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -335,7 +390,7 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {/* Recent inquiries */}
+          {}
           <div className="overflow-hidden rounded-2xl border border-[#e8eef4] bg-white shadow-[0_1px_2px_rgba(30,42,56,0.03)]">
             <div className="flex items-center justify-between border-b border-[#eef3f8] px-[22px] py-[18px]">
               <h3 className="m-0 text-[15.5px] font-bold text-[#1e2a38]">Recent inquiries</h3>
@@ -404,40 +459,29 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Right column */}
+        {}
         <div className="flex flex-col gap-[18px]">
-          <div className="rounded-2xl border border-[#e8eef4] bg-white p-5 shadow-[0_1px_2px_rgba(30,42,56,0.03)]">
-            <h3 className="mb-3.5 text-[15px] font-bold text-[#1e2a38]">Quick actions</h3>
-            <div className="flex flex-col gap-2.5">
-              <Link
-                to="/admin/products/new"
-                className="flex w-full items-center gap-2.5 rounded-[11px] border border-[#e8eef4] bg-white px-3.5 py-2.5 text-left text-[13.5px] font-semibold text-[#1e2a38] hover:border-sky-300 hover:bg-[#f0f9ff]"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#e0f2fe] text-[#0ea5e9]">
-                  <Plus className="h-[17px] w-[17px]" />
-                </span>
-                Add new product
-              </Link>
-              <Link
-                to="/admin/inquiries"
-                className="flex w-full items-center gap-2.5 rounded-[11px] border border-[#e8eef4] bg-white px-3.5 py-2.5 text-left text-[13.5px] font-semibold text-[#1e2a38] hover:border-sky-300 hover:bg-[#f0f9ff]"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#fef3c7] text-[#d97706]">
-                  <ClipboardList className="h-[17px] w-[17px]" />
-                </span>
-                Review pending orders
-              </Link>
-              <Link
-                to="/admin/analytics"
-                className="flex w-full items-center gap-2.5 rounded-[11px] border border-[#e8eef4] bg-white px-3.5 py-2.5 text-left text-[13.5px] font-semibold text-[#1e2a38] hover:border-sky-300 hover:bg-[#f0f9ff]"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#dcfce7] text-[#16a34a]">
-                  <BarChart3 className="h-[17px] w-[17px]" />
-                </span>
-                Open analytics
-              </Link>
+          {quickActions.length > 0 && (
+            <div className="rounded-2xl border border-[#e8eef4] bg-white p-5 shadow-[0_1px_2px_rgba(30,42,56,0.03)]">
+              <h3 className="mb-3.5 text-[15px] font-bold text-[#1e2a38]">Quick actions</h3>
+              <div className="flex flex-col gap-2.5">
+                {quickActions.map((action) => (
+                  <Link
+                    key={action.to}
+                    to={action.to}
+                    className="flex w-full items-center gap-2.5 rounded-[11px] border border-[#e8eef4] bg-white px-3.5 py-2.5 text-left text-[13.5px] font-semibold text-[#1e2a38] hover:border-sky-300 hover:bg-[#f0f9ff]"
+                  >
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center rounded-[9px] ${action.iconWrap}`}
+                    >
+                      <action.icon className="h-[17px] w-[17px]" />
+                    </span>
+                    {action.label}
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="rounded-2xl border border-[#e8eef4] bg-white p-5 shadow-[0_1px_2px_rgba(30,42,56,0.03)]">
             <h3 className="m-0 text-[15px] font-bold text-[#1e2a38]">Top brands</h3>

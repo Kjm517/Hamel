@@ -3,6 +3,7 @@ import { getBanners, saveBanners, defaultBanners, PAGE_LABELS, type BannerStore,
 import type { BannerConfig } from '../../../components/PageBanner';
 import { PageBanner } from '../../../components/PageBanner';
 import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../../lib/image-size-guides';
 import { BannerLinkDestinationField } from '../../components/BannerLinkDestinationField';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { useAdminConfirm } from '../../components/AdminConfirmDialog';
@@ -94,6 +95,7 @@ export function PageHeadersTab() {
           value={banner.imageUrl}
           onChange={(v) => patch({ imageUrl: v })}
           remoteUpload={{ getObjectPath: mediaPathFor('page-headers') }}
+          sizeGuide={IMAGE_SIZE_GUIDES.pageHeader}
         />
       </div>
 

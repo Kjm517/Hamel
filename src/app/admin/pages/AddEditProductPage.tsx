@@ -1,12 +1,22 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Plus, X, ExternalLink } from 'lucide-react';
-import type { Product, ProductPromoEntry } from '../../data/products';
-import { getHpUnitPrice, MAX_PRODUCT_PROMOS } from '../../data/products';
+import type { Product, ProductHpDiscountType, ProductPromoEntry } from '../../data/products';
+import {
+  formatHpDiscountLabel,
+  formatHpVariantDiscount,
+  getHpSalePrice,
+  getHpUnitPrice,
+  hasHpDiscounts,
+  isSplitTypeProduct,
+  MAX_PRODUCT_PROMOS,
+  priceRangeFromHpVariants,
+  deriveStockStatus,
+} from '../../data/products';
 import { createProduct, fetchProductDetail, saveProduct } from '../../lib/catalog-api';
 import { useProductTags } from '../../context/ProductTagsContext';
-import type { ProductTag } from '../../data/productTags';
 import { CornerTag, PromoChip } from '../../components/PromoBadge';
+import { IMAGE_SIZE_GUIDES } from '../lib/image-size-guides';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
 import { mediaPathFor } from '../../lib/storage';
 import {
@@ -24,6 +34,7 @@ import {
   fromDatetimeLocalValue,
   getProductPromoList,
   resolveProductPromos,
+  syncPromosFromHpDiscounts,
   toDatetimeLocalValue,
 } from '../../lib/product-promos';
 import {
@@ -39,13 +50,10 @@ import {
   HP_OPTIONS,
   PRODUCT_BRANDS,
   PRODUCT_CATEGORIES,
-  STOCK_OPTIONS,
 } from '../data/admin-demo';
 import { useBrandsPage } from '../../hooks/useBrandsPage';
 import { deriveProductBrandChoices } from '../../data/brands-page';
 import { adminUi } from '../lib/admin-ui';
-
-type StockStatus = (typeof STOCK_OPTIONS)[number];
 
 export function AddEditProductPage() {
   const { id } = useParams();
@@ -63,7 +71,6 @@ export function AddEditProductPage() {
     }
     return base;
   }, [brandsConfig, product.brand]);
-  const [stockStatus, setStockStatus] = useState<StockStatus>('In Stock');
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
   const [tags, setTags] = useState('aircon, inverter, energy-efficient');
@@ -72,12 +79,15 @@ export function AddEditProductPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [vouchersForProduct, setVouchersForProduct] = useState<StoreVoucher[]>([]);
+  const liveStockStatus = deriveStockStatus(product.stockQty, product.stockCapacity);
 
   useEffect(() => {
     void loadVouchers().then((cfg) => {
-      setVouchersForProduct(listVouchersForProduct(product.id, cfg));
+      setVouchersForProduct(
+        listVouchersForProduct(product.id, cfg, { category: product.category })
+      );
     });
-  }, [product.id]);
+  }, [product.id, product.category]);
 
   useEffect(() => {
     if (!id) return;
@@ -167,14 +177,19 @@ export function AddEditProductPage() {
         if (existing) return existing;
         return { hp: h, price: getHpUnitPrice({ ...p, hp: nextHp }, h) };
       });
-      const prices = nextVariants.map((v) => v.price).filter((n) => n > 0);
-      return {
+      const range = priceRangeFromHpVariants(nextVariants, {
+        priceStart: p.priceStart,
+        priceEnd: p.priceEnd,
+      });
+      const next = {
         ...p,
         hp: nextHp,
         hpVariants: nextVariants,
-        priceStart: prices.length ? Math.min(...prices) : p.priceStart,
-        priceEnd: prices.length ? Math.max(...prices) : p.priceEnd,
+        ...range,
       };
+      return hasHpDiscounts(next)
+        ? { ...next, promos: syncPromosFromHpDiscounts(next) }
+        : next;
     });
   };
 
@@ -182,16 +197,56 @@ export function AddEditProductPage() {
     setProduct((p) => {
       const nextVariants = (p.hp.length ? p.hp : [hp]).map((h) => {
         const existing = p.hpVariants?.find((v) => v.hp === h);
-        if (h === hp) return { hp: h, price };
+        if (h === hp) {
+          return {
+            hp: h,
+            price,
+            ...(existing?.discountType ? { discountType: existing.discountType } : {}),
+            ...(existing?.discount && existing.discount > 0
+              ? { discount: existing.discount }
+              : {}),
+          };
+        }
         return existing ?? { hp: h, price: getHpUnitPrice(p, h) };
       });
-      const prices = nextVariants.map((v) => v.price).filter((n) => n > 0);
-      return {
-        ...p,
-        hpVariants: nextVariants,
-        priceStart: prices.length ? Math.min(...prices) : p.priceStart,
-        priceEnd: prices.length ? Math.max(...prices) : p.priceEnd,
-      };
+      const range = priceRangeFromHpVariants(nextVariants, {
+        priceStart: p.priceStart,
+        priceEnd: p.priceEnd,
+      });
+      const next = { ...p, hpVariants: nextVariants, ...range };
+      return hasHpDiscounts(next)
+        ? { ...next, promos: syncPromosFromHpDiscounts(next) }
+        : next;
+    });
+  };
+
+  const setHpVariantDiscount = (
+    hp: string,
+    discount: number,
+    discountType: ProductHpDiscountType = 'fixed'
+  ) => {
+    setProduct((p) => {
+      const nextVariants = (p.hp.length ? p.hp : [hp]).map((h) => {
+        const existing = p.hpVariants?.find((v) => v.hp === h);
+        const price = existing?.price ?? getHpUnitPrice(p, h);
+        if (h === hp) {
+          const value =
+            discount > 0
+              ? discountType === 'percent'
+                ? Math.min(discount, 100)
+                : discount
+              : undefined;
+          return {
+            hp: h,
+            price,
+            discountType,
+            ...(value != null ? { discount: value } : {}),
+          };
+        }
+        return existing ?? { hp: h, price };
+      });
+      const next = { ...p, hpVariants: nextVariants };
+      return { ...next, promos: syncPromosFromHpDiscounts(next) };
     });
   };
 
@@ -365,10 +420,11 @@ export function AddEditProductPage() {
                     required
                     min={0}
                     value={product.priceStart || ''}
+                    readOnly={product.hp.length > 0}
                     onChange={(e) =>
                       setProduct({ ...product, priceStart: Number(e.target.value) })
                     }
-                    className={`${inputClass} pl-8`}
+                    className={`${inputClass} pl-8 ${product.hp.length > 0 ? 'bg-gray-50 text-gray-600' : ''}`}
                   />
                 </div>
               </Field>
@@ -380,12 +436,18 @@ export function AddEditProductPage() {
                     required
                     min={0}
                     value={product.priceEnd || ''}
+                    readOnly={product.hp.length > 0}
                     onChange={(e) => setProduct({ ...product, priceEnd: Number(e.target.value) })}
-                    className={`${inputClass} pl-8`}
+                    className={`${inputClass} pl-8 ${product.hp.length > 0 ? 'bg-gray-50 text-gray-600' : ''}`}
                   />
                 </div>
               </Field>
             </div>
+            {product.hp.length > 0 ? (
+              <p className="-mt-2 text-xs text-gray-500">
+                Price Start / End are set automatically from the lowest and highest HP prices below.
+              </p>
+            ) : null}
             <Field label="Horsepower (HP) Options">
               <div className="flex flex-wrap gap-3">
                 {HP_OPTIONS.map((hp) => (
@@ -402,31 +464,112 @@ export function AddEditProductPage() {
               </div>
             </Field>
             {product.hp.length > 0 ? (
-              <Field label="Price per HP (shown when the customer picks a size)">
-                <div className="space-y-2">
-                  {product.hp.map((hp) => (
-                    <div key={hp} className="flex items-center gap-3">
-                      <span className="w-16 text-sm font-medium text-gray-700">{hp}</span>
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₱</span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={
-                            product.hpVariants?.find((v) => v.hp === hp)?.price ??
-                            getHpUnitPrice(product, hp)
-                          }
-                          onChange={(e) => setHpVariantPrice(hp, Number(e.target.value) || 0)}
-                          className={`${inputClass} pl-8`}
-                        />
-                      </div>
+              <Field label="Price & optional discount per HP">
+                <div className="overflow-x-auto rounded-xl border border-gray-200">
+                  <div className="min-w-[28rem]">
+                    <div className="grid grid-cols-[4.5rem_1fr_1fr] gap-3 border-b border-gray-100 bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                      <span>HP</span>
+                      <span>List price</span>
+                      <span>Discount (optional)</span>
                     </div>
-                  ))}
+                    <div className="divide-y divide-gray-100">
+                      {product.hp.map((hp) => {
+                        const variant = product.hpVariants?.find((v) => v.hp === hp);
+                        const discountType: ProductHpDiscountType =
+                          variant?.discountType === 'percent' ? 'percent' : 'fixed';
+                        return (
+                          <div
+                            key={hp}
+                            className="grid grid-cols-[4.5rem_1fr_1fr] items-center gap-3 px-3 py-2.5"
+                          >
+                            <span className="text-sm font-semibold text-gray-800">{hp}</span>
+                            <div className="relative">
+                              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                                ₱
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                step="any"
+                                value={variant?.price ?? getHpUnitPrice(product, hp)}
+                                onChange={(e) => setHpVariantPrice(hp, Number(e.target.value) || 0)}
+                                className={`${inputClass} pl-7`}
+                              />
+                            </div>
+                            <div className="flex min-w-0 items-stretch overflow-hidden rounded-lg border border-gray-200 bg-white focus-within:border-[#0EA5E9] focus-within:ring-2 focus-within:ring-[#0EA5E9]/20">
+                              <div
+                                className="relative z-10 flex shrink-0 items-center gap-0.5 border-r border-gray-200 bg-gray-50 p-0.5"
+                                role="group"
+                                aria-label={`${hp} discount type`}
+                              >
+                                {(
+                                  [
+                                    { id: 'fixed', label: '₱' },
+                                    { id: 'percent', label: '%' },
+                                  ] as const
+                                ).map((opt) => {
+                                  const active = discountType === opt.id;
+                                  return (
+                                    <button
+                                      key={opt.id}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setHpVariantDiscount(
+                                          hp,
+                                          Number(variant?.discount) || 0,
+                                          opt.id
+                                        );
+                                      }}
+                                      className={`min-w-[2.25rem] rounded-md px-2 py-1.5 text-xs font-bold transition-colors ${
+                                        active
+                                          ? 'bg-white text-[#0369A1] shadow-sm ring-1 ring-gray-200'
+                                          : 'text-gray-500 hover:bg-white/70 hover:text-gray-800'
+                                      }`}
+                                      aria-pressed={active}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <input
+                                type="number"
+                                min={0}
+                                max={discountType === 'percent' ? 100 : undefined}
+                                step="any"
+                                value={variant?.discount || ''}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  setHpVariantDiscount(
+                                    hp,
+                                    raw === '' ? 0 : Number(raw) || 0,
+                                    discountType
+                                  );
+                                }}
+                                className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                                placeholder={discountType === 'percent' ? 'e.g. 10' : 'e.g. 3000'}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Price Start / End above stay in sync as the min and max of these HP prices.
+                <p className="mt-2 text-xs text-gray-500">
+                  Toggle <span className="font-semibold text-gray-700">₱</span> for peso off or{' '}
+                  <span className="font-semibold text-gray-700">%</span> for percent off. Sale price
+                  and promo tags update from these values.
                 </p>
               </Field>
+            ) : null}
+            {isSplitTypeProduct(product) ? (
+              <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                Split Type units automatically show the free installation promo sticker and can use
+                the FREEINSTALL voucher.
+              </p>
             ) : null}
             <Field label="Vouchers (from Vouchers page)">
               <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -530,19 +673,55 @@ export function AddEditProductPage() {
                 placeholder={'Inverter\nWi-Fi Control\nAuto Clean'}
               />
             </Field>
-            <Field label="Stock Status">
-              <select
-                value={stockStatus}
-                onChange={(e) => setStockStatus(e.target.value as StockStatus)}
-                className={inputClass}
-              >
-                {STOCK_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Units in stock (live)">
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={product.stockQty ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      setProduct((p) => ({ ...p, stockQty: undefined }));
+                      return;
+                    }
+                    const stockQty = Math.max(0, Math.floor(Number(raw) || 0));
+                    setProduct((p) => {
+                      const capacity = Math.max(p.stockCapacity ?? 20, stockQty || 1);
+                      return { ...p, stockQty, stockCapacity: capacity };
+                    });
+                  }}
+                  className={inputClass}
+                  placeholder="e.g. 7"
+                />
+              </Field>
+              <Field label="Stock capacity (for urgency bar)">
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={product.stockCapacity ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      setProduct((p) => ({ ...p, stockCapacity: undefined }));
+                      return;
+                    }
+                    const stockQty = Math.max(0, product.stockQty ?? 0);
+                    const stockCapacity = Math.max(stockQty || 1, Math.floor(Number(raw) || 20));
+                    setProduct((p) => ({ ...p, stockCapacity }));
+                  }}
+                  className={inputClass}
+                  placeholder="e.g. 20"
+                />
+              </Field>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Status:{' '}
+              <span className="font-semibold text-gray-800">{liveStockStatus}</span>
+              {' · '}Cool Deals “Only N left” reads this when the deal product is linked.
+            </p>
           </Section>
 
           <Section title="Corner tags (−20%, INVERTER)">
@@ -627,6 +806,12 @@ export function AddEditProductPage() {
                 Admin → Tags
               </Link>
               . They appear on the product image in listings.
+              {isSplitTypeProduct(product)
+                ? ' Split Type products always include free installation on the storefront.'
+                : ''}
+              {hasHpDiscounts(product)
+                ? ' Sale discounts come from the per-HP fields above — flash-sale / discount tags here are for sticker style and countdown only.'
+                : ''}
             </p>
 
             <div className="space-y-4">
@@ -660,8 +845,7 @@ export function AddEditProductPage() {
                     >
                       <option value="">Select a tag…</option>
                       {promoCatalog
-                        // Keep this row's selected tag visible, but hide tags
-                        // already assigned to another promo slot.
+
                         .filter(
                           (t) =>
                             t.id === promo.tagId ||
@@ -679,33 +863,76 @@ export function AddEditProductPage() {
                   </Field>
                   {promo.tagId && (
                     <>
-                      {(promo.type === 'percentage' || promo.type === 'fixed') && (
-                        <Field
-                          label={
-                            promo.type === 'percentage'
-                              ? 'Discount (%)'
-                              : 'Discount amount (₱)'
-                          }
-                        >
-                          <input
-                            type="number"
-                            min={0}
-                            value={promo.value || ''}
-                            onChange={(e) =>
-                              updatePromoAt(index, { value: Number(e.target.value) })
+                      {(promo.type === 'percentage' || promo.type === 'fixed') &&
+                        (hasHpDiscounts(product) ? (
+                          <div className="rounded-lg border border-[#BAE6FD] bg-[#F0F9FF] px-3 py-2.5">
+                            <p className="text-xs font-semibold text-[#0369A1]">
+                              Discount comes from per-HP pricing
+                            </p>
+                            <p className="mt-1 text-xs text-gray-600">
+                              Sticker text:{' '}
+                              <span className="font-semibold text-gray-900">
+                                {formatHpDiscountLabel(product) || '—'}
+                              </span>
+                              . Edit amounts in Pricing → Discount per HP (each size can differ).
+                            </p>
+                            <ul className="mt-2 space-y-1">
+                              {(product.hpVariants ?? [])
+                                .filter((v) => Number(v.discount) > 0)
+                                .map((v) => (
+                                  <li
+                                    key={v.hp}
+                                    className="flex items-center justify-between text-xs text-gray-700"
+                                  >
+                                    <span className="font-medium">{v.hp}</span>
+                                    <span>
+                                      {formatHpVariantDiscount(v)}
+                                      <span className="text-gray-500">
+                                        {' '}
+                                        → ₱{getHpSalePrice(product, v.hp).toLocaleString()}
+                                      </span>
+                                    </span>
+                                  </li>
+                                ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <Field
+                            label={
+                              promo.type === 'percentage'
+                                ? 'Discount (%)'
+                                : 'Discount amount (₱)'
                             }
-                            className={inputClass}
-                          />
-                        </Field>
-                      )}
+                          >
+                            <input
+                              type="number"
+                              min={0}
+                              step="any"
+                              value={promo.value || ''}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                updatePromoAt(index, {
+                                  value: raw === '' ? 0 : Number(raw),
+                                });
+                              }}
+                              className={inputClass}
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                              Or set different discounts per HP in Pricing — that replaces this
+                              single value.
+                            </p>
+                          </Field>
+                        ))}
                       {promo.type === 'cash-deal' && (
                         <Field label="Monthly amount (₱)">
                           <input
                             type="number"
                             min={0}
+                            step="any"
                             value={promo.cashPerMonth ?? ''}
                             onChange={(e) => {
-                              const n = Number(e.target.value);
+                              const raw = e.target.value;
+                              const n = raw === '' ? 0 : Number(raw);
                               updatePromoAt(index, {
                                 cashPerMonth: n,
                                 label: `₱${n.toLocaleString()}/mo`,
@@ -851,7 +1078,8 @@ export function AddEditProductPage() {
                 }))
               }
               remoteUpload={{ getObjectPath: mediaPathFor('products') }}
-              hint="Upload to cloud storage (Cloudinary). Paste a public URL only if the file is already hosted."
+              sizeGuide={IMAGE_SIZE_GUIDES.productMain}
+              hint="Upload to cloud storage (Cloudinary). Paste a public URL only if the file is already hosted. Prefer a square product shot on a clean background."
             />
             <div className="mt-3 space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -879,6 +1107,7 @@ export function AddEditProductPage() {
                       });
                     }}
                     remoteUpload={{ getObjectPath: mediaPathFor('products') }}
+                    sizeGuide={IMAGE_SIZE_GUIDES.productGallery}
                   />
                 );
               })}

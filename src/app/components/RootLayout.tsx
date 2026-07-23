@@ -4,16 +4,26 @@ import { CatalogProvider } from '../context/CatalogContext';
 import { ProductTagsProvider } from '../context/ProductTagsContext';
 import { StoreSettingsProvider, useStoreSettings } from '../context/StoreSettingsContext';
 import { SiteLoadingProvider } from '../context/SiteLoadingContext';
+import { CustomerAuthProvider } from '../context/CustomerAuthContext';
+import { ClaimedVouchersProvider } from '../context/ClaimedVouchersContext';
 import { trackEvent } from '../admin/lib/ops-api';
 import { Navigation } from './Navigation';
 import { Footer } from './Footer';
+import { CustomerAuthModal } from './CustomerAuthModal';
 import { GlobalAIChatBot } from './GlobalAIChatBot';
 import { SitePromoPopup } from './SitePromoPopup';
 import { SiteLoadingScreen } from './SiteLoadingScreen';
+import { MaintenancePage } from '../pages/MaintenancePage';
+import { CountdownPage } from '../pages/CountdownPage';
 
 function StorefrontShell() {
   const location = useLocation();
   const { settings, reload } = useStoreSettings();
+  const underMaintenance = settings.maintenanceMode === true;
+  const countdownActive = settings.countdownEnabled === true;
+  const onMaintenanceRoute = location.pathname === '/maintenance';
+  const onCountdownRoute = location.pathname === '/countdown';
+  const hideChrome = underMaintenance || countdownActive || onMaintenanceRoute || onCountdownRoute;
 
   useEffect(() => {
     void trackEvent('pageview', location.pathname + location.search);
@@ -25,16 +35,43 @@ function StorefrontShell() {
     return () => window.removeEventListener('hamel-store-settings-updated', onUpdated);
   }, [reload]);
 
+  if (underMaintenance) {
+    return (
+      <div className="flex min-h-screen flex-col overflow-x-hidden bg-white">
+        <SiteLoadingScreen />
+        <main className="flex-1">
+          <MaintenancePage />
+        </main>
+      </div>
+    );
+  }
+
+  if (countdownActive) {
+    return (
+      <div className="flex min-h-screen flex-col overflow-x-hidden bg-white">
+        <SiteLoadingScreen />
+        <main className="flex-1">
+          <CountdownPage />
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen flex-col overflow-x-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
+    <div
+      className={`flex min-h-screen flex-col overflow-x-hidden ${
+        hideChrome ? 'bg-white' : 'pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0'
+      }`}
+    >
       <SiteLoadingScreen />
-      <Navigation />
+      {!hideChrome ? <Navigation /> : null}
       <main className="flex-1">
         <Outlet />
       </main>
-      <Footer />
-      {settings.showAiChat ? <GlobalAIChatBot /> : null}
-      <SitePromoPopup />
+      {!hideChrome ? <Footer /> : null}
+      {!hideChrome && settings.showAiChat ? <GlobalAIChatBot /> : null}
+      {!hideChrome ? <SitePromoPopup /> : null}
+      {!hideChrome ? <CustomerAuthModal /> : null}
     </div>
   );
 }
@@ -45,7 +82,11 @@ export function RootLayout() {
       <ProductTagsProvider>
         <CatalogProvider>
           <SiteLoadingProvider>
-            <StorefrontShell />
+            <CustomerAuthProvider>
+              <ClaimedVouchersProvider>
+                <StorefrontShell />
+              </ClaimedVouchersProvider>
+            </CustomerAuthProvider>
           </SiteLoadingProvider>
         </CatalogProvider>
       </ProductTagsProvider>

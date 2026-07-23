@@ -435,8 +435,8 @@ export function PromoChip({
   const lines = chipLines({ badgeType, label, cashPerMonth, subtitle });
   const fullTitle = subtitle ? `${label} — ${subtitle}` : label;
 
-  // Tags load async from the API after first paint. Reset failure flags when URLs
-  // change so we don't stay stuck on the composed fallback after a transient 404.
+
+
   useEffect(() => {
     setChipImageFailed(false);
   }, [chipImageUrl]);
@@ -601,7 +601,7 @@ export function PromoBadge({
           height: isSmall ? 28 : 34,
         }}
       >
-        {/* Left icon section */}
+        {}
         <div
           className="flex items-center justify-center px-1.5"
           style={{ backgroundColor: '#1E3A8A', width: isSmall ? 28 : 34 }}
@@ -612,7 +612,7 @@ export function PromoBadge({
             </text>
           </svg>
         </div>
-        {/* Right text section */}
+        {}
         <div
           className="flex flex-col justify-center px-1.5 flex-1"
           style={{ backgroundColor: '#2563EB' }}
@@ -638,7 +638,7 @@ export function PromoBadge({
           height: isSmall ? 28 : 34,
         }}
       >
-        {/* Green check icon */}
+        {}
         <div
           className="flex items-center justify-center px-1.5"
           style={{ backgroundColor: '#065F46', width: isSmall ? 26 : 32 }}
@@ -653,7 +653,7 @@ export function PromoBadge({
             />
           </svg>
         </div>
-        {/* Text */}
+        {}
         <div
           className="flex flex-col justify-center px-1.5 flex-1"
           style={{ backgroundColor: '#059669' }}
@@ -670,7 +670,7 @@ export function PromoBadge({
   }
 
   if (badgeType === 'discount') {
-    // Red/orange sticker — "₱5,000 OFF" or "15% OFF"
+
     return (
       <div
         className="flex items-center justify-center shadow-md"
@@ -684,7 +684,7 @@ export function PromoBadge({
           overflow: 'hidden',
         }}
       >
-        {/* Ribbon diagonal stripe accent */}
+        {}
         <div style={{
           position: 'absolute',
           top: -6,
@@ -710,7 +710,7 @@ export function PromoBadge({
   }
 
   if (badgeType === 'flash-sale') {
-    // Orange urgent flash deal badge
+
     return (
       <div
         className="flex items-center gap-1 shadow-md"

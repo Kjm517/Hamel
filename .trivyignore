@@ -1,0 +1,2 @@
+# Ignore unfixed / noisy advisories here if needed, e.g.:
+# CVE-2024-XXXXX

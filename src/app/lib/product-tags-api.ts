@@ -49,8 +49,8 @@ function normalizeAutoRule(value: string | null | undefined): CornerTagAutoRule 
 
 function resolveTagIconUrl(row: ProductTagRow): string | undefined {
   if (!row.icon_url?.trim()) {
-    // Do not invent /uploads/<default>.png URLs — those files exist only on local
-    // disk and break on Vercel. Prefer emoji / built-in SVG badges instead.
+
+
     return undefined;
   }
   const raw = row.icon_url.trim();
@@ -59,7 +59,7 @@ function resolveTagIconUrl(row: ProductTagRow): string | undefined {
 }
 
 function rowToTag(row: ProductTagRow): ProductTag {
-  // API may already return absolute Cloudinary URLs (production).
+
   const iconUrl = resolveTagIconUrl(row);
   const chipImageUrl = row.chip_image_url
     ? /^https?:\/\//i.test(row.chip_image_url.trim())
@@ -87,7 +87,7 @@ function rowToTag(row: ProductTagRow): ProductTag {
     renderMode,
     chipImageUrl,
     iconUrl,
-    // Keep emoji even when iconUrl is set — PromoChip falls back if the image 404s.
+
     iconEmoji,
     iconBgColor: row.icon_bg_color ?? defaults?.iconBgColor ?? undefined,
     textBgColor: row.text_bg_color ?? defaults?.textBgColor ?? undefined,

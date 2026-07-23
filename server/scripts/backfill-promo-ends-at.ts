@@ -32,7 +32,7 @@ function patchPromo(entry: Record<string, unknown>): { entry: Record<string, unk
     next.validUntil = DEFAULT_VALID_UNTIL;
     changed = true;
   }
-  // Refresh expired endsAt on flash promos so countdown is visible in demo
+
   if (isFlash && typeof next.promoEndsAt === 'string') {
     const t = Date.parse(next.promoEndsAt);
     if (Number.isFinite(t) && t <= Date.now()) {

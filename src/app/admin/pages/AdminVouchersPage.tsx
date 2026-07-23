@@ -242,9 +242,11 @@ export function AdminVouchersPage() {
                       <div>
                         <div className={adminUi.labelMuted}>Applies to</div>
                         <div className="mt-1 text-[13.5px] font-semibold text-[#1e2a38]">
-                          {v.productScope === 'all'
-                            ? 'All products'
-                            : `${v.productIds.length} selected`}
+                          {v.categories?.length
+                            ? v.categories.join(', ')
+                            : v.productScope === 'all'
+                              ? 'All products'
+                              : `${v.productIds.length} selected`}
                         </div>
                       </div>
                       <div>

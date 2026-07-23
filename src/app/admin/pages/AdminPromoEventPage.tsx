@@ -20,6 +20,7 @@ import { mediaPathFor, resolveStorageImageUrl } from '../../lib/storage';
 import { AdminSaveBar } from '../components/AdminSaveBar';
 import { AdminToggle } from '../components/AdminToggle';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../lib/image-size-guides';
 import {
   PROMO_ANIMATION_OPTIONS,
   normalizePromoAnimation,
@@ -439,6 +440,51 @@ export function AdminPromoEventPage() {
                 hide.
               </p>
             </div>
+            {featured.countdownEndsAt ? (
+              <div className="rounded-[11px] border border-[#fee2e2] bg-[#fff7f7] p-3 space-y-2.5">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-[#ff1a1a]">
+                  Urgent red timer (#ff1a1a)
+                </p>
+                <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-[#516171]">
+                  <span>Always use urgent red</span>
+                  <AdminToggle
+                    checked={featured.forceUrgentRed === true}
+                    onChange={(forceUrgentRed) => updateFeatured({ forceUrgentRed })}
+                    label="Always use urgent red"
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-[#516171]">
+                  <span>Auto urgent red when ending soon</span>
+                  <AdminToggle
+                    checked={featured.urgentWhenEndingSoon !== false}
+                    onChange={(urgentWhenEndingSoon) => updateFeatured({ urgentWhenEndingSoon })}
+                    label="Auto urgent red when ending soon"
+                    disabled={featured.forceUrgentRed === true}
+                  />
+                </div>
+                <label className="block">
+                  <span className={adminUi.label}>Auto urgent when under (hours)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={featured.urgencyThresholdHours ?? 72}
+                    onChange={(e) =>
+                      updateFeatured({
+                        urgencyThresholdHours: Math.max(1, Number(e.target.value) || 72),
+                      })
+                    }
+                    className={adminUi.input}
+                    disabled={featured.forceUrgentRed === true}
+                  />
+                </label>
+                <p className="text-[11px] text-[#9aa7b5]">
+                  {featured.forceUrgentRed
+                    ? 'Always red is on — timer boxes stay #ff1a1a for this post until the countdown ends.'
+                    : 'e.g. 24 = boxes turn #ff1a1a only under 24 hours left. Above that they stay normal.'}
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-3">
@@ -502,6 +548,7 @@ export function AdminPromoEventPage() {
               value={featured.bgImageUrl || ''}
               onChange={(v) => updateFeatured({ bgImageUrl: v })}
               remoteUpload={{ getObjectPath: mediaPathFor('promo-events') }}
+              sizeGuide={IMAGE_SIZE_GUIDES.promoEvent}
             />
             <p className="mt-1 text-[11px] text-[#9aa7b5]">
               Upload campaign art or a wave pattern. Color still shows as a tint underneath.

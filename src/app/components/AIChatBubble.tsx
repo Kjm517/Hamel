@@ -51,7 +51,6 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // Handle inquiry data from modal
   useEffect(() => {
     if (inquiryData && !isOpen) {
       setIsOpen(true);
@@ -67,7 +66,6 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
         setMessages((prev) => [...prev, confirmationMessage]);
         setIsTyping(false);
 
-        // Follow-up message
         setTimeout(() => {
           setIsTyping(true);
           setTimeout(() => {
@@ -89,47 +87,39 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
   const generateAIResponse = (userMessage: string): string => {
     const lowerMessage = userMessage.toLowerCase();
 
-    // Room size questions
     if (lowerMessage.includes('room') || lowerMessage.includes('sqm') || lowerMessage.includes('square')) {
       const coverage = product.specifications.find(s => s.label === 'Coverage Area')?.value || '15-20 sqm';
       return `The ${product.model} is ideal for rooms around ${coverage}. For best results, measure your room and choose an aircon with capacity slightly higher than your room size. Need help calculating?`;
     }
 
-    // Energy/electricity questions
     if (lowerMessage.includes('electricity') || lowerMessage.includes('bill') || lowerMessage.includes('energy') || lowerMessage.includes('consume')) {
       const rating = product.specifications.find(s => s.label === 'Energy Rating')?.value || '4 Star';
       const consumption = product.specifications.find(s => s.label === 'Power Consumption')?.value || '900W';
       return `This model has a ${rating} energy rating and consumes ${consumption}. ${product.features.includes('Inverter Technology') ? 'With inverter technology, you can save up to 60% on electricity compared to non-inverter models!' : 'Consider upgrading to an inverter model to save more on electricity bills.'}`;
     }
 
-    // Noise level questions
     if (lowerMessage.includes('noise') || lowerMessage.includes('quiet') || lowerMessage.includes('loud') || lowerMessage.includes('tahimik')) {
       const noise = product.specifications.find(s => s.label === 'Noise Level')?.value || '22 dB(A)';
       return `The noise level is ${noise}. This is very quiet - about as quiet as a whisper! Perfect for bedrooms and offices where you need peace and quiet.`;
     }
 
-    // Installation questions
     if (lowerMessage.includes('install') || lowerMessage.includes('installation') || lowerMessage.includes('setup')) {
       return `Professional installation is available! Our certified technicians will handle everything - from mounting the indoor and outdoor units to testing. Installation typically takes 2-3 hours. Free delivery and installation included for Cebu area!`;
     }
 
-    // Warranty questions
     if (lowerMessage.includes('warranty') || lowerMessage.includes('guarantee')) {
       const warranty = product.specifications.find(s => s.label === 'Warranty')?.value || '1 Year Full + 5 Years Compressor';
       return `This unit comes with ${warranty}. We also provide after-sales support and maintenance services. The warranty covers parts, labor, and compressor defects.`;
     }
 
-    // Price/payment questions
     if (lowerMessage.includes('price') || lowerMessage.includes('cost') || lowerMessage.includes('payment') || lowerMessage.includes('installment') || lowerMessage.includes('magkano')) {
       return `The ${product.model} is priced at ₱${product.priceStart.toLocaleString()} - ₱${product.priceEnd.toLocaleString()} depending on HP. We offer 0% installment for up to 12 months! Would you like to inquire about specific payment terms?`;
     }
 
-    // HP selection questions
     if (lowerMessage.includes('hp') || lowerMessage.includes('horsepower') || lowerMessage.includes('which hp')) {
       return `Available HP options: ${product.hp.join(', ')}. Generally: 0.75-1HP for 10-15 sqm, 1.5HP for 15-20 sqm, 2HP for 20-30 sqm. What's your room size?`;
     }
 
-    // Inverter questions
     if (lowerMessage.includes('inverter') || lowerMessage.includes('non-inverter')) {
       if (product.features.includes('Inverter Technology')) {
         return `Yes! This is an inverter model. Inverter aircons adjust compressor speed based on room temperature, making them more energy-efficient and quieter than non-inverter types. You'll save significantly on electricity!`;
@@ -138,22 +128,18 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
       }
     }
 
-    // Features questions
     if (lowerMessage.includes('feature') || lowerMessage.includes('function')) {
       return `Key features: ${product.features.slice(0, 3).join(', ')}. ${product.features.includes('Wi-Fi Control') ? 'You can control it from your phone!' : ''} Would you like details on any specific feature?`;
     }
 
-    // Comparison questions
     if (lowerMessage.includes('compare') || lowerMessage.includes('difference') || lowerMessage.includes('vs')) {
       return `I'd be happy to help you compare! This ${product.brand} model offers great value with ${product.rating} star rating. What other brand or model would you like to compare it with?`;
     }
 
-    // Stock/availability questions
     if (lowerMessage.includes('stock') || lowerMessage.includes('available') || lowerMessage.includes('meron')) {
       return `We currently have this model in stock! Delivery to Cebu typically takes 1-2 days. Ready to inquire or would you like to ask more questions?`;
     }
 
-    // Default responses based on message length
     if (userMessage.length < 10) {
       return `I'm here to help! Feel free to ask about room size requirements, energy consumption, installation, pricing, or any features you'd like to know more about.`;
     }
@@ -177,7 +163,6 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
     setShowQuickReplies(false);
     setIsTyping(true);
 
-    // Check if requesting human handoff
     const needsHandoff = messageText.toLowerCase().includes('talk to') ||
                         messageText.toLowerCase().includes('human') ||
                         messageText.toLowerCase().includes('person') ||
@@ -185,7 +170,6 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
                         messageText.toLowerCase().includes('makausap') ||
                         messageText === 'Talk to a person';
 
-    // Simulate AI typing delay
     setTimeout(() => {
       if (needsHandoff) {
         const handoffMessage: Message = {
@@ -235,10 +219,10 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
 
   return (
     <>
-      {/* Chat Window */}
+      {}
       {isOpen && (
         <div className="fixed bottom-24 right-4 md:right-6 w-[calc(100vw-2rem)] md:w-[360px] bg-white shadow-2xl border border-gray-200 z-50 flex flex-col" style={{ height: '520px', borderRadius: '16px' }}>
-          {/* Header */}
+          {}
           <div className="text-white p-4 flex items-center justify-between" style={{ backgroundColor: '#0EA5E9', borderTopLeftRadius: '16px', borderTopRightRadius: '16px' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
@@ -260,7 +244,7 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
             </button>
           </div>
 
-          {/* Messages */}
+          {}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
             {messages.map((message, index) => (
               <div key={message.id}>
@@ -278,7 +262,7 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
                     <p className="text-sm leading-relaxed whitespace-pre-line">{message.text}</p>
                   </div>
                 </div>
-                {/* Quick replies after first AI message or after inquiry confirmation */}
+                {}
                 {((index === 0 && message.sender === 'ai' && !inquiryData) ||
                   (showQuickReplies && index === messages.length - 1 && message.sender === 'ai')) && (
                   <div className="flex flex-wrap gap-2 mt-3 ml-2">
@@ -309,7 +293,7 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
               </div>
             )}
 
-            {/* Human Handoff UI */}
+            {}
             {showHandoff && (
               <div className="bg-white border-2 rounded-lg p-4 shadow-lg" style={{ borderColor: '#0EA5E9' }}>
                 <div className="space-y-3">
@@ -344,7 +328,7 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
+          {}
           <div className="p-4 border-t bg-white" style={{ borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
             <div className="flex gap-2 mb-2">
               <input
@@ -373,7 +357,7 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
         </div>
       )}
 
-      {/* Floating Button */}
+      {}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-4 md:right-6 w-14 h-14 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all z-50 flex items-center justify-center group"
@@ -386,7 +370,7 @@ export function AIChatBubble({ product, inquiryData }: AIChatBubbleProps) {
         )}
       </button>
 
-      {/* Tooltip */}
+      {}
       {!isOpen && (
         <div className="fixed bottom-20 right-4 md:right-6 text-white text-xs px-3 py-2 rounded-lg shadow-lg z-40 pointer-events-none whitespace-nowrap" style={{ backgroundColor: '#0EA5E9' }}>
           Hi! Need help choosing the right aircon? Ask me!

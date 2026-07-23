@@ -4,7 +4,8 @@ import { requireAuth, type AuthVariables } from '../middleware/auth';
 import {
   getAllProductReviewStats,
   getProductReviewStats,
-  mapReviewRow,
+  mapReviewRowsWithLoyalty,
+  optionalCustomerAccount,
   syncProductReviewStats,
   withLiveReviewStats,
 } from './reviews';
@@ -56,9 +57,13 @@ productRoutes.get('/:id', async (c) => {
   `) as { id: string; data: Record<string, unknown>; created_at: string }[];
 
   const stats = await getProductReviewStats(id);
+  const viewer = await optionalCustomerAccount(c.req.header('authorization'));
   return c.json({
     product: withLiveReviewStats({ ...(product.data ?? {}), id: product.id }, stats),
-    reviews: reviews.map(mapReviewRow),
+    reviews: await mapReviewRowsWithLoyalty(reviews, {
+      viewerAccountId: viewer?.id ?? null,
+      guestKey: c.req.header('x-guest-voter') ?? null,
+    }),
   });
 });
 

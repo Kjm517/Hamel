@@ -141,7 +141,7 @@ export function AdminNotificationsBell() {
     try {
       localStorage.setItem(CLEARED_AT_KEY, now);
     } catch {
-      // ignore quota / private mode
+
     }
     setClearedAt(new Date(now).getTime());
     setItems([]);

@@ -57,7 +57,7 @@ async function postSignedUpload(opts: {
   algo: SignAlgo;
 }): Promise<{ ok: true; url: string; path: string } | { ok: false; error: string }> {
   const timestamp = Math.floor(Date.now() / 1000).toString();
-  // Sign folder + public_id separately (Cloudinary-recommended). Do not put folder into public_id.
+
   const paramsToSign: Record<string, string> = {
     folder: opts.folder,
     public_id: opts.publicId,
@@ -172,7 +172,7 @@ export async function uploadBufferToCloudinary(opts: {
   const rootFolder = clean(env.cloudinaryFolder()) || 'hamel';
   const normalized = opts.objectPath.replace(/\\/g, '/').replace(/^\/+/, '');
   const withoutExt = sanitizePublicId(normalized);
-  // Split into folder + leaf so we sign `folder` and `public_id` separately.
+
   const parts = withoutExt.split('/').filter(Boolean);
   const leaf = parts.pop() || `upload-${randomUUID().slice(0, 8)}`;
   const subFolder = parts.join('/');
@@ -191,10 +191,9 @@ export async function uploadBufferToCloudinary(opts: {
       preset,
     });
     if (unsigned.ok) return { url: unsigned.url, path: unsigned.path };
-    // Fall through to signed upload if preset fails.
+
   }
 
-  // Cloudinary accounts default to SHA-1 for upload signatures.
   const preferred = clean(process.env.CLOUDINARY_SIGN_ALGORITHM || 'sha1').toLowerCase();
   const order: SignAlgo[] =
     preferred === 'sha256' ? ['sha256', 'sha1'] : ['sha1', 'sha256'];

@@ -18,6 +18,7 @@ import {
 } from '../../../data/brands-page';
 import { useCatalog } from '../../../context/CatalogContext';
 import { ImageUrlOrUploadField } from '../../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../../lib/image-size-guides';
 import { SortableList } from '../../components/SortableList';
 import { AdminSaveBar } from '../../components/AdminSaveBar';
 import { AdminToggle } from '../../components/AdminToggle';
@@ -144,7 +145,7 @@ export function BrandsTab() {
       const url = await uploadToPublicStorage(file, path);
       setNewLogoUrl(url);
     } catch {
-      // ignore — admin can still add without logo
+
     } finally {
       setAdding(false);
     }
@@ -335,6 +336,7 @@ export function BrandsTab() {
                         value={brand.logoImageUrl || ''}
                         onChange={(v) => patchBrand(brand.id, { logoImageUrl: v || undefined })}
                         remoteUpload={{ getObjectPath: mediaPathFor('brand-logos') }}
+                        sizeGuide={IMAGE_SIZE_GUIDES.brandLogo}
                       />
                       <div>
                         <label className="mb-1 block text-xs font-medium text-gray-600">

@@ -10,8 +10,8 @@ export function resolvePublicMediaUrl(value: string | null | undefined): string 
   const objectPath = v.replace(/^\/+/, '').replace(/^uploads\//, '');
   if (!objectPath) return null;
 
-  // On Vercel there is no durable local disk — prefer Cloudinary delivery URLs.
-  // Uploads store public_id as folder/path without requiring a version segment.
+
+
   if (cloudinaryConfigured()) {
     const cloud = env.cloudinaryCloudName();
     const folder = env.cloudinaryFolder().replace(/^\/+|\/+$/g, '') || 'hamel';
@@ -19,7 +19,7 @@ export function resolvePublicMediaUrl(value: string | null | undefined): string 
     const publicId = withoutExt.startsWith(`${folder}/`)
       ? withoutExt
       : `${folder}/${withoutExt}`;
-    // Keep original extension in the delivery URL when present (matches Cloudinary secure_url shape).
+
     const ext = objectPath.match(/(\.[a-z0-9]+)$/i)?.[1] ?? '';
     return `https://res.cloudinary.com/${cloud}/image/upload/${publicId}${ext}`;
   }

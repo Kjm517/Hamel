@@ -12,6 +12,7 @@ import type { BannerConfig } from '../../components/PageBanner';
 import { PAGE_BANNER_HEIGHTS } from '../../components/PageBanner';
 import { MarketplaceBannerGrid } from '../../components/MarketplaceBannerGrid';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../lib/image-size-guides';
 import { PromoSideBannerEditor } from '../components/PromoSideBannerEditor';
 import { BannerLinkDestinationField } from '../components/BannerLinkDestinationField';
 import { AmbientEffectFields } from '../../components/AmbientEffectFields';
@@ -108,7 +109,7 @@ function SlideEditor({
               <FieldEditor label="Tag / Pill Label" value={slide.tag || ''} onChange={(v) => onChange({ tag: v })} placeholder="e.g. ⚡ Limited Time" />
               <FieldEditor label="Headline" value={slide.title} onChange={(v) => onChange({ title: v })} rows={2} placeholder="Main headline text" />
               <FieldEditor label="Subheadline" value={slide.subtitle || ''} onChange={(v) => onChange({ subtitle: v })} rows={2} placeholder="Supporting text" />
-              <FieldEditor label="CTA Button Label" value={slide.ctaLabel || ''} onChange={(v) => onChange({ ctaLabel: v })} placeholder="e.g. Shop Now (shown on banner)" />
+              <FieldEditor label="Button text" value={slide.ctaLabel || ''} onChange={(v) => onChange({ ctaLabel: v })} placeholder="e.g. Shop Now (shown on banner)" />
             </div>
             <div>
               <ImageUrlOrUploadField
@@ -117,6 +118,7 @@ function SlideEditor({
                 onChange={(v) => onChange({ imageUrl: v })}
                 remoteUpload={{ getObjectPath: mediaPathFor('banners') }}
                 placeholder="https://... or /hamel/..."
+                sizeGuide={IMAGE_SIZE_GUIDES.heroBanner}
               />
               <div className="mb-3">
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Overlay Color Theme</label>
@@ -337,7 +339,7 @@ export function AdminBannersPage() {
           </p>
         </div>
 
-        {/* ── Homepage marketplace grid (carousel + 2 side banners) ── */}
+        {}
         <div className="mb-4 overflow-hidden rounded-2xl border-2 border-[#bfe6fb] bg-white shadow-[0_1px_2px_rgba(30,42,56,0.03)]">
           <div className="flex flex-col gap-2 border-b border-[#eef3f8] bg-[#f9fbfd] px-[18px] py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <button
@@ -427,7 +429,7 @@ export function AdminBannersPage() {
           )}
         </div>
 
-        {/* ── Featured Collection Section ── */}
+        {}
         <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden shadow-sm mb-4">
           <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
             <button
@@ -444,7 +446,7 @@ export function AdminBannersPage() {
             <div className="p-5">
               <p className="text-xs text-gray-500 mb-4">This is the featured product collection section on the homepage. Customize the title and color scheme.</p>
 
-              {/* Live preview */}
+              {}
               <div
                 className="rounded-lg py-6 px-8 mb-5 text-center"
                 style={{ backgroundColor: banners.featuredCollection.bgColor }}
@@ -538,7 +540,7 @@ export function AdminBannersPage() {
                     </div>
                   </div>
 
-                  {/* Quick presets */}
+                  {}
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Quick Presets</label>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -566,7 +568,7 @@ export function AdminBannersPage() {
           )}
         </div>
 
-        {/* ── Cool Deals Page Banner ── */}
+        {}
         <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden shadow-sm mb-4">
           <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
             <button
@@ -595,6 +597,7 @@ export function AdminBannersPage() {
                 onChange={(v) => updateCoolDealsBanner({ bannerImageUrl: v })}
                 remoteUpload={{ getObjectPath: mediaPathFor('cool-deals') }}
                 placeholder="Wide banner — recommended ~1600×600px or similar"
+                sizeGuide={IMAGE_SIZE_GUIDES.coolDealsBanner}
               />
 
               <BannerLinkDestinationField
@@ -699,7 +702,7 @@ export function AdminBannersPage() {
           )}
         </div>
 
-        {/* ── Page Banners ── */}
+        {}
         <div className="space-y-4">
           {PAGE_KEYS.map((page) => {
             const banner = banners[page];
@@ -763,7 +766,7 @@ export function AdminBannersPage() {
                         <FieldEditor label="Tag / Pill Label" value={banner.tag || ''} onChange={(v) => updateBanner(page, { tag: v })} placeholder="e.g. Summer 2026" />
                         <FieldEditor label="Headline" value={banner.title} onChange={(v) => updateBanner(page, { title: v })} rows={2} placeholder="Main headline text" />
                         <FieldEditor label="Subheadline" value={banner.subtitle || ''} onChange={(v) => updateBanner(page, { subtitle: v })} rows={2} placeholder="Supporting text below headline" />
-                        <FieldEditor label="CTA Button Label" value={banner.ctaLabel || ''} onChange={(v) => updateBanner(page, { ctaLabel: v })} placeholder="e.g. Shop Now" />
+                        <FieldEditor label="Button text" value={banner.ctaLabel || ''} onChange={(v) => updateBanner(page, { ctaLabel: v })} placeholder="e.g. Shop Now" />
                       </div>
                       <div>
                         <ImageUrlOrUploadField
@@ -771,6 +774,7 @@ export function AdminBannersPage() {
                           value={banner.imageUrl}
                           onChange={(v) => updateBanner(page, { imageUrl: v })}
                           remoteUpload={{ getObjectPath: mediaPathFor('page-headers') }}
+                          sizeGuide={IMAGE_SIZE_GUIDES.pageHeader}
                         />
                         <div className="mb-3">
                           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Overlay Color Theme</label>
@@ -845,7 +849,7 @@ export function AdminBannersPage() {
           })}
         </div>
 
-        {/* Bottom save bar */}
+        {}
         <div className="mt-8 flex items-center justify-between bg-white rounded-xl border p-4 shadow-sm">
           <p className="text-sm text-gray-500">Changes are not saved automatically — click Save Changes to apply.</p>
           <button

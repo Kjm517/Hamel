@@ -18,7 +18,7 @@ function writeIds(key: string, ids: string[]) {
   try {
     localStorage.setItem(key, JSON.stringify(ids));
   } catch {
-    // ignore
+
   }
   window.dispatchEvent(new CustomEvent('hamel-product-actions-updated'));
 }
@@ -116,7 +116,7 @@ export function shareProduct(input: {
         return 'shared';
       }
     } catch {
-      // fall through to clipboard
+
     }
     const ok = await copyTextToClipboard(input.url);
     return ok ? 'copied' : 'failed';

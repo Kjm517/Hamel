@@ -99,7 +99,7 @@ export function HeroBannerCarousel({ slides, className = '' }: HeroBannerCarouse
         </div>
       ))}
 
-      {/* Dot navigation */}
+      {}
       {slides.length > 1 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
           {slides.map((_, i) => (
@@ -117,7 +117,7 @@ export function HeroBannerCarousel({ slides, className = '' }: HeroBannerCarouse
         </div>
       )}
 
-      {/* Arrow navigation */}
+      {}
       {slides.length > 1 && (
         <>
           <button

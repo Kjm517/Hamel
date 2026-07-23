@@ -127,28 +127,51 @@ export function PromoCountdownInline({ endsAt }: { endsAt: string }) {
   );
 }
 
-function RectUnit({ value, label }: { value: number; label: string }) {
+function RectUnit({
+  value,
+  label,
+  urgent = false,
+}: {
+  value: number;
+  label: string;
+  urgent?: boolean;
+}) {
   return (
-    <div className="flex min-w-[2.75rem] flex-col items-center justify-center rounded-lg bg-[#7DD3FC] px-1.5 py-1 shadow-sm sm:min-w-[3.25rem] sm:px-2 sm:py-1.5">
+    <div
+      className={`flex min-w-[2.75rem] flex-col items-center justify-center rounded-lg px-1.5 py-1 shadow-sm sm:min-w-[3.25rem] sm:px-2 sm:py-1.5 ${
+        urgent ? 'bg-[#ff1a1a]' : 'bg-[#7DD3FC]'
+      }`}
+    >
       <span className="text-sm font-black leading-none text-white tabular-nums sm:text-base">
         {String(value).padStart(2, '0')}
       </span>
-      <span className="mt-0.5 text-[8px] font-bold lowercase leading-none tracking-wide text-white/95 sm:text-[9px]">
+      <span className="mt-0.5 text-[8px] font-bold lowercase leading-none tracking-wide text-white sm:text-[9px]">
         {label}
       </span>
     </div>
   );
 }
 
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
 /** Compact countdown beside the promo-event title. */
 export function FeaturedEventCountdown({
   endsAt,
   label = 'ENDS IN',
   labelColor = '#0C4A6E',
+  /** Urgent red when remaining time is under this many ms (default = 3 days). */
+  urgentUnderMs = THREE_DAYS_MS,
+  /** Always use urgent red while the timer is visible. */
+  forceUrgent = false,
+  /** Auto-apply urgent red under the threshold (ignored when forceUrgent). */
+  autoUrgent = true,
 }: {
   endsAt: string;
   label?: string;
   labelColor?: string;
+  urgentUnderMs?: number;
+  forceUrgent?: boolean;
+  autoUrgent?: boolean;
 }) {
   const [parts, setParts] = useState(() => getCountdownParts(endsAt));
 
@@ -158,6 +181,13 @@ export function FeaturedEventCountdown({
   }, [endsAt]);
 
   if (parts.totalMs <= 0) return null;
+
+  const thresholdMs =
+    Number.isFinite(urgentUnderMs) && urgentUnderMs > 0 ? urgentUnderMs : THREE_DAYS_MS;
+  // Always-red toggle wins; otherwise follow the hours threshold from admin.
+  const urgent =
+    forceUrgent === true ||
+    (autoUrgent !== false && parts.totalMs > 0 && parts.totalMs < thresholdMs);
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -170,10 +200,10 @@ export function FeaturedEventCountdown({
         </span>
       ) : null}
       <div className="flex items-center gap-1" aria-live="polite">
-        <RectUnit value={parts.days} label="days" />
-        <RectUnit value={parts.hours} label="hours" />
-        <RectUnit value={parts.minutes} label="mins" />
-        <RectUnit value={parts.seconds} label="secs" />
+        <RectUnit value={parts.days} label="days" urgent={urgent} />
+        <RectUnit value={parts.hours} label="hours" urgent={urgent} />
+        <RectUnit value={parts.minutes} label="mins" urgent={urgent} />
+        <RectUnit value={parts.seconds} label="secs" urgent={urgent} />
       </div>
     </div>
   );

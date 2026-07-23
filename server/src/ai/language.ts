@@ -15,7 +15,6 @@ export function detectChatLocale(text: string): ChatLocale {
   const tlHits = (t.match(TAGALOG_HINTS) || []).length;
   const hasLatinOnly = /^[\x00-\x7F\s.,!?'"()\-₱0-9]+$/.test(t);
 
-  // Prefer Cebuano when strong Cebuano markers beat Tagalog
   if (cebHits >= 2 && cebHits > tlHits) return 'ceb';
   if (cebHits >= 1 && /gyud|jud|kaayo|palihog|maayong/i.test(t)) return 'ceb';
   if (tlHits >= 2 || /\b(po|opo|magkano|hindi|sige)\b/i.test(t)) return 'tl';

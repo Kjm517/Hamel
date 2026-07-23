@@ -1,5 +1,6 @@
 import type { PromoBannerItem } from '../../data/banners';
 import { ImageUrlOrUploadField } from './ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../lib/image-size-guides';
 import { BannerLinkDestinationField } from './BannerLinkDestinationField';
 import { hexForColorInput } from '../../lib/color-utils';
 import { mediaPathFor } from '../../lib/storage';
@@ -92,12 +93,13 @@ export function PromoSideBannerEditor({ label, badgeNumber, item, onChange }: Pr
           <FieldEditor label="Badge label" value={item.badge || ''} onChange={(v) => onChange({ badge: v })} placeholder="e.g. Metro Cebu" />
         </div>
         <div>
-          <FieldEditor label="CTA label on banner (optional)" value={item.ctaLabel || ''} onChange={(v) => onChange({ ctaLabel: v })} placeholder="e.g. Learn more" />
+          <FieldEditor label="Button text on banner (optional)" value={item.ctaLabel || ''} onChange={(v) => onChange({ ctaLabel: v })} placeholder="e.g. Learn more" />
           <ImageUrlOrUploadField
             label="Background image"
             value={item.imageUrl || ''}
             onChange={(v) => onChange({ imageUrl: v })}
             remoteUpload={{ getObjectPath: mediaPathFor('promo-banners') }}
+            sizeGuide={IMAGE_SIZE_GUIDES.promoSideBanner}
           />
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <div>

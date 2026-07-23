@@ -299,7 +299,7 @@ Our in-house technicians are trained for consistent quality — proper vacuuming
 
 export function getPromoPages(): PromoPage[] {
   const cached = getCachedContent<PromoPage[]>('promo_pages');
-  // An empty array is a valid saved state: it means every custom page was deleted.
+
   if (cached) return cached.map(withBlocks);
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -308,14 +308,14 @@ export function getPromoPages(): PromoPage[] {
       if (Array.isArray(parsed)) return parsed.map(withBlocks);
     }
   } catch {
-    // ignore
+
   }
   return defaultPromoPages.map(withBlocks);
 }
 
 export async function loadPromoPages(): Promise<PromoPage[]> {
   const data = await fetchContent<PromoPage[]>('promo_pages', defaultPromoPages);
-  // Keep an intentionally empty saved list empty instead of restoring defaults.
+
   const pages = Array.isArray(data) ? data : defaultPromoPages;
   window.dispatchEvent(new CustomEvent('hamel-promo-pages-updated'));
   return pages.map(withBlocks);
@@ -348,10 +348,10 @@ export async function savePromoPages(pages: PromoPage[]): Promise<void> {
   await saveContent('promo_pages', normalized);
   try {
     localStorage.removeItem(STORAGE_KEY);
-    // Notify other tabs (storefront) to reload the menu
+
     localStorage.setItem('hamel_promo_pages_ping', String(Date.now()));
   } catch {
-    // ignore
+
   }
   window.dispatchEvent(new CustomEvent('hamel-promo-pages-updated'));
 }
@@ -410,7 +410,7 @@ export function getNavPromoPages(): PromoPage[] {
 }
 
 function withBlocks(page: PromoPage): PromoPage {
-  // Preserve legacy published pages in the menu when they predate the separate visibility option.
+
   return {
     ...page,
     showInNav: page.showInNav ?? Boolean(page.published),
@@ -455,7 +455,7 @@ export async function resetPromoPages(): Promise<void> {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
-    // ignore
+
   }
   window.dispatchEvent(new CustomEvent('hamel-promo-pages-updated'));
 }

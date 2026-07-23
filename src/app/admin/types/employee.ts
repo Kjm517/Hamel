@@ -38,6 +38,10 @@ export function canManageTeamMembers(role: EmployeeRole | null | undefined): boo
   return role === 'Manager' || role === 'Admin';
 }
 
+export function isFullAdminRole(role: EmployeeRole | null | undefined): boolean {
+  return role === 'Manager' || role === 'Admin';
+}
+
 export function defaultPermissionsForRole(role: EmployeeRole): string[] {
   switch (role) {
     case 'Manager':
@@ -45,6 +49,7 @@ export function defaultPermissionsForRole(role: EmployeeRole): string[] {
         'dashboard',
         'products',
         'inquiries',
+        'services',
         'customers',
         'messages',
         'analytics',
@@ -56,6 +61,7 @@ export function defaultPermissionsForRole(role: EmployeeRole): string[] {
         'dashboard',
         'products',
         'inquiries',
+        'services',
         'customers',
         'messages',
         'analytics',
@@ -63,10 +69,31 @@ export function defaultPermissionsForRole(role: EmployeeRole): string[] {
         'employees',
       ];
     case 'Staff':
-      return ['dashboard', 'products', 'inquiries', 'customers', 'messages'];
+      return ['dashboard', 'services', 'customers', 'messages'];
     case 'Viewer':
       return ['dashboard', 'products'];
     default:
       return ['dashboard'];
   }
+}
+
+/** Menu / page gate. Manager & Admin see everything; Staff & Viewer use their permission list. */
+export function employeeHasPermission(
+  role: EmployeeRole | null | undefined,
+  permissions: string[] | null | undefined,
+  key: string
+): boolean {
+  if (isFullAdminRole(role)) return true;
+  // Staff: no Products or Orders & Inquiries in the menu (bookings stay under Services).
+  if (role === 'Staff' && (key === 'products' || key === 'inquiries')) return false;
+  const perms =
+    permissions && permissions.length > 0
+      ? permissions
+      : role
+        ? defaultPermissionsForRole(role)
+        : [];
+  if (perms.includes(key)) return true;
+  // Older Staff records may lack the newer `services` key.
+  if (key === 'services' && role === 'Staff') return true;
+  return false;
 }

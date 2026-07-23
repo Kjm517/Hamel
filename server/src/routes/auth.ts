@@ -125,8 +125,7 @@ authRoutes.post('/forgot-password', async (c) => {
   }
 
   const employee = await findActiveEmployeeByIdentifier(identifier);
-  // Always return a generic success shape when employee missing (avoid enumeration),
-  // but include email when found so the UI can show it.
+
   if (!employee) {
     return c.json({
       ok: true,

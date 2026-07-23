@@ -19,7 +19,7 @@ export function isExternalHref(href: string): boolean {
   if (!h || h.startsWith('/')) return false;
   if (/^(https?:|mailto:|tel:)/i.test(h)) return true;
   if (h.startsWith('//')) return true;
-  // www.google.com, google.com, wa.me/123, etc.
+
   return /^([a-z0-9](?:[-a-z0-9]*[a-z0-9])?\.)+[a-z]{2,}(\/|$)/i.test(h) || /^www\./i.test(h);
 }
 

@@ -38,10 +38,10 @@ export function WhyHamelPage() {
 
   return (
     <div className="bg-white">
-      {/* Hero Banner — editable via whyHamelBanner config above */}
+      {}
       <PageBanner config={whyHamelBanner} />
 
-      {/* Our Story Section */}
+      {}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -72,7 +72,7 @@ export function WhyHamelPage() {
         </div>
       </section>
 
-      {/* By The Numbers */}
+      {}
       <section className="py-16" style={{ backgroundColor: '#0EA5E9' }}>
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 text-center">
@@ -86,7 +86,7 @@ export function WhyHamelPage() {
         </div>
       </section>
 
-      {/* Our Process */}
+      {}
       <section className="py-16" style={{ backgroundColor: '#E0F2FE' }}>
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12" style={{ color: '#0EA5E9' }}>
@@ -115,7 +115,7 @@ export function WhyHamelPage() {
         </div>
       </section>
 
-      {/* Certifications */}
+      {}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12" style={{ color: '#0EA5E9' }}>
@@ -147,7 +147,7 @@ export function WhyHamelPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {}
       <section className="py-16" style={{ backgroundColor: '#0EA5E9' }}>
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-white mb-6">

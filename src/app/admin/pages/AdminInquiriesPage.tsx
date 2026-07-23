@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { Copy, Sparkles, SlidersHorizontal, Trash2 } from 'lucide-react';
 import {
   deleteInquiry,
@@ -17,6 +18,14 @@ import { useAdminConfirm } from '../components/AdminConfirmDialog';
 
 const STATUSES: InquiryStatus[] = ['pending', 'confirmed', 'completed', 'cancelled'];
 const PRIORITIES: LeadScore[] = ['high', 'medium', 'low'];
+const BOOKING_SOURCE = 'maintenance-booking';
+
+function isServiceBooking(row: InquiryRow) {
+  return (
+    row.source === BOOKING_SOURCE ||
+    (row.product ?? '').toLowerCase().startsWith('maintenance —')
+  );
+}
 
 function leadBadge(score: LeadScore | null | undefined) {
   if (score === 'high') {
@@ -46,9 +55,16 @@ function statusLabel(status: InquiryStatus | string) {
 
 export function AdminInquiriesPage() {
   const { confirm, dialog: confirmDialog } = useAdminConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sourceParam = searchParams.get('source');
+  const openId = searchParams.get('open');
+  const initialSourceFilter =
+    sourceParam === BOOKING_SOURCE ? 'bookings' : sourceParam === 'storefront' ? 'orders' : 'all';
+
   const [rows, setRows] = useState<InquiryRow[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [leadFilter, setLeadFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>(initialSourceFilter);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<InquiryRow | null>(null);
@@ -82,6 +98,17 @@ export function AdminInquiriesPage() {
     void load();
   }, [filter, leadFilter]);
 
+  useEffect(() => {
+    if (sourceParam === BOOKING_SOURCE) setSourceFilter('bookings');
+    else if (sourceParam === 'storefront') setSourceFilter('orders');
+  }, [sourceParam]);
+
+  const visibleRows = useMemo(() => {
+    if (sourceFilter === 'bookings') return rows.filter(isServiceBooking);
+    if (sourceFilter === 'orders') return rows.filter((r) => !isServiceBooking(r));
+    return rows;
+  }, [rows, sourceFilter]);
+
   const openInquiry = (row: InquiryRow) => {
     setSelected(row);
     setDraftError(null);
@@ -89,6 +116,21 @@ export function AdminInquiriesPage() {
     setPriorityError(null);
     setPriorityMode('manual');
     setManualPriority(row.leadScore ?? 'medium');
+  };
+
+  useEffect(() => {
+    if (!openId || loading) return;
+    const match = rows.find((r) => r.id === openId);
+    if (match) openInquiry(match);
+  }, [openId, loading, rows]);
+
+  const setSourceFilterAndUrl = (next: string) => {
+    setSourceFilter(next);
+    const nextParams = new URLSearchParams(searchParams);
+    if (next === 'bookings') nextParams.set('source', BOOKING_SOURCE);
+    else nextParams.delete('source');
+    nextParams.delete('open');
+    setSearchParams(nextParams, { replace: true });
   };
 
   const applyPriorityLocal = (next: InquiryRow) => {
@@ -189,9 +231,20 @@ export function AdminInquiriesPage() {
       {confirmDialog}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <p className={adminUi.pageIntro}>
-          Customer inquiries from the site. Review priority, update status, or draft a reply.
+          {sourceFilter === 'bookings'
+            ? 'Service bookings from Request a Service. Update status here — same queue Staff use for Orders & Inquiries.'
+            : 'Customer inquiries from the site. Review priority, update status, or draft a reply.'}
         </p>
         <div className="flex flex-wrap gap-2">
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilterAndUrl(e.target.value)}
+            className="h-10 rounded-[10px] border border-[#e4ebf2] bg-white px-3 text-[13.5px] text-[#516171] focus:border-sky-300 focus:outline-none"
+          >
+            <option value="all">All types</option>
+            <option value="orders">Product inquiries</option>
+            <option value="bookings">Service bookings</option>
+          </select>
           <select
             value={leadFilter}
             onChange={(e) => setLeadFilter(e.target.value)}
@@ -224,9 +277,11 @@ export function AdminInquiriesPage() {
       )}
       {loading && <p className="text-sm text-[#9aa7b5]">Loading…</p>}
 
-      {!loading && rows.length === 0 && (
+      {!loading && visibleRows.length === 0 && (
         <p className="text-sm text-[#9aa7b5]">
-          No inquiries yet. They’ll show up here when someone asks from the website.
+          {sourceFilter === 'bookings'
+            ? 'No service bookings yet. They’ll show up when someone uses Request a Service on the site.'
+            : 'No inquiries yet. They’ll show up here when someone asks from the website.'}
         </p>
       )}
 
@@ -245,7 +300,7 @@ export function AdminInquiriesPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {visibleRows.map((row) => (
               <tr
                 key={row.id}
                 className="cursor-pointer border-t border-[#f1f5f9] hover:bg-[#f0f9ff]"

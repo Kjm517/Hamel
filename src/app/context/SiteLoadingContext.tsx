@@ -55,8 +55,8 @@ export function useSiteLoading() {
  */
 export function usePageLoading(loading: boolean, key = 'page') {
   const ctx = useContext(SiteLoadingContext);
-  // Stable callback only — do NOT depend on the whole ctx object (it changes
-  // whenever pageBusy flips and would create an infinite setState loop).
+
+
   const setPageLoading = ctx?.setPageLoading;
 
   useEffect(() => {

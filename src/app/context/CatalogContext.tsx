@@ -47,6 +47,18 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("hamel-catalog-updated", onCatalogUpdated);
   }, [reload]);
 
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void reload();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [reload]);
+
   return (
     <CatalogContext.Provider value={{ products, loading, error, reload }}>
       {children}

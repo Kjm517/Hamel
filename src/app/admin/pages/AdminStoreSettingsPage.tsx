@@ -139,6 +139,75 @@ export function AdminStoreSettingsPage() {
               label="Show Cool Deals icon"
             />
           </label>
+          <label className="flex cursor-pointer items-center justify-between rounded-xl border border-amber-100 bg-amber-50/40 px-3.5 py-3">
+            <div className="min-w-0 pr-3">
+              <span className="block text-[13.5px] font-semibold text-[#1e2a38]">
+                Under maintenance
+              </span>
+              <span className="mt-0.5 block text-[12px] font-medium text-[#7a8899]">
+                Hides all navigation and shows the maintenance page on the storefront. Admin stays
+                available.
+              </span>
+            </div>
+            <AdminToggle
+              checked={form.maintenanceMode === true}
+              onChange={(maintenanceMode) => setForm({ ...form, maintenanceMode })}
+              label="Under maintenance"
+            />
+          </label>
+        </div>
+
+        <h3 className="mb-3.5 mt-6 text-[15.5px] font-bold text-[#1e2a38]">
+          Coming soon countdown
+        </h3>
+        <div className="flex flex-col gap-3">
+          <label className="flex cursor-pointer items-center justify-between rounded-xl border border-sky-100 bg-sky-50/40 px-3.5 py-3">
+            <div className="min-w-0 pr-3">
+              <span className="block text-[13.5px] font-semibold text-[#1e2a38]">
+                Enable coming-soon countdown
+              </span>
+              <span className="mt-0.5 block text-[12px] font-medium text-[#7a8899]">
+                Hides all navigation and shows a countdown page on the storefront instead. Admin
+                stays available.
+              </span>
+            </div>
+            <AdminToggle
+              checked={form.countdownEnabled === true}
+              onChange={(countdownEnabled) => setForm({ ...form, countdownEnabled })}
+              label="Enable countdown"
+            />
+          </label>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[13px] font-semibold text-[#516171]">Launch date &amp; time</span>
+              <input
+                type="datetime-local"
+                className={adminUi.input}
+                value={isoToLocalInput(form.countdownEndsAt)}
+                onChange={(e) =>
+                  setForm({ ...form, countdownEndsAt: localInputToIso(e.target.value) })
+                }
+              />
+            </label>
+            <label className="block">
+              <span className="text-[13px] font-semibold text-[#516171]">Heading</span>
+              <input
+                className={adminUi.input}
+                value={form.countdownTitle}
+                onChange={(e) => setForm({ ...form, countdownTitle: e.target.value })}
+              />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-[13px] font-semibold text-[#516171]">Message</span>
+              <textarea
+                className={adminUi.textarea}
+                rows={2}
+                value={form.countdownMessage}
+                onChange={(e) => setForm({ ...form, countdownMessage: e.target.value })}
+              />
+            </label>
+          </div>
         </div>
 
         <div className="mt-[22px]">
@@ -149,4 +218,20 @@ export function AdminStoreSettingsPage() {
       </form>
     </div>
   );
+}
+
+/** ISO datetime -> value for <input type="datetime-local"> (local time, no timezone). */
+function isoToLocalInput(iso: string): string {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** <input type="datetime-local"> value -> ISO datetime string. */
+function localInputToIso(value: string): string {
+  if (!value) return '';
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : '';
 }

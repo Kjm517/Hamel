@@ -46,7 +46,7 @@ export function SiteLoadingScreen() {
   const bootstrapBusy = catalogLoading || settingsLoading || tagsLoading;
   const busy = bootstrapBusy || pageBusy;
 
-  // Start / restart loader whenever work becomes pending.
+
   useEffect(() => {
     const wasBusy = busyRef.current;
     busyRef.current = busy;

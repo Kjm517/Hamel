@@ -10,6 +10,8 @@ import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
 import { CoolDealsPage } from "./pages/CoolDealsPage";
 import { ComparePage } from "./pages/ComparePage";
 import { PromoLandingPage } from "./pages/PromoLandingPage";
+import { MaintenancePage } from "./pages/MaintenancePage";
+import { CountdownPage } from "./pages/CountdownPage";
 import { AdminRoot } from "./admin/AdminRoot";
 import { AdminRequireAuth } from "./admin/components/AdminRequireAuth";
 import { AdminLayout } from "./admin/AdminLayout";
@@ -18,6 +20,7 @@ import { AdminForgotPasswordPage } from "./admin/pages/AdminForgotPasswordPage";
 import { AdminResetPasswordPage } from "./admin/pages/AdminResetPasswordPage";
 import { DashboardPage } from "./admin/pages/DashboardPage";
 import { AdminPagesHub } from "./admin/pages/AdminPagesHub";
+import { AdminAuthScreenPage } from "./admin/pages/AdminAuthScreenPage";
 import { AdminBannersPage } from "./admin/pages/AdminBannersPage";
 import { AdminPromoEventPage } from "./admin/pages/AdminPromoEventPage";
 import { AdminProductsPage } from "./admin/pages/AdminProductsPage";
@@ -28,8 +31,10 @@ import { AdminTagsPage } from "./admin/pages/AdminTagsPage";
 import { AdminInstallmentsPage } from "./admin/pages/AdminInstallmentsPage";
 import { AdminPromoPopupPage } from "./admin/pages/AdminPromoPopupPage";
 import { AdminVouchersPage } from "./admin/pages/AdminVouchersPage";
+import { AdminTestimonialsPage } from "./admin/pages/AdminTestimonialsPage";
 import { AdminPromoPagesPage } from "./admin/pages/AdminPromoPagesPage";
 import { AdminInquiriesPage } from "./admin/pages/AdminInquiriesPage";
+import { AdminServicesPage } from "./admin/pages/AdminServicesPage";
 import { AdminCustomersPage } from "./admin/pages/AdminCustomersPage";
 import { AdminMessagesPage } from "./admin/pages/AdminMessagesPage";
 import { AdminAnalyticsPage } from "./admin/pages/AdminAnalyticsPage";
@@ -52,6 +57,8 @@ export const router = createBrowserRouter([
       { path: "contact", Component: ContactPage },
       { path: "privacy-policy", Component: PrivacyPolicyPage },
       { path: "promo/:slug", Component: PromoLandingPage },
+      { path: "maintenance", Component: MaintenancePage },
+      { path: "countdown", Component: CountdownPage },
     ],
   },
   {
@@ -77,12 +84,15 @@ export const router = createBrowserRouter([
               { path: "tags", Component: AdminTagsPage },
               { path: "installments", Component: AdminInstallmentsPage },
               { path: "promo-popup", Component: AdminPromoPopupPage },
+              { path: "auth-screen", Component: AdminAuthScreenPage },
               { path: "vouchers", Component: AdminVouchersPage },
+              { path: "testimonials", Component: AdminTestimonialsPage },
               { path: "products", Component: AdminProductsPage },
               { path: "products/new", Component: AddEditProductPage },
               { path: "products/:id/edit", Component: AddEditProductPage },
               { path: "products/edit/:id", Component: AddEditProductPage },
               { path: "inquiries", Component: AdminInquiriesPage },
+              { path: "services", Component: AdminServicesPage },
               { path: "customers", Component: AdminCustomersPage },
               { path: "messages", Component: AdminMessagesPage },
               { path: "analytics", Component: AdminAnalyticsPage },

@@ -13,6 +13,9 @@ export const hamelAssets = {
     walking: `${base}/mascot/penguin_walking_stride.webp`,
     /** Horizontal 6-frame strip: 9600×1600 (1600×1600 each), transparent */
     danceSheet: `${base}/mascot/penguin_dance_spritesheet.png?v=3`,
+    /** Horizontal 6-frame strip: 3072×512 (512×512 each), transparent */
+    constructionSheet: `${base}/mascot/hamel-construction.png?v=1`,
+    celebrate: `${base}/mascot/celebrate-1-clear.webp?v=1`,
   },
   promo: {
     fan: `${base}/promo/fan-promo.png`,

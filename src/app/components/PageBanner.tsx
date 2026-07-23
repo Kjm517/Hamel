@@ -16,7 +16,7 @@ export interface BannerConfig {
   linkExternal?: boolean;
   linkMode?: 'none' | 'promo-page' | 'custom';
   promoPageId?: string;
-  overlayColor?: string; // CSS gradient or color string
+  overlayColor?: string;
   textAlign?: 'left' | 'center' | 'right';
   height?: 'sm' | 'md' | 'lg';
 }
@@ -60,17 +60,17 @@ export function PageBanner({ config, className = '' }: PageBannerProps) {
 
   return (
     <div className={`relative overflow-hidden w-full ${heights[height]} ${className}`}>
-      {/* Background image */}
+      {}
       <ImageWithFallback
         src={imageUrl}
         alt={imageAlt}
         loading="eager"
         className="absolute inset-0 w-full h-full object-cover"
       />
-      {/* Color overlay — only when set in admin */}
+      {}
       {overlayColor ? <div className="absolute inset-0" style={{ background: overlayColor }} /> : null}
 
-      {/* Content */}
+      {}
       <div className={`relative z-10 h-full flex flex-col justify-center px-6 md:px-12 max-w-7xl mx-auto w-full ${contentAlign}`}>
         {tag && (
           <div

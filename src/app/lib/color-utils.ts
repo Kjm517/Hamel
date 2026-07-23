@@ -55,7 +55,7 @@ export function readableOnBackground(text: string, bg: string, fallback: string)
     if (contrastRatio(text, bg) >= 3) return text;
     return relativeLuminance(bg) > 0.45 ? '#1F2937' : '#F3F4F6';
   } catch {
-    // ignore invalid hex
+
   }
   return fallback;
 }

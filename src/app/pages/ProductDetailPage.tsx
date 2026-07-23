@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router';
 import {
   Star,
   ChevronLeft,
@@ -28,8 +28,9 @@ import {
   resolveInstallmentOptionsForPrice,
 } from '../data/installment-plans';
 import { SelectOrEnterVoucher } from '../components/SelectOrEnterVoucher';
-import { computeVoucherDiscount, type StoreVoucher } from '../data/vouchers';
+import { computeVouchersDiscount, type StoreVoucher } from '../data/vouchers';
 import { WriteReviewModal } from '../components/WriteReviewModal';
+import { LoyaltyBadge } from '../components/LoyaltyBadge';
 import { PromoCountdownBanner } from '../components/PromoCountdownBanner';
 import { ShareProductModal } from '../components/ShareProductModal';
 import { CompareLimitModal } from '../components/CompareLimitModal';
@@ -41,6 +42,7 @@ import {
   markReviewHelpful,
   type CustomerReview,
 } from '../lib/catalog-api';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
 import {
   getDiscountedPrice,
   getPrimaryPromoEntry,
@@ -57,6 +59,7 @@ import {
   formatCornerTagLabel,
   resolveProductCornerTags,
 } from '../lib/product-corner-tags';
+import { getPriceColor } from '../lib/product-price-color';
 import {
   getCompareIds,
   isInCompare,
@@ -65,12 +68,6 @@ import {
   toggleWishlist,
 } from '../lib/product-actions';
 import { usePageLoading } from '../context/SiteLoadingContext';
-
-function getPriceColor(tier: Product['tier'], hasPromo: boolean): string {
-  if (tier === 'flash-sale' && hasPromo) return '#EA580C';
-  if (tier === 'budget') return '#D97706';
-  return '#0EA5E9';
-}
 
 function averageRating(reviews: CustomerReview[]): number {
   if (!reviews.length) return 0;
@@ -92,14 +89,34 @@ export function ProductDetailPage() {
   const navigate = useNavigate();
   const { products, loading: catalogLoading } = useCatalog();
   const { tags: tagCatalog } = useProductTags();
+  const { isAuthenticated } = useCustomerAuth();
   const product = products.find((p) => p.id === id && isStorefrontProduct(p));
   const [reviews, setReviews] = useState<CustomerReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewSort, setReviewSort] = useState<'newest' | 'highest' | 'lowest'>('newest');
   const [writeReviewOpen, setWriteReviewOpen] = useState(false);
 
+  const [searchParams] = useSearchParams();
+  const hpFromUrl = searchParams.get('hp');
+
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedHP, setSelectedHP] = useState(product?.hp[0] || '');
+  const [selectedHP, setSelectedHP] = useState(() => {
+    if (!product) return '';
+    if (hpFromUrl) {
+      const match = product.hp.find((h) => h.toLowerCase() === hpFromUrl.toLowerCase());
+      if (match) return match;
+      // fuzzy 2HP ↔ 2.0HP
+      const want = hpFromUrl.match(/([\d.]+)/)?.[1];
+      if (want) {
+        const fuzzy = product.hp.find((h) => {
+          const n = h.match(/([\d.]+)/)?.[1];
+          return n && Number(n) === Number(want);
+        });
+        if (fuzzy) return fuzzy;
+      }
+    }
+    return product.hp[0] || '';
+  });
   const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'reviews'>('description');
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [inquiryData, setInquiryData] = useState<InquiryFormData | null>(null);
@@ -107,7 +124,7 @@ export function ProductDetailPage() {
   const [offerFocus, setOfferFocus] = useState(0);
   const [installmentsOpen, setInstallmentsOpen] = useState(false);
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentOption[]>([]);
-  const [appliedVoucher, setAppliedVoucher] = useState<StoreVoucher | null>(null);
+  const [appliedVouchers, setAppliedVouchers] = useState<StoreVoucher[]>([]);
   const [wishlisted, setWishlisted] = useState(() => (id ? isInWishlist(id) : false));
   const [comparing, setComparing] = useState(() => (id ? isInCompare(id) : false));
   const [compareLimitOpen, setCompareLimitOpen] = useState(false);
@@ -146,15 +163,32 @@ export function ProductDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, isAuthenticated]);
 
   useEffect(() => {
-    if (product?.hp[0]) setSelectedHP(product.hp[0]);
-    if (product?.id) {
+    if (!product) return;
+    if (hpFromUrl) {
+      const exact = product.hp.find((h) => h.toLowerCase() === hpFromUrl.toLowerCase());
+      if (exact) {
+        setSelectedHP(exact);
+      } else {
+        const want = hpFromUrl.match(/([\d.]+)/)?.[1];
+        const fuzzy = want
+          ? product.hp.find((h) => {
+              const n = h.match(/([\d.]+)/)?.[1];
+              return n && Number(n) === Number(want);
+            })
+          : undefined;
+        setSelectedHP(fuzzy || product.hp[0] || '');
+      }
+    } else if (product.hp[0]) {
+      setSelectedHP(product.hp[0]);
+    }
+    if (product.id) {
       setWishlisted(isInWishlist(product.id));
       setComparing(isInCompare(product.id));
     }
-  }, [product]);
+  }, [product, hpFromUrl]);
 
   useEffect(() => {
     if (!product) {
@@ -163,7 +197,7 @@ export function ProductDetailPage() {
     }
     let cancelled = false;
     const unit = getHpUnitPrice(product, selectedHP || product.hp[0]);
-    const discounted = getDiscountedPrice(product, unit);
+    const discounted = getDiscountedPrice(product, unit, selectedHP || product.hp[0]);
     const refresh = () => {
       void loadInstallmentPlans().then((cfg) => {
         if (!cancelled) {
@@ -189,7 +223,7 @@ export function ProductDetailPage() {
     const list = [...reviews];
     if (reviewSort === 'highest') list.sort((a, b) => b.rating - a.rating);
     else if (reviewSort === 'lowest') list.sort((a, b) => a.rating - b.rating);
-    // newest: API already returns created_at desc; keep order
+
     return list;
   }, [reviews, reviewSort]);
 
@@ -197,13 +231,17 @@ export function ProductDetailPage() {
   const liveCount = reviews.length;
   const dist = ratingDistribution(reviews);
 
-  const handleHelpful = async (reviewId: string) => {
-    try {
-      const updated = await markReviewHelpful(reviewId);
-      setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, ...updated } : r)));
-    } catch {
-      // ignore
-    }
+  const handleHelpful = (reviewId: string) => {
+    void (async () => {
+      try {
+        const updated = await markReviewHelpful(reviewId);
+        setReviews((prev) =>
+          prev.map((r) => (r.id === reviewId ? { ...r, ...updated } : r))
+        );
+      } catch {
+        // network / conflict — leave UI unchanged
+      }
+    })();
   };
 
   if (!product) {
@@ -222,11 +260,11 @@ export function ProductDetailPage() {
   const primaryPromo = getPrimaryPromoEntry(product);
   const promoList = getProductPromoList(product);
   const hasPromos = productHasPromos(product);
-  const hasPriceDiscount = promoList.some(
-    (p) => p.type === 'percentage' || p.type === 'fixed'
-  );
   const unitPrice = getHpUnitPrice(product, selectedHP);
-  const discountedUnit = getDiscountedPrice(product, unitPrice);
+  const discountedUnit = getDiscountedPrice(product, unitPrice, selectedHP);
+  // Display pricing must reflect the selected HP, not whether another size
+  // has a promo configured.
+  const hasSelectedHpDiscount = discountedUnit < unitPrice;
   const vouchers = product.vouchers ?? [];
   const brandLogo = brandLogoFor(product.brand);
   const countdownEndsAt = getPromoCountdownEndsAt(product);
@@ -238,7 +276,6 @@ export function ProductDetailPage() {
     return `Limited-time ${label}. Ends soon!`;
   })();
 
-  // Dynamic banner config per product — change imageUrl/title/subtitle to customise
   const detailBannerConfig = {
     premium: {
       imageUrl: 'https://images.unsplash.com/photo-1628745750110-c8ddcdad2c15?w=1200&h=280&fit=crop',
@@ -268,7 +305,7 @@ export function ProductDetailPage() {
   return (
     <>
       <div className="bg-gray-50 min-h-screen">
-      {/* Per-product hero banner — editable via detailBannerConfig above */}
+      {}
       <PageBanner
         config={{
           ...detailBannerConfig,
@@ -277,7 +314,7 @@ export function ProductDetailPage() {
         }}
       />
 
-      {/* Breadcrumb */}
+      {}
       <div className="border-b bg-white">
         <div className="mx-auto max-w-7xl px-4 py-3">
           <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm text-gray-600">
@@ -293,7 +330,7 @@ export function ProductDetailPage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
-        {/* Back Button */}
+        {}
         <Link
           to="/products"
           className="mb-6 inline-flex items-center gap-2 hover:opacity-80"
@@ -304,7 +341,7 @@ export function ProductDetailPage() {
         </Link>
 
         <div className="grid gap-6 lg:grid-cols-[60%_40%] lg:gap-8">
-          {/* Left: Image Gallery */}
+          {}
           <div>
             <div className="relative mb-4 rounded-lg bg-white p-4 sm:p-8">
               <img
@@ -335,10 +372,10 @@ export function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Right: Product Info */}
+          {}
           <div>
             <div className="bg-white rounded-lg p-6">
-              {/* Brand & Model + actions */}
+              {}
               <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
                 <div className="mb-1 flex h-8 items-center">
                   {brandLogo ? (
@@ -403,6 +440,8 @@ export function ProductDetailPage() {
               {cornerTags.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {cornerTags.map((tag) => {
+                    const label = formatCornerTagLabel(product, tag, selectedHP);
+                    if (!label) return null;
                     const variant = cornerTagVariant(tag);
                     const bg = cornerTagBgColor(tag);
                     return (
@@ -410,7 +449,7 @@ export function ProductDetailPage() {
                         key={tag.id}
                         size="detail"
                         variant={variant}
-                        label={formatCornerTagLabel(product, tag)}
+                        label={label}
                         color={variant === 'outline' ? bg : cornerTagTextColor(tag)}
                         bgColor={
                           variant === 'outline'
@@ -428,7 +467,7 @@ export function ProductDetailPage() {
                 {product.model}
               </h1>
 
-              {/* Rating */}
+              {}
               <div className="flex items-center gap-2 mb-6">
                 <div className="flex">
                   {[...Array(5)].map((_, i) => (
@@ -448,7 +487,7 @@ export function ProductDetailPage() {
                 </span>
               </div>
 
-              {/* HP Selector */}
+              {}
               <div className="mb-6">
                 <label className="block text-sm font-semibold mb-3" style={{ color: '#0EA5E9' }}>
                   HP Selector:
@@ -476,16 +515,16 @@ export function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* Price */}
+              {}
               <div className="mb-6 pb-6 border-b">
-                {hasPriceDiscount ? (
+                {hasSelectedHpDiscount ? (
                   <div className="text-lg text-gray-400 line-through mb-2">
                     ₱{unitPrice.toLocaleString()}
                   </div>
                 ) : null}
                 <div
                   className="text-3xl font-bold mb-3"
-                  style={{ color: getPriceColor(product.tier, hasPriceDiscount) }}
+                  style={{ color: getPriceColor(product.tier, hasSelectedHpDiscount) }}
                 >
                   ₱{discountedUnit.toLocaleString()}
                   <span className="ml-2 text-sm font-medium text-gray-500">
@@ -547,7 +586,7 @@ export function ProductDetailPage() {
                   </>
                 ) : null}
 
-                {/* Installment hint */}
+                {}
                 {installmentOptions.length > 0 && (
                   <div className="mt-3">
                     <InstallmentChip
@@ -568,11 +607,12 @@ export function ProductDetailPage() {
                   </div>
                   <SelectOrEnterVoucher
                     subtotal={discountedUnit}
-                    applied={appliedVoucher}
-                    onApply={setAppliedVoucher}
+                    applied={appliedVouchers}
+                    onApply={setAppliedVouchers}
                     productId={product.id}
+                    category={product.category}
                   />
-                  {appliedVoucher ? (
+                  {appliedVouchers.length > 0 ? (
                     <div className="flex items-center justify-between border-t border-dashed border-gray-200 pt-2 text-sm">
                       <span className="font-bold text-gray-900">Total</span>
                       <span className="text-lg font-black text-[#2563EB]">
@@ -580,7 +620,7 @@ export function ProductDetailPage() {
                         {Math.max(
                           0,
                           discountedUnit -
-                            computeVoucherDiscount(appliedVoucher, discountedUnit).amount
+                            computeVouchersDiscount(appliedVouchers, discountedUnit).amount
                         ).toLocaleString()}
                       </span>
                     </div>
@@ -588,7 +628,7 @@ export function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* Vouchers */}
+              {}
               {vouchers.length > 0 ? (
                 <div className="mb-6 pb-6 border-b">
                   <p className="mb-3 text-sm font-semibold text-gray-900">Vouchers</p>
@@ -634,7 +674,7 @@ export function ProductDetailPage() {
                 </div>
               ) : null}
 
-              {/* Feature Highlights */}
+              {}
               <div className="mb-6">
                 <label className="block text-sm font-semibold mb-3" style={{ color: '#0EA5E9' }}>
                   Feature Highlights:
@@ -649,7 +689,7 @@ export function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* CTA Button */}
+              {}
               <button
                 onClick={() => setShowInquiryModal(true)}
                 className="w-full py-4 font-bold text-lg mb-4 hover:opacity-90 transition-opacity text-gray-900"
@@ -658,7 +698,7 @@ export function ProductDetailPage() {
                 Inquire / Order Now
               </button>
 
-              {/* Trust Strip */}
+              {}
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className="text-center py-2 rounded" style={{ backgroundColor: '#E0F2FE' }}>
                   <Truck className="mx-auto mb-1" style={{ color: '#0EA5E9' }} size={20} />
@@ -677,7 +717,7 @@ export function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* Secondary Link */}
+              {}
               <div className="text-center">
                 <button className="text-sm hover:underline" style={{ color: '#0EA5E9' }}>
                   Have questions? Chat with our AI assistant
@@ -687,9 +727,9 @@ export function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Tabs Section */}
+        {}
         <div className="mt-8 rounded-lg bg-white">
-          {/* Tab Headers */}
+          {}
           <div className="flex overflow-x-auto border-b">
             <button
               onClick={() => setActiveTab('description')}
@@ -726,7 +766,7 @@ export function ProductDetailPage() {
             </button>
           </div>
 
-          {/* Tab Content */}
+          {}
           <div className="p-6">
             {activeTab === 'description' && (
               <div>
@@ -847,6 +887,9 @@ export function ProductDetailPage() {
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
                             <span className="font-semibold text-gray-900">{review.name}</span>
+                            {!review.anonymous && review.loyaltyTier ? (
+                              <LoyaltyBadge tier={review.loyaltyTier} compact />
+                            ) : null}
                             {!review.anonymous && (
                               <BadgeCheck size={16} className="text-[#0EA5E9]" aria-label="Verified" />
                             )}
@@ -892,8 +935,13 @@ export function ProductDetailPage() {
                           ) : null}
                           <button
                             type="button"
-                            onClick={() => void handleHelpful(review.id)}
-                            className="mt-3 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:border-[#0EA5E9] hover:text-[#0EA5E9]"
+                            onClick={() => handleHelpful(review.id)}
+                            aria-pressed={Boolean(review.helpfulByMe)}
+                            className={
+                              review.helpfulByMe
+                                ? 'mt-3 rounded-full border border-[#0EA5E9] bg-sky-50 px-3 py-1 text-xs font-medium text-[#0EA5E9] hover:bg-sky-100'
+                                : 'mt-3 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:border-[#0EA5E9] hover:text-[#0EA5E9]'
+                            }
                           >
                             Helpful ({review.helpfulCount ?? 0})
                           </button>
@@ -908,7 +956,7 @@ export function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Inquiry Modal */}
+      {}
       {showInquiryModal && (
         <ConversationalInquiryModal
           product={product}

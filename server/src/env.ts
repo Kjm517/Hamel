@@ -29,7 +29,7 @@ function loadDotEnv() {
       if (!(key in process.env)) process.env[key] = value;
     }
   } catch {
-    // ignore — env may be injected by the host
+
   }
 }
 

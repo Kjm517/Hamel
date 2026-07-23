@@ -2254,10 +2254,10 @@ var env = {
   resendApiKey: () => process.env.RESEND_API_KEY?.trim() || "",
   resendFrom: () => process.env.RESEND_FROM?.trim() || "Hamel Trading <onboarding@resend.dev>",
   /** Free-tier Cloudinary (temporary media). When set, uploads skip local disk. */
-  cloudinaryCloudName: () => process.env.CLOUDINARY_CLOUD_NAME?.trim() || "",
-  cloudinaryApiKey: () => process.env.CLOUDINARY_API_KEY?.trim() || "",
-  cloudinaryApiSecret: () => process.env.CLOUDINARY_API_SECRET?.trim() || "",
-  cloudinaryFolder: () => process.env.CLOUDINARY_FOLDER?.trim() || "hamel"
+  cloudinaryCloudName: () => (process.env.CLOUDINARY_CLOUD_NAME || "").trim().replace(/^["']|["']$/g, ""),
+  cloudinaryApiKey: () => (process.env.CLOUDINARY_API_KEY || "").trim().replace(/^["']|["']$/g, ""),
+  cloudinaryApiSecret: () => (process.env.CLOUDINARY_API_SECRET || "").trim().replace(/^["']|["']$/g, ""),
+  cloudinaryFolder: () => (process.env.CLOUDINARY_FOLDER || "hamel").trim().replace(/^["']|["']$/g, "") || "hamel"
 };
 
 // server/node_modules/bcryptjs/index.js
@@ -10853,6 +10853,371 @@ authRoutes.post("/change-password", requireAuth, async (c) => {
   return c.json({ ok: true });
 });
 
+// server/src/customer-auth.ts
+import { createHash as createHash2, randomInt } from "node:crypto";
+var CUSTOMER_TOKEN_TYPE = "customer";
+var CODE_TTL_MINUTES = 15;
+function secretKey2() {
+  return new TextEncoder().encode(env.jwtSecret());
+}
+async function signCustomerToken(account) {
+  return new SignJWT({ email: account.email, typ: CUSTOMER_TOKEN_TYPE }).setProtectedHeader({ alg: "HS256" }).setSubject(account.id).setIssuedAt().setExpirationTime("30d").sign(secretKey2());
+}
+async function verifyCustomerToken(token) {
+  const { payload } = await jwtVerify(token, secretKey2());
+  const sub = payload.sub;
+  const email = typeof payload.email === "string" ? payload.email : "";
+  if (!sub || !email || payload.typ !== CUSTOMER_TOKEN_TYPE) {
+    throw new Error("Invalid customer token payload");
+  }
+  return { sub, email, typ: CUSTOMER_TOKEN_TYPE };
+}
+function mapCustomerPublic(row) {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    status: row.status,
+    emailVerified: Boolean(row.email_verified_at),
+    createdAt: row.created_at
+  };
+}
+async function findCustomerAccountByEmail(email) {
+  const trimmed = email.trim();
+  if (!trimmed) return null;
+  const sql2 = getSql();
+  const rows = await sql2`
+    select
+      ca.id::text as id,
+      ca.customer_id::text as customer_id,
+      ca.email,
+      ca.password_hash,
+      ca.status,
+      ca.email_verified_at::text as email_verified_at,
+      c.name,
+      c.phone,
+      ca.created_at::text as created_at
+    from customer_accounts ca
+    join customers c on c.id = ca.customer_id
+    where lower(ca.email) = lower(${trimmed})
+    limit 1
+  `;
+  return rows[0] ?? null;
+}
+async function findCustomerAccountById(id) {
+  const sql2 = getSql();
+  const rows = await sql2`
+    select
+      ca.id::text as id,
+      ca.customer_id::text as customer_id,
+      ca.email,
+      ca.password_hash,
+      ca.status,
+      ca.email_verified_at::text as email_verified_at,
+      c.name,
+      c.phone,
+      ca.created_at::text as created_at
+    from customer_accounts ca
+    join customers c on c.id = ca.customer_id
+    where ca.id = ${id}::uuid
+    limit 1
+  `;
+  return rows[0] ?? null;
+}
+async function createCustomerAccount(input) {
+  const sql2 = getSql();
+  let customerId = null;
+  if (input.phone) {
+    const existing = await sql2`
+      select id::text as id from customers
+      where phone = ${input.phone}
+      limit 1
+    `;
+    customerId = existing[0]?.id ?? null;
+  }
+  if (customerId) {
+    await sql2`
+      update customers
+      set
+        name = ${input.name},
+        email = coalesce(${input.email}, email),
+        updated_at = now()
+      where id = ${customerId}::uuid
+    `;
+  } else {
+    const inserted = await sql2`
+      insert into customers (name, email, phone)
+      values (${input.name}, ${input.email}, ${input.phone})
+      returning id::text as id
+    `;
+    customerId = inserted[0].id;
+  }
+  const accountRows = await sql2`
+    insert into customer_accounts (customer_id, email, password_hash)
+    values (${customerId}::uuid, ${input.email}, ${input.passwordHash})
+    returning id::text as id
+  `;
+  const account = await findCustomerAccountById(accountRows[0].id);
+  if (!account) throw new Error("Failed to load newly created account");
+  return account;
+}
+function hashCode(code) {
+  return createHash2("sha256").update(code).digest("hex");
+}
+function createVerificationCode() {
+  return String(randomInt(0, 1e6)).padStart(6, "0");
+}
+async function storeVerificationCode(customerAccountId, code) {
+  const sql2 = getSql();
+  await sql2`
+    delete from customer_email_verifications
+    where customer_account_id = ${customerAccountId}::uuid
+       or expires_at < now()
+  `;
+  await sql2`
+    insert into customer_email_verifications (customer_account_id, code_hash, expires_at)
+    values (
+      ${customerAccountId}::uuid,
+      ${hashCode(code)},
+      now() + (${CODE_TTL_MINUTES} || ' minutes')::interval
+    )
+  `;
+}
+async function consumeVerificationCode(customerAccountId, code) {
+  const sql2 = getSql();
+  const rows = await sql2`
+    select id::text as id
+    from customer_email_verifications
+    where customer_account_id = ${customerAccountId}::uuid
+      and code_hash = ${hashCode(code)}
+      and expires_at > now()
+      and verified_at is null
+    limit 1
+  `;
+  const row = rows[0];
+  if (!row) return false;
+  await sql2`
+    update customer_email_verifications
+    set verified_at = now()
+    where id = ${row.id}::uuid
+  `;
+  await sql2`
+    update customer_accounts
+    set email_verified_at = now(), updated_at = now()
+    where id = ${customerAccountId}::uuid
+  `;
+  return true;
+}
+
+// server/src/mail.ts
+async function sendEmail(input) {
+  const apiKey = env.resendApiKey();
+  if (!apiKey) {
+    return { sent: false, skipped: true };
+  }
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: env.resendFrom(),
+        to: [input.to],
+        subject: input.subject,
+        html: input.html,
+        ...input.text ? { text: input.text } : {}
+      })
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error(`[mail] Resend rejected message (${res.status}): ${detail}`);
+      return { sent: false, skipped: false, error: `Email provider error (${res.status}).` };
+    }
+    return { sent: true, skipped: false };
+  } catch (err) {
+    console.error("[mail] Failed to reach Resend:", err);
+    return { sent: false, skipped: false, error: "Could not reach the email provider." };
+  }
+}
+function verificationEmailHtml(code) {
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#F1F5F9;padding:32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="440" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px -12px rgba(2,132,199,0.25);">
+            <tr>
+              <td style="background:#0EA5E9;padding:24px 32px;">
+                <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:0.5px;">HAMEL</span>
+                <span style="color:#E0F2FE;font-size:13px;display:block;margin-top:2px;">The Cooling Experts</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;">
+                <h1 style="margin:0 0 8px;font-size:20px;color:#0C4A6E;">Verify your email</h1>
+                <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#475569;">
+                  Use the code below to finish setting up your Hamel account and start claiming exclusive vouchers.
+                </p>
+                <div style="text-align:center;background:#E0F2FE;border:1px dashed #7DD3FC;border-radius:12px;padding:20px;">
+                  <span style="font-size:34px;font-weight:800;letter-spacing:10px;color:#0369A1;">${code}</span>
+                </div>
+                <p style="margin:24px 0 0;font-size:12.5px;line-height:1.6;color:#94A3B8;">
+                  This code expires in 15 minutes. If you didn't request it, you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+// server/src/middleware/customer-auth.ts
+var requireCustomer = createMiddleware(
+  async (c, next) => {
+    const header = c.req.header("authorization") || "";
+    const match2 = header.match(/^Bearer\s+(.+)$/i);
+    if (!match2) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+    try {
+      const payload = await verifyCustomerToken(match2[1]);
+      const account = await findCustomerAccountById(payload.sub);
+      if (!account || account.status !== "active") {
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+      c.set("account", account);
+      c.set("token", match2[1]);
+      await next();
+    } catch {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+  }
+);
+
+// server/src/routes/customer-auth.ts
+var customerAuthRoutes = new Hono2();
+var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+async function issueVerificationCode(accountId, email) {
+  const code = createVerificationCode();
+  await storeVerificationCode(accountId, code);
+  const result = await sendEmail({
+    to: email,
+    subject: "Your Hamel verification code",
+    html: verificationEmailHtml(code),
+    text: `Your Hamel verification code is ${code}. It expires in 15 minutes.`
+  });
+  if (!result.sent) {
+    console.log(`[customer-verify] ${email}: code ${code}`);
+  }
+  return env.exposeResetToken() ? { devCode: code } : {};
+}
+customerAuthRoutes.post("/register", async (c) => {
+  const body = await c.req.json();
+  const name = body.name?.trim() ?? "";
+  const email = body.email?.trim() ?? "";
+  const password = body.password ?? "";
+  const phone = body.phone?.trim() || null;
+  if (!name) return c.json({ error: "Your name is required." }, 400);
+  if (!EMAIL_RE.test(email)) {
+    return c.json({ error: "Enter a valid email address." }, 400);
+  }
+  if (password.length < 8) {
+    return c.json({ error: "Password must be at least 8 characters." }, 400);
+  }
+  const existing = await findCustomerAccountByEmail(email);
+  if (existing) {
+    return c.json(
+      { error: "An account with that email already exists. Try signing in." },
+      409
+    );
+  }
+  const passwordHash = await hashPassword(password);
+  const account = await createCustomerAccount({ name, email, phone, passwordHash });
+  const { devCode } = await issueVerificationCode(account.id, account.email);
+  return c.json({
+    ok: true,
+    requiresVerification: true,
+    email: account.email,
+    ...devCode ? { devCode } : {}
+  });
+});
+customerAuthRoutes.post("/verify-email", async (c) => {
+  const body = await c.req.json();
+  const email = body.email?.trim() ?? "";
+  const code = body.code?.trim() ?? "";
+  if (!email || !code) {
+    return c.json({ error: "Email and code are required." }, 400);
+  }
+  const account = await findCustomerAccountByEmail(email);
+  if (!account) {
+    return c.json({ error: "No account found for that email." }, 404);
+  }
+  if (account.email_verified_at) {
+    const token2 = await signCustomerToken(account);
+    return c.json({ ok: true, token: token2, customer: mapCustomerPublic(account) });
+  }
+  const ok = await consumeVerificationCode(account.id, code);
+  if (!ok) {
+    return c.json({ error: "That code is invalid or has expired." }, 400);
+  }
+  const fresh = await findCustomerAccountByEmail(email) ?? account;
+  const token = await signCustomerToken(fresh);
+  return c.json({ ok: true, token, customer: mapCustomerPublic(fresh) });
+});
+customerAuthRoutes.post("/resend-code", async (c) => {
+  const body = await c.req.json();
+  const email = body.email?.trim() ?? "";
+  if (!email) return c.json({ error: "Email is required." }, 400);
+  const account = await findCustomerAccountByEmail(email);
+  if (!account || account.email_verified_at) {
+    return c.json({ ok: true });
+  }
+  const { devCode } = await issueVerificationCode(account.id, account.email);
+  return c.json({ ok: true, ...devCode ? { devCode } : {} });
+});
+customerAuthRoutes.post("/login", async (c) => {
+  const body = await c.req.json();
+  const email = body.email?.trim() ?? "";
+  const password = body.password ?? "";
+  if (!email || !password) {
+    return c.json({ error: "Email and password are required." }, 400);
+  }
+  const account = await findCustomerAccountByEmail(email);
+  if (!account || account.status !== "active") {
+    return c.json({ error: "Wrong email or password." }, 401);
+  }
+  const ok = await verifyPassword(password, account.password_hash);
+  if (!ok) {
+    return c.json({ error: "Wrong email or password." }, 401);
+  }
+  if (!account.email_verified_at) {
+    const { devCode } = await issueVerificationCode(account.id, account.email);
+    return c.json(
+      {
+        requiresVerification: true,
+        email: account.email,
+        ...devCode ? { devCode } : {}
+      },
+      403
+    );
+  }
+  const token = await signCustomerToken(account);
+  return c.json({ ok: true, token, customer: mapCustomerPublic(account) });
+});
+customerAuthRoutes.post("/logout", (c) => c.json({ ok: true }));
+customerAuthRoutes.get("/me", requireCustomer, async (c) => {
+  const account = c.get("account");
+  return c.json({ customer: mapCustomerPublic(account) });
+});
+
 // server/src/routes/content.ts
 var ALLOWED_KEYS = /* @__PURE__ */ new Set([
   "banners",
@@ -10861,7 +11226,8 @@ var ALLOWED_KEYS = /* @__PURE__ */ new Set([
   "brands_page",
   "installment_plans",
   "site_promo_popup",
-  "vouchers"
+  "vouchers",
+  "testimonials"
 ]);
 var contentRoutes = new Hono2();
 contentRoutes.get("/:key", async (c) => {
@@ -10949,6 +11315,15 @@ customerRoutes.patch("/:id", async (c) => {
     where id = ${id}::uuid
   `;
   return c.json({ ok: true });
+});
+customerRoutes.delete("/:id", async (c) => {
+  const id = c.req.param("id");
+  const sql2 = getSql();
+  const rows = await sql2`
+    delete from customers where id = ${id}::uuid returning id::text as id
+  `;
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true, id: rows[0].id });
 });
 
 // server/src/routes/employees.ts
@@ -11725,6 +12100,15 @@ inquiryRoutes.get("/", requireAuth, async (c) => {
     return c.json({ inquiries: rows });
   }
 });
+inquiryRoutes.delete("/:id", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const sql2 = getSql();
+  const rows = await sql2`
+    delete from inquiries where id = ${id}::uuid returning id::text as id
+  `;
+  if (!rows[0]) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true, id: rows[0].id });
+});
 inquiryRoutes.get("/:id", requireAuth, async (c) => {
   const id = c.req.param("id");
   const sql2 = getSql();
@@ -12486,8 +12870,181 @@ productRoutes.delete("/:id", requireAuth, async (c) => {
   return c.json({ ok: true });
 });
 
+// server/src/storage/cloudinary.ts
+import { createHash as createHash3, randomUUID } from "node:crypto";
+function cloudinaryConfigured() {
+  return Boolean(
+    clean(env.cloudinaryCloudName()) && clean(env.cloudinaryApiKey()) && clean(env.cloudinaryApiSecret())
+  );
+}
+function clean(value) {
+  return value.trim().replace(/^\uFEFF/, "").replace(/^["']|["']$/g, "");
+}
+function resourceTypeFor(contentType) {
+  if (contentType.startsWith("video/")) return "video";
+  if (contentType.startsWith("image/")) return "image";
+  return "raw";
+}
+function signParams(params, apiSecret, algo) {
+  const toSign = Object.keys(params).sort().filter((k) => params[k] !== void 0 && params[k] !== "").map((k) => `${k}=${params[k]}`).join("&");
+  return createHash3(algo).update(`${toSign}${apiSecret}`).digest("hex");
+}
+function sanitizePublicId(raw2) {
+  return raw2.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9/_-]+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "").slice(0, 180) || `upload-${Date.now()}`;
+}
+async function postSignedUpload(opts) {
+  const timestamp = Math.floor(Date.now() / 1e3).toString();
+  const paramsToSign = {
+    folder: opts.folder,
+    public_id: opts.publicId,
+    timestamp
+  };
+  const signature = signParams(paramsToSign, opts.apiSecret, opts.algo);
+  const resourceType = resourceTypeFor(opts.contentType);
+  const form = new FormData();
+  form.append(
+    "file",
+    new Blob([new Uint8Array(opts.buffer)], {
+      type: opts.contentType || "application/octet-stream"
+    }),
+    opts.fileName
+  );
+  form.append("api_key", opts.apiKey);
+  form.append("timestamp", timestamp);
+  form.append("signature", signature);
+  form.append("folder", opts.folder);
+  form.append("public_id", opts.publicId);
+  if (opts.algo === "sha256") {
+    form.append("signature_algorithm", "sha256");
+  }
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${encodeURIComponent(opts.cloudName)}/${resourceType}/upload`,
+    { method: "POST", body: form }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.secure_url && !data.url) {
+    return { ok: false, error: data.error?.message || `Cloudinary upload failed (${res.status})` };
+  }
+  return {
+    ok: true,
+    url: data.secure_url || data.url,
+    path: data.public_id || `${opts.folder}/${opts.publicId}`
+  };
+}
+async function postUnsignedUpload(opts) {
+  const resourceType = resourceTypeFor(opts.contentType);
+  const form = new FormData();
+  form.append(
+    "file",
+    new Blob([new Uint8Array(opts.buffer)], {
+      type: opts.contentType || "application/octet-stream"
+    }),
+    opts.fileName
+  );
+  form.append("upload_preset", opts.preset);
+  form.append("folder", opts.folder);
+  form.append("public_id", opts.publicId);
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${encodeURIComponent(opts.cloudName)}/${resourceType}/upload`,
+    { method: "POST", body: form }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.secure_url && !data.url) {
+    return { ok: false, error: data.error?.message || `Cloudinary unsigned upload failed (${res.status})` };
+  }
+  return {
+    ok: true,
+    url: data.secure_url || data.url,
+    path: data.public_id || `${opts.folder}/${opts.publicId}`
+  };
+}
+async function uploadBufferToCloudinary(opts) {
+  const cloudName = clean(env.cloudinaryCloudName());
+  const apiKey = clean(env.cloudinaryApiKey());
+  const apiSecret = clean(env.cloudinaryApiSecret());
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error("Cloudinary is not configured");
+  }
+  const rootFolder = clean(env.cloudinaryFolder()) || "hamel";
+  const normalized = opts.objectPath.replace(/\\/g, "/").replace(/^\/+/, "");
+  const withoutExt = sanitizePublicId(normalized);
+  const parts = withoutExt.split("/").filter(Boolean);
+  const leaf = parts.pop() || `upload-${randomUUID().slice(0, 8)}`;
+  const subFolder = parts.join("/");
+  const folder = subFolder ? `${rootFolder}/${subFolder}` : rootFolder;
+  const publicId = leaf;
+  const preset = clean(process.env.CLOUDINARY_UPLOAD_PRESET || "");
+  if (preset) {
+    const unsigned = await postUnsignedUpload({
+      cloudName,
+      buffer: opts.buffer,
+      contentType: opts.contentType,
+      fileName: opts.fileName || normalized,
+      folder,
+      publicId,
+      preset
+    });
+    if (unsigned.ok) return { url: unsigned.url, path: unsigned.path };
+  }
+  const preferred = clean(process.env.CLOUDINARY_SIGN_ALGORITHM || "sha1").toLowerCase();
+  const order = preferred === "sha256" ? ["sha256", "sha1"] : ["sha1", "sha256"];
+  let lastError = "Cloudinary upload failed";
+  for (const algo of order) {
+    const result = await postSignedUpload({
+      cloudName,
+      apiKey,
+      apiSecret,
+      buffer: opts.buffer,
+      contentType: opts.contentType,
+      fileName: opts.fileName || normalized,
+      folder,
+      publicId,
+      algo
+    });
+    if (result.ok) return { url: result.url, path: result.path };
+    lastError = result.error;
+    if (!/invalid signature/i.test(result.error)) break;
+  }
+  if (/invalid signature/i.test(lastError)) {
+    throw new Error(
+      "Cloudinary rejected the upload signature. In Cloudinary Console \u2192 Settings \u2192 API Keys, copy a fresh API Secret into CLOUDINARY_API_SECRET (local .env and Vercel env), then restart/redeploy. Optional: set CLOUDINARY_UPLOAD_PRESET to an unsigned upload preset."
+    );
+  }
+  throw new Error(lastError);
+}
+
+// server/src/storage/public-url.ts
+function resolvePublicMediaUrl(value) {
+  if (!value?.trim()) return null;
+  const v2 = value.trim();
+  if (/^https?:\/\//i.test(v2) || v2.startsWith("data:")) return v2;
+  const objectPath = v2.replace(/^\/+/, "").replace(/^uploads\//, "");
+  if (!objectPath) return null;
+  if (cloudinaryConfigured()) {
+    const cloud = env.cloudinaryCloudName();
+    const folder = env.cloudinaryFolder().replace(/^\/+|\/+$/g, "") || "hamel";
+    const withoutExt = objectPath.replace(/\.[^.]+$/, "") || objectPath;
+    const publicId = withoutExt.startsWith(`${folder}/`) ? withoutExt : `${folder}/${withoutExt}`;
+    const ext = objectPath.match(/(\.[a-z0-9]+)$/i)?.[1] ?? "";
+    return `https://res.cloudinary.com/${cloud}/image/upload/${publicId}${ext}`;
+  }
+  const base = env.publicBaseUrl().replace(/\/$/, "");
+  return `${base}/uploads/${objectPath}`;
+}
+
 // server/src/routes/product-tags.ts
 var productTagRoutes = new Hono2();
+function withResolvedMedia(row) {
+  return {
+    ...row,
+    icon_url: resolvePublicMediaUrl(
+      typeof row.icon_url === "string" ? row.icon_url : null
+    ),
+    chip_image_url: resolvePublicMediaUrl(
+      typeof row.chip_image_url === "string" ? row.chip_image_url : null
+    )
+  };
+}
 var DEFAULT_TAGS = [
   {
     id: "tag-flash-15",
@@ -12574,7 +13131,7 @@ productTagRoutes.get("/", async (c) => {
     from product_tags
     order by sort_order asc, name asc
   `;
-  return c.json({ tags: rows });
+  return c.json({ tags: rows.map(withResolvedMedia) });
 });
 productTagRoutes.put("/", requireAuth, async (c) => {
   const body = await c.req.json();
@@ -12675,7 +13232,7 @@ productTagRoutes.post("/reset", requireAuth, async (c) => {
     from product_tags
     order by sort_order asc
   `;
-  return c.json({ tags: rows });
+  return c.json({ tags: rows.map(withResolvedMedia) });
 });
 
 // server/src/routes/chat.ts
@@ -12771,98 +13328,9 @@ settingsRoutes.put("/:key", requireAuth, async (c) => {
 });
 
 // server/src/routes/uploads.ts
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID2 } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join as join2 } from "node:path";
-
-// server/src/storage/cloudinary.ts
-import { createHash as createHash2 } from "node:crypto";
-function cloudinaryConfigured() {
-  return Boolean(
-    env.cloudinaryCloudName() && env.cloudinaryApiKey() && env.cloudinaryApiSecret()
-  );
-}
-function resourceTypeFor(contentType) {
-  if (contentType.startsWith("video/")) return "video";
-  if (contentType.startsWith("image/")) return "image";
-  return "raw";
-}
-function signParams(params, apiSecret, algo) {
-  const toSign = Object.keys(params).sort().map((k) => `${k}=${params[k]}`).join("&");
-  return createHash2(algo).update(`${toSign}${apiSecret}`).digest("hex");
-}
-async function postSignedUpload(opts) {
-  const timestamp = Math.floor(Date.now() / 1e3);
-  const paramsToSign = {
-    public_id: opts.publicId,
-    timestamp: String(timestamp)
-  };
-  if (opts.algo === "sha256") {
-  }
-  const signature = signParams(paramsToSign, opts.apiSecret, opts.algo);
-  const resourceType = resourceTypeFor(opts.contentType);
-  const form = new FormData();
-  form.append(
-    "file",
-    new Blob([new Uint8Array(opts.buffer)], {
-      type: opts.contentType || "application/octet-stream"
-    }),
-    opts.fileName
-  );
-  form.append("api_key", opts.apiKey);
-  form.append("timestamp", String(timestamp));
-  form.append("signature", signature);
-  form.append("public_id", opts.publicId);
-  if (opts.algo === "sha256") {
-    form.append("signature_algorithm", "sha256");
-  }
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${encodeURIComponent(opts.cloudName)}/${resourceType}/upload`,
-    { method: "POST", body: form }
-  );
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.secure_url && !data.url) {
-    return { ok: false, error: data.error?.message || `Cloudinary upload failed (${res.status})` };
-  }
-  return {
-    ok: true,
-    url: data.secure_url || data.url,
-    path: data.public_id || opts.publicId
-  };
-}
-async function uploadBufferToCloudinary(opts) {
-  const cloudName = env.cloudinaryCloudName();
-  const apiKey = env.cloudinaryApiKey();
-  const apiSecret = env.cloudinaryApiSecret();
-  if (!cloudName || !apiKey || !apiSecret) {
-    throw new Error("Cloudinary is not configured");
-  }
-  const folder = env.cloudinaryFolder().replace(/^\/+|\/+$/g, "") || "hamel";
-  const normalized = opts.objectPath.replace(/\\/g, "/").replace(/^\/+/, "");
-  const withoutExt = normalized.replace(/\.[^.]+$/, "") || `upload-${Date.now()}`;
-  const publicId = withoutExt.startsWith(`${folder}/`) ? withoutExt : `${folder}/${withoutExt}`;
-  const preferred = (process.env.CLOUDINARY_SIGN_ALGORITHM || "sha256").trim().toLowerCase();
-  const order = preferred === "sha1" ? ["sha1", "sha256"] : ["sha256", "sha1"];
-  let lastError = "Cloudinary upload failed";
-  for (const algo of order) {
-    const result = await postSignedUpload({
-      cloudName,
-      apiKey,
-      apiSecret,
-      buffer: opts.buffer,
-      contentType: opts.contentType,
-      fileName: opts.fileName || normalized,
-      publicId,
-      algo
-    });
-    if (result.ok) return { url: result.url, path: result.path };
-    lastError = result.error;
-    if (!/invalid signature/i.test(result.error)) break;
-  }
-  throw new Error(lastError);
-}
-
-// server/src/routes/uploads.ts
 var MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
 var MAX_VIDEO_UPLOAD_BYTES = 300 * 1024 * 1024;
 async function saveUploadedMedia(file, requestedPath, defaultPrefix, allowVideo = false) {
@@ -12890,15 +13358,32 @@ async function saveUploadedMedia(file, requestedPath, defaultPrefix, allowVideo 
     "svg",
     ...allowVideo ? ["mp4"] : []
   ].includes(ext) ? ext : "png";
-  const objectPath = requestedPath || `${defaultPrefix}/${(file.name.replace(/\.[^.]+$/, "") || "image").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 48)}-${randomUUID().slice(0, 8)}.${safeExt}`;
+  const objectPath = requestedPath || `${defaultPrefix}/${(file.name.replace(/\.[^.]+$/, "") || "image").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 48)}-${randomUUID2().slice(0, 8)}.${safeExt}`;
   if (cloudinaryConfigured()) {
-    const result = await uploadBufferToCloudinary({
-      buffer,
-      objectPath,
-      contentType: file.type || (safeExt === "mp4" ? "video/mp4" : `image/${safeExt}`),
-      fileName: file.name || objectPath
-    });
-    return { ...result, storage: "cloudinary" };
+    try {
+      const result = await uploadBufferToCloudinary({
+        buffer,
+        objectPath,
+        contentType: file.type || (safeExt === "mp4" ? "video/mp4" : `image/${safeExt}`),
+        fileName: file.name || objectPath
+      });
+      if (!process.env.VERCEL) {
+        try {
+          const uploadDir2 = env.uploadDir();
+          const fullPath2 = join2(uploadDir2, objectPath);
+          await mkdir(join2(fullPath2, ".."), { recursive: true });
+          await writeFile(fullPath2, buffer);
+        } catch {
+        }
+      }
+      return { ...result, storage: "cloudinary" };
+    } catch (err) {
+      if (process.env.VERCEL) throw err;
+      console.warn(
+        "[uploads] Cloudinary failed, falling back to local disk:",
+        err instanceof Error ? err.message : err
+      );
+    }
   }
   if (process.env.VERCEL) {
     throw Object.assign(
@@ -12967,6 +13452,20 @@ uploadRoutes.post("/public", async (c) => {
       status === 400 || status === 503 ? status : 500
     );
   }
+});
+uploadRoutes.get("/file", async (c) => {
+  const raw2 = c.req.query("path")?.trim() || "";
+  const objectPath = decodeURIComponent(raw2).replace(/^\/+/, "");
+  if (!objectPath || objectPath.includes("..")) {
+    return c.json({ error: "Invalid path" }, 400);
+  }
+  const url = resolvePublicMediaUrl(objectPath);
+  if (!url) return c.json({ error: "Not found" }, 404);
+  if (/^https?:\/\//i.test(url)) {
+    return c.redirect(url, 302);
+  }
+  const base = env.publicBaseUrl().replace(/\/$/, "");
+  return c.redirect(`${base}/uploads/${objectPath}`, 302);
 });
 uploadRoutes.get("/health", async (c) => {
   if (cloudinaryConfigured()) {
@@ -13418,6 +13917,7 @@ function createApp() {
     (c) => c.json({ ok: true, service: "hamel-api", vercel: isVercel2 })
   );
   app.route("/api/auth", authRoutes);
+  app.route("/api/account", customerAuthRoutes);
   app.route("/api/products", productRoutes);
   app.route("/api/reviews", reviewRoutes);
   app.route("/api/chat", chatRoutes);

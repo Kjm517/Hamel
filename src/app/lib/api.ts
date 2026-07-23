@@ -1,4 +1,4 @@
-/// <reference types="vite/client" />
+
 
 const REMEMBER_ME_KEY = 'hamel_admin_remember_me';
 const TOKEN_KEY = 'hamel_admin_token';
@@ -14,7 +14,7 @@ export function getRememberMePreference(): boolean {
 
 export function setRememberMePreference(remember: boolean) {
   localStorage.setItem(REMEMBER_ME_KEY, remember ? 'true' : 'false');
-  // Move token between storages when preference changes
+
   const token = getAccessToken();
   clearAccessToken();
   if (token) setAccessToken(token);

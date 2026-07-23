@@ -26,6 +26,7 @@ import {
   type PromoBadgeStyle,
 } from '../../data/productTags';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../lib/image-size-guides';
 import { hexForColorInput } from '../../lib/color-utils';
 import { adminUi } from '../lib/admin-ui';
 import { useAdminConfirm } from '../components/AdminConfirmDialog';
@@ -397,6 +398,7 @@ export function AdminTagsPage() {
                   }))
                 }
                 remoteUpload={{ getObjectPath: mediaPathFor('tag-icons') }}
+                sizeGuide={IMAGE_SIZE_GUIDES.tagChip}
               />
               )}
               {!isCornerForm && (
@@ -445,6 +447,7 @@ export function AdminTagsPage() {
                   setForm((f) => ({ ...f, iconUrl: url || undefined, iconEmoji: url ? undefined : f.iconEmoji }))
                 }
                 remoteUpload={{ getObjectPath: mediaPathFor('tag-icons') }}
+                sizeGuide={IMAGE_SIZE_GUIDES.tagIcon}
               />
               )}
               <div className="grid grid-cols-2 gap-3">

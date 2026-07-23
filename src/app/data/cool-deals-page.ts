@@ -6,7 +6,18 @@ import { hamelAssets } from './hamelAssets';
 const cd = hamelAssets.coolDeals;
 
 export type CoolDealsSectionType =
+  | 'promo-strip'
+  | 'deal-of-day'
+  | 'service-sticky'
   | 'card-grid'
+  | 'best-sellers'
+  | 'flash-deals'
+  | 'finder'
+  | 'financing'
+  | 'bundles'
+  
+  | 'brands'
+  | 'recommended'
   | 'product-matrix'
   | 'trust-bar'
   | 'cta'
@@ -18,6 +29,8 @@ export interface CoolDealsCardItem extends BannerLinkFields {
   color: string;
   imageUrl: string;
   body: string;
+  /** Platform voucher code (Admin → Vouchers). Claimed cards appear under Platform Voucher. */
+  voucherCode?: string;
 }
 
 export const DEAL_CARD_DEFAULT_COLORS = {
@@ -52,7 +65,7 @@ export function resolveDealCardColors(card: CoolDealsDealCardItem) {
   const titleRaw = card.titleColor ?? DEAL_CARD_DEFAULT_COLORS.title;
   const bodyRaw = card.bodyColor ?? DEAL_CARD_DEFAULT_COLORS.body;
   const ctaRaw = card.ctaColor ?? DEAL_CARD_DEFAULT_COLORS.cta;
-  // Ensure readable contrast on the tile background
+
   const title = readableOnBackground(titleRaw, bg, DEAL_CARD_DEFAULT_COLORS.title);
   const body = readableOnBackground(bodyRaw, bg, DEAL_CARD_DEFAULT_COLORS.body);
   const cta = readableOnBackground(ctaRaw, bg, DEAL_CARD_DEFAULT_COLORS.cta);
@@ -71,12 +84,75 @@ export interface CoolDealsSectionBase {
   enabled: boolean;
 }
 
+export interface CoolDealsPromoStripSection extends CoolDealsSectionBase {
+  type: 'promo-strip';
+  badge: string;
+  text: string;
+  showCountdown: boolean;
+}
+
+export interface CoolDealsDealOfDaySection extends CoolDealsSectionBase {
+  type: 'deal-of-day';
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  primaryCta: string;
+  secondaryCta: string;
+  secondaryHref: string;
+  trustLine: string;
+  /** Catalog product id — prices/image pulled live when set */
+  productId?: string;
+  /** Manual overrides when no product (or to override display) */
+  brand?: string;
+  productName?: string;
+  imageUrl?: string;
+  priceNow?: number;
+  priceWas?: number;
+  badge?: string;
+  /** Units remaining — drives “Only N left” and the selling-fast bar. */
+  stockLeft?: number;
+  /** Starting / total units for the bar (sold % = capacity − left). Default 20. */
+  stockCapacity?: number;
+  /** @deprecated Prefer stockLeft — still used as fallback label. */
+  stockLabel?: string;
+  /** @deprecated Prefer stockLeft + stockCapacity — still used as fallback bar %. */
+  stockPct?: number;
+  months?: number;
+  tag?: string;
+  inquireCta?: string;
+  /** Timer turns urgent red when time left is under this many hours (end of day). */
+  urgencyThresholdHours?: number;
+  /** Auto-apply urgent red when under the threshold (default true). */
+  blinkWhenUrgent?: boolean;
+  /** Always show urgent red while the countdown is visible. */
+  forceBlink?: boolean;
+  /** @deprecated Deal sticky replaced by `service-sticky` section */
+  showStickyBar?: boolean;
+}
+
+export interface CoolDealsServiceStickySection extends CoolDealsSectionBase {
+  type: 'service-sticky';
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  ctaLabel: string;
+  /** Bar gradient start */
+  bgFrom: string;
+  /** Bar gradient end */
+  bgTo: string;
+  titleColor: string;
+  subtitleColor: string;
+  ctaBg: string;
+  ctaText: string;
+  accentColor: string;
+}
+
 export interface CoolDealsCardGridSection extends CoolDealsSectionBase {
   type: 'card-grid';
   variant: 'voucher' | 'deal';
+  headingEyebrow?: string;
   headingTitle: string;
   headingSubtitle?: string;
-  /** Deal / voucher section heading colors */
   headingColor?: string;
   headingSubtitleColor?: string;
   background: 'white' | 'gray';
@@ -84,12 +160,101 @@ export interface CoolDealsCardGridSection extends CoolDealsSectionBase {
   dealCards?: CoolDealsDealCardItem[];
 }
 
+export interface CoolDealsBestSellersSection extends CoolDealsSectionBase {
+  type: 'best-sellers';
+  eyebrow: string;
+  headingTitle: string;
+  seeAllHref: string;
+  source: 'catalog' | 'manual';
+  productIds: string[];
+  /** Optional HP per product id — shown in ranking and opens product detail on that size. */
+  productHps?: Record<string, string>;
+  limit: number;
+}
+
+export interface CoolDealsFlashDealsSection extends CoolDealsSectionBase {
+  type: 'flash-deals';
+  headingTitle: string;
+  headingSubtitle: string;
+  seeAllHref: string;
+  showCountdown: boolean;
+  /** ISO date/time the sale ends. Empty = counts down to the end of the current day. */
+  endsAt?: string;
+  /** Timer turns urgent red when time left is at or below this many hours (default 72 = 3 days). */
+  urgencyThresholdHours?: number;
+  /** Auto-apply urgent red when under the threshold (default true). */
+  blinkWhenUrgent?: boolean;
+  /** Always show urgent red while the countdown is visible. */
+  forceBlink?: boolean;
+  source: 'catalog' | 'manual';
+  productIds: string[];
+  limit: number;
+}
+
+export interface CoolDealsFinderSection extends CoolDealsSectionBase {
+  type: 'finder';
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+}
+
+export interface CoolDealsFinancingSection extends CoolDealsSectionBase {
+  type: 'financing';
+  eyebrow: string;
+  title: string;
+  body: string;
+  bullets: string[];
+  ctaLabel: string;
+  minMonths: number;
+  maxMonths: number;
+  stepMonths: number;
+  defaultMonths: number;
+  /** Extra named prices for the calculator (beyond catalog) */
+  models: { id: string; name: string; price: number }[];
+}
+
+export interface CoolDealsBundleItem {
+  id: string;
+  name: string;
+  sub: string;
+  imageUrl: string;
+  priceNow: number;
+  priceWas: number;
+  featured?: boolean;
+  badge?: string;
+  includes: string[];
+  ctaLabel?: string;
+}
+
+export interface CoolDealsBundlesSection extends CoolDealsSectionBase {
+  type: 'bundles';
+  eyebrow: string;
+  headingTitle: string;
+  headingSubtitle: string;
+  items: CoolDealsBundleItem[];
+}
+
+export interface CoolDealsBrandsSection extends CoolDealsSectionBase {
+  type: 'brands';
+  eyebrow: string;
+  headingTitle: string;
+  /** Empty = use catalog brand logos */
+  brandNames: string[];
+}
+
+export interface CoolDealsRecommendedSection extends CoolDealsSectionBase {
+  type: 'recommended';
+  headingTitle: string;
+  source: 'catalog' | 'manual';
+  productIds: string[];
+  limit: number;
+}
+
 export interface CoolDealsProductColumn extends BannerLinkFields {
   id: string;
   name: string;
   sub: string;
   imageUrl: string;
-  /** Checklist items shown under each product type */
   perks: string[];
 }
 
@@ -103,8 +268,16 @@ export interface CoolDealsProductMatrixSection extends CoolDealsSectionBase {
   mechanicsLinkHref?: string;
 }
 
+export interface CoolDealsTrustItem {
+  id: string;
+  title: string;
+  sub: string;
+  icon: string;
+}
+
 export interface CoolDealsTrustBarSection extends CoolDealsSectionBase {
   type: 'trust-bar';
+  items: CoolDealsTrustItem[];
 }
 
 export interface CoolDealsCtaSection extends CoolDealsSectionBase {
@@ -113,12 +286,30 @@ export interface CoolDealsCtaSection extends CoolDealsSectionBase {
   subtitle: string;
 }
 
+export interface CoolDealsStatItem {
+  id: string;
+  value: string;
+  label: string;
+}
+
 export interface CoolDealsStatsBrandsSection extends CoolDealsSectionBase {
   type: 'stats-brands';
+  stats: CoolDealsStatItem[];
+  brandsLabel: string;
 }
 
 export type CoolDealsSection =
+  | CoolDealsPromoStripSection
+  | CoolDealsDealOfDaySection
+  | CoolDealsServiceStickySection
   | CoolDealsCardGridSection
+  | CoolDealsBestSellersSection
+  | CoolDealsFlashDealsSection
+  | CoolDealsFinderSection
+  | CoolDealsFinancingSection
+  | CoolDealsBundlesSection
+  | CoolDealsBrandsSection
+  | CoolDealsRecommendedSection
   | CoolDealsProductMatrixSection
   | CoolDealsTrustBarSection
   | CoolDealsCtaSection
@@ -187,6 +378,7 @@ const defaultVoucherCards: CoolDealsCardItem[] = [
     color: '#F97316',
     imageUrl: hamelAssets.mascot.cta,
     body: 'Save up to ₱3,000 OFF with exclusive Hamel discount vouchers on select models and HP ratings.',
+    voucherCode: 'COOL1500',
   },
   {
     id: 'v4',
@@ -231,45 +423,213 @@ const defaultDealCards: CoolDealsDealCardItem[] = [
   },
 ];
 
+const defaultTrustItems: CoolDealsTrustItem[] = [
+  { id: 't1', title: '100% Authentic', sub: 'Genuine, brand-new units', icon: 'award' },
+  { id: 't2', title: 'Pro Installation', sub: 'Certified technicians', icon: 'wrench' },
+  { id: 't3', title: 'Warranty Coverage', sub: 'Official manufacturer', icon: 'shield' },
+  { id: 't4', title: 'Flexible Payment', sub: '0% up to 36 months', icon: 'package' },
+  { id: 't5', title: 'After-Sales Support', sub: 'We stay with you', icon: 'headset' },
+];
+
+const defaultBundles: CoolDealsBundleItem[] = [
+  {
+    id: 'b-bedroom',
+    name: 'Bedroom Cool Combo',
+    sub: '1.0HP inverter · small rooms',
+    priceNow: 19900,
+    priceWas: 24400,
+    imageUrl: hamelAssets.aircon.wallSplitDaikinAmihan,
+    includes: [
+      '1.0HP inverter split-type unit',
+      'Professional installation',
+      'Free Jisulife portable fan',
+      '1 free cleaning service',
+    ],
+  },
+  {
+    id: 'b-living',
+    name: 'Family Living Room',
+    sub: '2.0HP inverter · most popular',
+    priceNow: 37900,
+    priceWas: 46900,
+    featured: true,
+    badge: 'MOST POPULAR',
+    imageUrl: hamelAssets.aircon.wallSplitDaikinAmihan,
+    includes: [
+      '2.0HP inverter split-type unit',
+      'Professional installation',
+      'Free Jisulife fan + free delivery',
+      '1 free cleaning + ₱3,000 voucher',
+    ],
+  },
+  {
+    id: 'b-duo',
+    name: 'Whole-Home Duo',
+    sub: '2× 1.5HP units · save more',
+    priceNow: 58900,
+    priceWas: 73000,
+    imageUrl: hamelAssets.clients.commercial01,
+    includes: [
+      '2× 1.5HP inverter units',
+      'Installation for both units',
+      'Free fan + free delivery',
+      '2 free cleaning services',
+    ],
+  },
+];
+
 export const defaultCoolDealsPage: CoolDealsPageConfig = {
   sections: [
+    {
+      id: 'sec-promo-strip',
+      type: 'promo-strip',
+      enabled: true,
+      badge: 'SUMMER COOL SALE',
+      text: 'Free installation on every inverter unit · Up to 40% off',
+      showCountdown: true,
+    },
+    {
+      id: 'sec-deal-of-day',
+      type: 'deal-of-day',
+      enabled: true,
+      eyebrow: 'DEAL OF THE DAY',
+      title: 'Beat the heat,\nnot your budget.',
+      subtitle:
+        'Inverter aircon from the brands you trust — with free installation, flexible monthly plans, and prices that won\'t last the week.',
+      primaryCta: "Shop today's deal →",
+      secondaryCta: 'Find my aircon',
+      secondaryHref: '#finder',
+      trustLine: '100% authentic · Free pro installation · Up to 36 mos to pay',
+      brand: 'DAIKIN',
+      productName: 'Amihan Inverter 1.5HP',
+      imageUrl: hamelAssets.aircon.wallSplitDaikinAmihan,
+      priceNow: 28900,
+      priceWas: 39900,
+      badge: 'SAVE ₱11,000',
+      stockLeft: 7,
+      stockCapacity: 20,
+      stockLabel: 'Only 7 left',
+      stockPct: 65,
+      months: 36,
+      tag: 'INVERTER',
+      inquireCta: 'Inquire now',
+      urgencyThresholdHours: 24,
+      blinkWhenUrgent: true,
+      forceBlink: false,
+      showStickyBar: false,
+    },
+    {
+      id: 'sec-service-sticky',
+      type: 'service-sticky',
+      enabled: true,
+      eyebrow: 'Already own an aircon?',
+      title: 'Aircon needs cleaning or repair?',
+      subtitle: 'Certified techs · Metro Cebu · Book in under a minute',
+      ctaLabel: 'Request a Service',
+      bgFrom: '#0EA5E9',
+      bgTo: '#0284C7',
+      titleColor: '#FFFFFF',
+      subtitleColor: '#E0F2FE',
+      ctaBg: '#FFC107',
+      ctaText: '#22303C',
+      accentColor: '#FFC107',
+    },
     {
       id: 'sec-vouchers',
       type: 'card-grid',
       enabled: true,
       variant: 'voucher',
+      headingEyebrow: '',
       headingTitle: 'Exclusive Vouchers For You',
       headingSubtitle: 'More perks, more savings with every purchase!',
       background: 'white',
       cards: defaultVoucherCards,
     },
     {
-      id: 'sec-product-matrix',
-      type: 'product-matrix',
+      id: 'sec-best-sellers',
+      type: 'best-sellers',
       enabled: true,
-      headingTitle: 'Which Vouchers Can You Get?',
-      headingSubtitle: 'Your eligible vouchers depend on the type of aircon you choose.',
-      footnote: 'Promo subject to availability and minimum spend requirements.',
-      columns: defaultProductColumns.map((c) => ({ ...c, perks: [...c.perks] })),
-      mechanicsLinkText: 'View Full Promo Mechanics',
-      mechanicsLinkHref: '/contact',
+      eyebrow: 'MOST WANTED',
+      headingTitle: 'Best sellers this week',
+      seeAllHref: '/products',
+      source: 'catalog',
+      productIds: [],
+      limit: 5,
     },
     {
-      id: 'sec-more-deals',
-      type: 'card-grid',
+      id: 'sec-flash-deals',
+      type: 'flash-deals',
       enabled: true,
-      variant: 'deal',
-      headingTitle: 'More Cool Deals Await!',
-      headingColor: '#0C4A6E',
-      headingSubtitleColor: '#6B7280',
-      background: 'white',
-      cards: [],
-      dealCards: defaultDealCards,
+      headingTitle: 'Flash Deals',
+      headingSubtitle: 'Lowest prices this month · while stocks last',
+      seeAllHref: '/products',
+      showCountdown: true,
+      endsAt: '',
+      urgencyThresholdHours: 72,
+      blinkWhenUrgent: true,
+      source: 'catalog',
+      productIds: [],
+      limit: 8,
+    },
+    {
+      id: 'sec-finder',
+      type: 'finder',
+      enabled: true,
+      eyebrow: 'NOT SURE WHAT TO BUY?',
+      title: 'Find your perfect aircon in 30 seconds',
+      subtitle: 'Answer 3 quick questions and we’ll match the right unit and HP to your space — no guessing.',
+    },
+    {
+      id: 'sec-financing',
+      type: 'financing',
+      enabled: true,
+      eyebrow: '0% INTEREST · UP TO 36 MOS',
+      title: 'Cool now, pay monthly.',
+      body: 'Slide to see your monthly payment. No hidden fees, approval in minutes with any valid ID + proof of billing.',
+      bullets: ['No downpayment options', 'Fast approval'],
+      ctaLabel: 'Apply for financing',
+      minMonths: 3,
+      maxMonths: 36,
+      stepMonths: 3,
+      defaultMonths: 24,
+      models: [
+        { id: 'fm1', name: 'Daikin Amihan 1.5HP', price: 28900 },
+        { id: 'fm2', name: 'Panasonic Aero 2HP', price: 33575 },
+        { id: 'fm3', name: 'Condura Neo 2HP', price: 25200 },
+        { id: 'fm4', name: 'Family Living Bundle', price: 37900 },
+      ],
+    },
+    {
+      id: 'sec-bundles',
+      type: 'bundles',
+      enabled: true,
+      eyebrow: 'BUY THE WHOLE SOLUTION',
+      headingTitle: 'Value bundles — unit + install + perks',
+      headingSubtitle: 'Everything you need in one price. No surprise add-ons, no separate installation fee.',
+      items: defaultBundles,
+    },
+    {
+      id: 'sec-brands',
+      type: 'brands',
+      enabled: true,
+      eyebrow: 'AUTHORIZED DEALER',
+      headingTitle: 'Shop by brand',
+      brandNames: [],
+    },
+    {
+      id: 'sec-recommended',
+      type: 'recommended',
+      enabled: true,
+      headingTitle: 'Recommended for you',
+      source: 'catalog',
+      productIds: [],
+      limit: 4,
     },
     {
       id: 'sec-trust',
       type: 'trust-bar',
       enabled: true,
+      items: defaultTrustItems,
     },
     {
       id: 'sec-cta',
@@ -278,21 +638,70 @@ export const defaultCoolDealsPage: CoolDealsPageConfig = {
       title: 'Ready to enjoy these cool deals?',
       subtitle: 'Talk to our experts and get the best cooling solution for your space.',
     },
-    {
-      id: 'sec-stats',
-      type: 'stats-brands',
-      enabled: true,
-    },
   ],
 };
 
 export const COOL_DEALS_SECTION_LABELS: Record<CoolDealsSectionType, string> = {
+  'promo-strip': 'Promo countdown strip',
+  'deal-of-day': 'Deal of the Day hero',
+  'service-sticky': 'Service sticky bar',
   'card-grid': 'Offer cards',
+  'best-sellers': 'Best sellers ranking',
+  'flash-deals': 'Flash deals',
+  finder: 'Aircon finder quiz',
+  financing: 'Financing calculator',
+  bundles: 'Value bundles',
+  brands: 'Shop by brand',
+  recommended: 'Recommended products',
   'product-matrix': 'Product types & perks',
   'trust-bar': 'Trust icons',
   cta: 'Contact section',
   'stats-brands': 'Stats & brands',
 };
+
+export function defaultServiceStickySection(): CoolDealsServiceStickySection {
+  return {
+    id: 'sec-service-sticky',
+    type: 'service-sticky',
+    enabled: true,
+    eyebrow: 'Already own an aircon?',
+    title: 'Aircon needs cleaning or repair?',
+    subtitle: 'Certified techs · Metro Cebu · Book in under a minute',
+    ctaLabel: 'Request a Service',
+    bgFrom: '#0EA5E9',
+    bgTo: '#0284C7',
+    titleColor: '#FFFFFF',
+    subtitleColor: '#E0F2FE',
+    ctaBg: '#FFC107',
+    ctaText: '#22303C',
+    accentColor: '#FFC107',
+  };
+}
+
+function mergeServiceSticky(section: CoolDealsServiceStickySection): CoolDealsServiceStickySection {
+  const d = defaultServiceStickySection();
+  const rawLabel = section.ctaLabel?.trim() || '';
+  const ctaLabel =
+    !rawLabel || /^book a service$/i.test(rawLabel) ? d.ctaLabel : rawLabel;
+  return {
+    ...d,
+    ...section,
+    id: section.id || d.id,
+    type: 'service-sticky',
+    enabled: section.enabled !== false,
+    eyebrow: section.eyebrow?.trim() || d.eyebrow,
+    title: section.title?.trim() || d.title,
+    subtitle: section.subtitle?.trim() || d.subtitle,
+    ctaLabel,
+    bgFrom: section.bgFrom?.trim() || d.bgFrom,
+    bgTo: section.bgTo?.trim() || d.bgTo,
+    titleColor: section.titleColor?.trim() || d.titleColor,
+    subtitleColor: section.subtitleColor?.trim() || d.subtitleColor,
+    ctaBg: section.ctaBg?.trim() || d.ctaBg,
+    ctaText: section.ctaText?.trim() || d.ctaText,
+    accentColor: section.accentColor?.trim() || d.accentColor,
+  };
+}
 
 function mergeDealCard(card: CoolDealsDealCardItem, index: number): CoolDealsDealCardItem {
   const fallback = defaultDealCards[index % defaultDealCards.length];
@@ -338,6 +747,7 @@ function mergeVoucherCard(card: CoolDealsCardItem, index: number): CoolDealsCard
     title: card.title?.trim() || fallback.title,
     body: card.body?.trim() || fallback.body,
     imageUrl: card.imageUrl?.trim() || fallback.imageUrl,
+    voucherCode: (card.voucherCode ?? fallback.voucherCode)?.trim().toUpperCase() || undefined,
     linkMode: card.linkMode ?? 'none',
     promoPageId: card.promoPageId,
     linkHref: card.linkHref?.trim() || '',
@@ -374,11 +784,142 @@ function mergeProductMatrix(section: CoolDealsProductMatrixSection): CoolDealsPr
   return base;
 }
 
+function mergeTrustBar(section: CoolDealsTrustBarSection): CoolDealsTrustBarSection {
+  if (section.items?.length) return section;
+  return { ...section, items: defaultTrustItems.map((i) => ({ ...i })) };
+}
+
+function mergeBundles(section: CoolDealsBundlesSection): CoolDealsBundlesSection {
+  if (section.items?.length) return section;
+  return {
+    ...section,
+    eyebrow: section.eyebrow || 'BUY THE WHOLE SOLUTION',
+    headingTitle: section.headingTitle || 'Value bundles — unit + install + perks',
+    headingSubtitle: section.headingSubtitle || '',
+    items: defaultBundles.map((b) => ({ ...b, includes: [...b.includes] })),
+  };
+}
+
+function mergeFinancing(section: CoolDealsFinancingSection): CoolDealsFinancingSection {
+  return {
+    ...section,
+    eyebrow: section.eyebrow || '0% INTEREST · UP TO 36 MOS',
+    title: section.title || 'Cool now, pay monthly.',
+    body: section.body || '',
+    bullets: section.bullets?.length ? section.bullets : ['No downpayment options', 'Fast approval'],
+    ctaLabel: section.ctaLabel || 'Apply for financing',
+    minMonths: section.minMonths === 6 && (!section.stepMonths || section.stepMonths === 6)
+      ? 3
+      : section.minMonths || 3,
+    maxMonths: section.maxMonths || 36,
+    stepMonths: section.stepMonths === 6 && (section.minMonths === 6 || !section.minMonths)
+      ? 3
+      : section.stepMonths || 3,
+    defaultMonths: section.defaultMonths || 24,
+    models: section.models?.length
+      ? section.models
+      : [
+          { id: 'fm1', name: 'Daikin Amihan 1.5HP', price: 28900 },
+          { id: 'fm2', name: 'Panasonic Aero 2HP', price: 33575 },
+        ],
+  };
+}
+
+function migrateToRedesign(sections: CoolDealsSection[]): CoolDealsSection[] {
+  const hasDealHero = sections.some((s) => s.type === 'deal-of-day' || s.type === 'promo-strip');
+  if (hasDealHero) return sections;
+
+  // Older CMS configs only had voucher/matrix/cta — promote to the new design defaults
+  // while preserving editable voucher cards and CTA copy when present.
+  const defaults = JSON.parse(JSON.stringify(defaultCoolDealsPage.sections)) as CoolDealsSection[];
+  const voucher = sections.find((s) => s.type === 'card-grid' && s.variant === 'voucher') as
+    | CoolDealsCardGridSection
+    | undefined;
+  const cta = sections.find((s) => s.type === 'cta') as CoolDealsCtaSection | undefined;
+  const trust = sections.find((s) => s.type === 'trust-bar');
+
+  return defaults.map((d) => {
+    if (d.type === 'card-grid' && d.variant === 'voucher' && voucher?.cards?.length) {
+      return {
+        ...d,
+        headingTitle: voucher.headingTitle || d.headingTitle,
+        headingSubtitle: voucher.headingSubtitle || d.headingSubtitle,
+        cards: voucher.cards,
+        enabled: voucher.enabled !== false,
+      };
+    }
+    if (d.type === 'cta' && cta) {
+      return { ...d, title: cta.title || d.title, subtitle: cta.subtitle || d.subtitle, enabled: cta.enabled !== false };
+    }
+    if (d.type === 'trust-bar' && trust) {
+      return { ...d, enabled: trust.enabled !== false };
+    }
+    return d;
+  });
+}
+
 function normalizeSections(sections: CoolDealsSection[]): CoolDealsSection[] {
-  return sections.map((s) => {
+  const migrated = migrateToRedesign(sections);
+  const withSticky = migrated.some((s) => s.type === 'service-sticky')
+    ? migrated
+    : [...migrated, defaultServiceStickySection()];
+
+  return withSticky.map((s) => {
+    if (s.type === 'service-sticky') return mergeServiceSticky(s);
     if (s.type === 'product-matrix') return mergeProductMatrix(s);
     if (s.type === 'card-grid' && s.variant === 'deal') return mergeDealCardGrid(s);
     if (s.type === 'card-grid' && s.variant === 'voucher') return mergeVoucherCardGrid(s);
+    if (s.type === 'trust-bar') return mergeTrustBar(s as CoolDealsTrustBarSection);
+    if (s.type === 'bundles') return mergeBundles(s as CoolDealsBundlesSection);
+    if (s.type === 'financing') return mergeFinancing(s as CoolDealsFinancingSection);
+    if (s.type === 'deal-of-day') {
+      const deal = s as CoolDealsDealOfDaySection;
+      const hours = Number(deal.urgencyThresholdHours);
+      let stockLeft = Number(deal.stockLeft);
+      if (!Number.isFinite(stockLeft) || stockLeft < 0) {
+        const fromLabel = deal.stockLabel?.match(/(\d+)/)?.[1];
+        stockLeft = fromLabel ? Number(fromLabel) : 7;
+      }
+      let stockCapacity = Number(deal.stockCapacity);
+      if (!Number.isFinite(stockCapacity) || stockCapacity <= 0) {
+        stockCapacity = Math.max(20, stockLeft);
+      }
+      if (stockCapacity < stockLeft) stockCapacity = stockLeft;
+      return {
+        ...deal,
+        stockLeft,
+        stockCapacity,
+        urgencyThresholdHours: Number.isFinite(hours) && hours > 0 ? hours : 24,
+        blinkWhenUrgent: deal.blinkWhenUrgent !== false,
+        forceBlink: deal.forceBlink === true,
+      };
+    }
+    if (s.type === 'flash-deals') {
+      const flash = s as CoolDealsFlashDealsSection;
+      const hours = Number(flash.urgencyThresholdHours);
+      return {
+        ...flash,
+        showCountdown: flash.showCountdown !== false,
+        endsAt: typeof flash.endsAt === 'string' ? flash.endsAt : '',
+        urgencyThresholdHours: Number.isFinite(hours) && hours > 0 ? hours : 72,
+        blinkWhenUrgent: flash.blinkWhenUrgent !== false,
+        forceBlink: flash.forceBlink === true,
+      };
+    }
+    if (s.type === 'stats-brands') {
+      const st = s as CoolDealsStatsBrandsSection;
+      return {
+        ...st,
+        stats: st.stats?.length
+          ? st.stats
+          : [
+              { id: 's1', value: '2,000+', label: 'Satisfied Customers' },
+              { id: 's2', value: '500+', label: 'Projects Completed' },
+              { id: 's3', value: '8+', label: 'Years in Service' },
+            ],
+        brandsLabel: st.brandsLabel || 'Authorized Dealer of Top Brands',
+      };
+    }
     return s;
   });
 }
@@ -404,7 +945,7 @@ export function getCoolDealsPage(): CoolDealsPageConfig {
       }
     }
   } catch {
-    // ignore
+    /* ignore */
   }
   return {
     sections: normalizeSections(
@@ -428,7 +969,7 @@ export async function saveCoolDealsPage(config: CoolDealsPageConfig): Promise<vo
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem('hamel_cool_deals_page_v1');
   } catch {
-    // ignore
+    /* ignore */
   }
   window.dispatchEvent(new CustomEvent('hamel-cool-deals-updated'));
 }
@@ -439,7 +980,7 @@ export async function resetCoolDealsPage(): Promise<void> {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem('hamel_cool_deals_page_v1');
   } catch {
-    // ignore
+    /* ignore */
   }
   window.dispatchEvent(new CustomEvent('hamel-cool-deals-updated'));
 }
@@ -450,7 +991,8 @@ export function createCardGridSection(variant: 'voucher' | 'deal'): CoolDealsCar
     type: 'card-grid',
     enabled: true,
     variant,
-    headingTitle: variant === 'voucher' ? 'New voucher section' : 'New deals section',
+    headingEyebrow: variant === 'voucher' ? 'LIMITED-TIME · SAVE AT CHECKOUT' : undefined,
+    headingTitle: variant === 'voucher' ? 'Claim your vouchers' : 'New deals section',
     headingSubtitle: '',
     background: 'white',
     cards: variant === 'voucher' ? [createVoucherCard()] : [],
@@ -487,10 +1029,148 @@ export function createDealCard(): CoolDealsDealCardItem {
   };
 }
 
+export function createBundleItem(): CoolDealsBundleItem {
+  return {
+    id: sid(),
+    name: 'New bundle',
+    sub: 'Short description',
+    imageUrl: hamelAssets.aircon.wallSplitDaikinAmihan,
+    priceNow: 19900,
+    priceWas: 24900,
+    includes: ['Unit', 'Installation', 'Free perk'],
+    ctaLabel: 'Get this bundle',
+  };
+}
+
 export function createSection(type: CoolDealsSectionType): CoolDealsSection {
   switch (type) {
+    case 'promo-strip':
+      return {
+        id: sid(),
+        type: 'promo-strip',
+        enabled: true,
+        badge: 'SUMMER COOL SALE',
+        text: 'Free installation on every inverter unit',
+        showCountdown: true,
+      };
+    case 'deal-of-day':
+      return {
+        id: sid(),
+        type: 'deal-of-day',
+        enabled: true,
+        eyebrow: 'DEAL OF THE DAY',
+        title: 'Beat the heat,\nnot your budget.',
+        subtitle: 'Inverter aircon from the brands you trust — with free installation and flexible monthly plans.',
+        primaryCta: "Shop today's deal →",
+        secondaryCta: 'Find my aircon',
+        secondaryHref: '#finder',
+        trustLine: '100% authentic · Free pro installation · Up to 36 mos to pay',
+        brand: 'DAIKIN',
+        productName: 'Amihan Inverter 1.5HP',
+        imageUrl: hamelAssets.aircon.wallSplitDaikinAmihan,
+        priceNow: 28900,
+        priceWas: 39900,
+        badge: 'SAVE ₱11,000',
+        stockLeft: 7,
+        stockCapacity: 20,
+        stockLabel: 'Only 7 left',
+        stockPct: 65,
+        months: 36,
+        tag: 'INVERTER',
+        inquireCta: 'Inquire now — reserve this price',
+        urgencyThresholdHours: 24,
+        blinkWhenUrgent: true,
+        forceBlink: false,
+        showStickyBar: false,
+      };
+    case 'service-sticky':
+      return { ...defaultServiceStickySection(), id: sid() };
     case 'card-grid':
       return createCardGridSection('voucher');
+    case 'best-sellers':
+      return {
+        id: sid(),
+        type: 'best-sellers',
+        enabled: true,
+        eyebrow: 'MOST WANTED',
+        headingTitle: 'Best sellers this week',
+        seeAllHref: '/products',
+        source: 'catalog',
+        productIds: [],
+        limit: 5,
+      };
+    case 'flash-deals':
+      return {
+        id: sid(),
+        type: 'flash-deals',
+        enabled: true,
+        headingTitle: 'Flash Deals',
+        headingSubtitle: 'Lowest prices this month · while stocks last',
+        seeAllHref: '/products',
+        showCountdown: true,
+        endsAt: '',
+        urgencyThresholdHours: 72,
+        blinkWhenUrgent: true,
+        source: 'catalog',
+        productIds: [],
+        limit: 8,
+      };
+    case 'finder':
+      return {
+        id: sid(),
+        type: 'finder',
+        enabled: true,
+        eyebrow: 'NOT SURE WHAT TO BUY?',
+        title: 'Find your perfect aircon in 30 seconds',
+        subtitle: 'Answer 3 quick questions and we’ll match the right unit.',
+      };
+    case 'financing':
+      return {
+        id: sid(),
+        type: 'financing',
+        enabled: true,
+        eyebrow: '0% INTEREST · UP TO 36 MOS',
+        title: 'Cool now, pay monthly.',
+        body: 'Slide to see your monthly payment.',
+        bullets: ['No downpayment options', 'Fast approval'],
+        ctaLabel: 'Apply for financing',
+        minMonths: 3,
+        maxMonths: 36,
+        stepMonths: 3,
+        defaultMonths: 24,
+        models: [
+          { id: sid(), name: 'Sample unit', price: 28900 },
+        ],
+      };
+    case 'bundles':
+      return {
+        id: sid(),
+        type: 'bundles',
+        enabled: true,
+        eyebrow: 'BUY THE WHOLE SOLUTION',
+        headingTitle: 'Value bundles',
+        headingSubtitle: '',
+        items: [createBundleItem()],
+      };
+    case 'brands':
+      return {
+        id: sid(),
+        type: 'brands',
+        enabled: true,
+        eyebrow: 'AUTHORIZED DEALER',
+        headingTitle: 'Shop by brand',
+        brandNames: [],
+      };
+    case 'recommended':
+      return {
+        id: sid(),
+        type: 'recommended',
+        enabled: true,
+        headingTitle: 'Recommended for you',
+        source: 'catalog',
+        productIds: [],
+        limit: 4,
+      };
     case 'product-matrix':
       return {
         id: sid(),
@@ -504,17 +1184,27 @@ export function createSection(type: CoolDealsSectionType): CoolDealsSection {
         mechanicsLinkHref: '/contact',
       };
     case 'trust-bar':
-      return { id: sid(), type: 'trust-bar', enabled: true };
+      return { id: sid(), type: 'trust-bar', enabled: true, items: defaultTrustItems.map((i) => ({ ...i })) };
     case 'cta':
       return {
         id: sid(),
         type: 'cta',
         enabled: true,
-        title: 'Ready to enjoy these cool deals?',
+        title: 'Still deciding? Talk to a real person.',
         subtitle: 'Talk to our experts today.',
       };
     case 'stats-brands':
-      return { id: sid(), type: 'stats-brands', enabled: true };
+      return {
+        id: sid(),
+        type: 'stats-brands',
+        enabled: true,
+        stats: [
+          { id: 's1', value: '2,000+', label: 'Satisfied Customers' },
+          { id: 's2', value: '500+', label: 'Projects Completed' },
+          { id: 's3', value: '8+', label: 'Years in Service' },
+        ],
+        brandsLabel: 'Authorized Dealer of Top Brands',
+      };
     default:
       return createCardGridSection('voucher');
   }

@@ -8,6 +8,14 @@ export type StoreSettings = {
   showAiChat: boolean;
   /** Show % badge next to Cool Deals in the main nav. */
   showCoolDealsNavIcon: boolean;
+  /** When true, storefront shows maintenance page and hides all navigation. */
+  maintenanceMode: boolean;
+  /** When true, storefront shows the coming-soon countdown page and hides all navigation. */
+  countdownEnabled: boolean;
+  /** ISO datetime string the countdown page counts down to. */
+  countdownEndsAt: string;
+  countdownTitle: string;
+  countdownMessage: string;
   address: string;
   phoneDisplay: string;
   messengerUrl: string;
@@ -20,6 +28,11 @@ export const DEFAULT_STORE: StoreSettings = {
   contactEmail: 'hello@hamel.example',
   showAiChat: true,
   showCoolDealsNavIcon: true,
+  maintenanceMode: false,
+  countdownEnabled: false,
+  countdownEndsAt: '',
+  countdownTitle: "Something Exciting Is Coming!",
+  countdownMessage: "We're putting the finishing touches on something cool. Check back soon!",
   address: '123 Osmeña Boulevard\nCebu City, 6000\nCebu, Philippines',
   phoneDisplay: '(032) 123-4567',
   messengerUrl: 'https://m.me/hameltrading',
@@ -30,7 +43,15 @@ export async function fetchStoreSettings(): Promise<StoreSettings> {
     const res = await apiFetch<{ data: Partial<StoreSettings> | null }>('/api/settings/store', {
       auth: false,
     });
-    return { ...DEFAULT_STORE, ...(res.data ?? {}) };
+    const data = res.data ?? {};
+    return {
+      ...DEFAULT_STORE,
+      ...data,
+      showAiChat: data.showAiChat !== false,
+      showCoolDealsNavIcon: data.showCoolDealsNavIcon !== false,
+      maintenanceMode: data.maintenanceMode === true,
+      countdownEnabled: data.countdownEnabled === true,
+    };
   } catch {
     return { ...DEFAULT_STORE };
   }
@@ -55,7 +76,7 @@ export async function trackEvent(
       auth: false,
     });
   } catch {
-    // ignore analytics failures
+
   }
 }
 

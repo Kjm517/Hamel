@@ -133,7 +133,7 @@ export const defaultProductTags: ProductTag[] = [
     iconEmoji: '✓',
     subtitle: 'INSTALLATION',
     description:
-      'Free authorized installation by Hamel-certified technicians on qualifying orders within Metro Cebu. Includes standard mounting and testing. Extra materials or special site conditions may have separate charges.',
+      'Free authorized installation by Hamel-certified technicians on all Split Type units within Metro Cebu. Includes standard mounting and testing. Extra materials or special site conditions may have separate charges.',
   },
   {
     id: 'tag-5000-off',
@@ -205,7 +205,7 @@ export function getProductTagsFromLocalStorage(): ProductTag[] | null {
       if (Array.isArray(parsed) && parsed.length > 0) return sanitizeStoredTags(parsed);
     }
   } catch {
-    // ignore
+
   }
   return null;
 }
@@ -220,7 +220,7 @@ function persistTagsLocally(tags: ProductTag[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tags));
   } catch {
-    // ignore
+
   }
 }
 

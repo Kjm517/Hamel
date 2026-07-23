@@ -111,8 +111,7 @@ messengerRoutes.get('/webhook', (c) => {
 messengerRoutes.post('/webhook', async (c) => {
   const body = (await c.req.json().catch(() => null)) as WebhookBody | null;
   if (!body || body.object !== 'page') {
-    // Meta's dashboard field test uses a sample payload rather than the
-    // standard { object: "page", entry: [...] } Messenger event envelope.
+
     console.log('[messenger] webhook test or unsupported event received');
     return c.json({ ok: true });
   }
@@ -130,7 +129,6 @@ messengerRoutes.post('/webhook', async (c) => {
         continue;
       }
 
-      // Any customer message (kickoff "Hi", etc.) → Page sends inquiry details
       if (event.message?.text || event.message?.mid || event.postback) {
         await handleMessengerInboundMessage(psid);
       }

@@ -42,6 +42,12 @@ export interface FeaturedCollectionConfig {
   countdownEndsAt?: string;
   /** Label beside countdown, e.g. "ENDS IN". */
   countdownLabel?: string;
+  /** Hours left under which timer boxes turn urgent red (default 72 = 3 days). */
+  urgencyThresholdHours?: number;
+  /** Auto-apply urgent red when under the threshold (default true). */
+  urgentWhenEndingSoon?: boolean;
+  /** Always show urgent red while the countdown is visible. */
+  forceUrgentRed?: boolean;
   /** Entrance animation for the Birthday / promo event strip. */
   animation?: PromoAnimationStyle;
   /** Continuous overlay effect (balloons, breeze, frost, etc.). */
@@ -137,6 +143,9 @@ const defaultFeaturedCollection: FeaturedCollectionConfig = {
   productIds: [],
   countdownEndsAt: undefined,
   countdownLabel: 'ENDS IN',
+  urgencyThresholdHours: 72,
+  urgentWhenEndingSoon: true,
+  forceUrgentRed: false,
   animation: 'fade',
   ambientEffect: 'none',
   ambientIntensity: 'medium',
@@ -167,6 +176,14 @@ function mergeFeaturedCollection(
     seeAllExternal: Boolean(parsed?.seeAllExternal),
     countdownEndsAt: parsed?.countdownEndsAt?.trim() || undefined,
     countdownLabel: parsed?.countdownLabel?.trim() || defaultFeaturedCollection.countdownLabel,
+    urgencyThresholdHours: (() => {
+      const raw = Number(parsed?.urgencyThresholdHours);
+      return Number.isFinite(raw) && raw > 0
+        ? raw
+        : defaultFeaturedCollection.urgencyThresholdHours;
+    })(),
+    urgentWhenEndingSoon: parsed?.urgentWhenEndingSoon !== false,
+    forceUrgentRed: parsed?.forceUrgentRed === true,
     animation: parsed?.animation || defaultFeaturedCollection.animation || 'fade',
     ambientEffect: normalizePromoAmbientEffect(parsed?.ambientEffect),
     ambientIntensity: normalizePromoAmbientIntensity(parsed?.ambientIntensity),
@@ -182,8 +199,7 @@ export { FEATURED_PRODUCT_LIMIT };
 
 const defaultPromoBanners = hamelPromoBanners.map((banner, index) => ({
   ...banner,
-  // The original homepage used items 2 and 3; keep that visible arrangement
-  // while making the previously spare item available as an optional third offer.
+
   enabled: index > 0,
 })) as unknown as [PromoBannerItem, PromoBannerItem, PromoBannerItem];
 
@@ -302,7 +318,7 @@ function mergeCoolDealsBanner(parsed?: LegacyCoolDealsBanner): CoolDealsBannerCo
 function resolveBannerImage(url?: string | null): string {
   const trimmed = url?.trim() || '';
   if (!trimmed) return '';
-  // Keep huge data URLs as-is (legacy embeds) so they still render until re-uploaded.
+
   if (trimmed.startsWith('data:')) return trimmed;
   return resolveStorageImageUrl(trimmed) || trimmed;
 }
@@ -370,7 +386,7 @@ export function getBanners(): BannerStore {
       return normalizeStore(JSON.parse(stored) as Partial<BannerStore>);
     }
   } catch {
-    // ignore
+
   }
   return { ...defaultBanners };
 }
@@ -387,7 +403,7 @@ export async function saveBanners(banners: BannerStore): Promise<void> {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
-    // ignore
+
   }
   window.dispatchEvent(new CustomEvent('hamel-banners-updated'));
 }
@@ -397,7 +413,7 @@ export async function resetBanners(): Promise<void> {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
-    // ignore
+
   }
   window.dispatchEvent(new CustomEvent('hamel-banners-updated'));
 }

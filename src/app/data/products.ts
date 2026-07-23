@@ -3,13 +3,19 @@ import type { PromoBadgeStyle } from './productTags';
 
 export interface InstallmentOption {
   months: number;
-  interestRate: number; // 0 = 0% interest
+  interestRate: number;
   label: string;
 }
+
+export type ProductHpDiscountType = 'fixed' | 'percent';
 
 export type ProductHpVariant = {
   hp: string;
   price: number;
+  /** Optional discount value (₱ if fixed, percent if percent). List price stays in `price`. */
+  discount?: number;
+  /** Defaults to `fixed` (₱) when omitted. */
+  discountType?: ProductHpDiscountType;
 };
 
 export type ProductVoucher = {
@@ -44,7 +50,7 @@ export interface Product {
     label: string;
     value: string;
   }[];
-  // Price label tier: blue=premium, yellow=budget, orange=flash-sale
+
   tier: 'premium' | 'budget' | 'flash-sale';
   installmentOptions?: InstallmentOption[];
   /** Up to 4 promo stickers on the product card (Admin â†’ Tags) */
@@ -55,13 +61,17 @@ export interface Product {
   isActive?: boolean;
   /** Corner badge tag ids (SALE, INV, etc.). Set in admin to override auto rules. */
   cornerTagIds?: string[];
+  /** Live units available to sell (Admin → Products). */
+  stockQty?: number;
+  /** Starting / shelf capacity for urgency bars (defaults to max(stockQty, 20)). */
+  stockCapacity?: number;
   /** Copyable voucher codes shown on the product detail page. */
   vouchers?: ProductVoucher[];
   /** Extra content for the compare page. */
   compare?: ProductCompareContent;
 }
 
-/** Unit price for a selected HP (uses hpVariants, else interpolates priceStartâ†’priceEnd). */
+/** Unit price for a selected HP (uses hpVariants, else interpolates priceStart→priceEnd). */
 export function getHpUnitPrice(product: Product, hp?: string): number {
   const selected = (hp || product.hp[0] || '').trim();
   const exact = product.hpVariants?.find((v) => v.hp === selected);
@@ -73,6 +83,160 @@ export function getHpUnitPrice(product: Product, hp?: string): number {
   if (idx < 0) return product.priceStart || 0;
   const t = idx / (list.length - 1);
   return Math.round(product.priceStart + (product.priceEnd - product.priceStart) * t);
+}
+
+/** Peso amount off for a selected HP (converts % discounts using list price). */
+export function getHpDiscount(product: Product, hp?: string): number {
+  const selected = (hp || product.hp[0] || '').trim();
+  const exact = product.hpVariants?.find((v) => v.hp === selected);
+  if (!exact) return 0;
+  const n = Number(exact.discount);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const list = Number(exact.price) > 0 ? Number(exact.price) : getHpUnitPrice(product, selected);
+  if (exact.discountType === 'percent') {
+    return Math.round((list * Math.min(n, 100)) / 100);
+  }
+  return Math.min(n, list);
+}
+
+export function getHpDiscountType(
+  product: Product,
+  hp?: string
+): ProductHpDiscountType {
+  const selected = (hp || product.hp[0] || '').trim();
+  const exact = product.hpVariants?.find((v) => v.hp === selected);
+  return exact?.discountType === 'percent' ? 'percent' : 'fixed';
+}
+
+export function hasHpDiscounts(product: Product): boolean {
+  return (product.hpVariants ?? []).some((v) => Number(v.discount) > 0);
+}
+
+export type ProductStockStatus = 'In Stock' | 'Low Stock' | 'Out of Stock';
+
+/** Derive status badge from live quantity. */
+export function deriveStockStatus(
+  stockQty: number | undefined,
+  stockCapacity?: number
+): ProductStockStatus {
+  const qty = Number(stockQty);
+  if (!Number.isFinite(qty) || qty <= 0) return 'Out of Stock';
+  const cap = Number(stockCapacity);
+  const lowAt =
+    Number.isFinite(cap) && cap > 0 ? Math.max(3, Math.ceil(cap * 0.25)) : 5;
+  if (qty <= lowAt) return 'Low Stock';
+  return 'In Stock';
+}
+
+/** Normalize qty/capacity for urgency bars and labels. */
+export function resolveProductStock(product: {
+  stockQty?: number;
+  stockCapacity?: number;
+}): { qty: number; capacity: number } | null {
+  const qty = Number(product.stockQty);
+  if (!Number.isFinite(qty) || qty < 0) return null;
+  let capacity = Number(product.stockCapacity);
+  if (!Number.isFinite(capacity) || capacity <= 0) {
+    capacity = Math.max(20, qty);
+  }
+  if (capacity < qty) capacity = qty;
+  return { qty, capacity };
+}
+
+/** Sale price for an HP: list price minus optional per-HP discount. */
+export function getHpSalePrice(product: Product, hp?: string): number {
+  return Math.max(0, getHpUnitPrice(product, hp) - getHpDiscount(product, hp));
+}
+
+/** Min/max list prices from configured HP variants (or priceStart/End). */
+export function priceRangeFromHpVariants(
+  variants: ProductHpVariant[] | undefined,
+  fallback: { priceStart: number; priceEnd: number }
+): { priceStart: number; priceEnd: number } {
+  const prices = (variants ?? []).map((v) => v.price).filter((n) => Number.isFinite(n) && n > 0);
+  if (!prices.length) return fallback;
+  return { priceStart: Math.min(...prices), priceEnd: Math.max(...prices) };
+}
+
+function hpDiscountPercentOfPrice(v: ProductHpVariant): number {
+  const price = Number(v.price);
+  const discount = Number(v.discount);
+  if (!(price > 0) || !(discount > 0)) return 0;
+  if (v.discountType === 'percent') return Math.min(discount, 100);
+  return Math.round((Math.min(discount, price) / price) * 1000) / 10;
+}
+
+function hpDiscountPesos(v: ProductHpVariant): number {
+  const price = Number(v.price);
+  const discount = Number(v.discount);
+  if (!(price > 0) || !(discount > 0)) return 0;
+  if (v.discountType === 'percent') {
+    return Math.round((price * Math.min(discount, 100)) / 100);
+  }
+  return Math.min(discount, price);
+}
+
+/** Effective % off for one HP (from % discount or equivalent of ₱ off). */
+export function getHpDiscountPercent(product: Product, hp?: string): number {
+  const selected = (hp || product.hp[0] || '').trim();
+  const exact = product.hpVariants?.find((v) => v.hp === selected);
+  if (!exact) return 0;
+  return hpDiscountPercentOfPrice(exact);
+}
+
+/** Short label for one HP discount row (admin + chips). */
+export function formatHpVariantDiscount(v: ProductHpVariant): string | null {
+  const discount = Number(v.discount);
+  if (!(discount > 0) || !(Number(v.price) > 0)) return null;
+  if (v.discountType === 'percent') {
+    return `${Math.min(discount, 100)}% off`;
+  }
+  return `₱${Math.min(discount, Number(v.price)).toLocaleString()} off`;
+}
+
+/** Human label for promo chips when per-HP discounts are set. */
+export function formatHpDiscountLabel(product: Product): string | null {
+  const rows = (product.hpVariants ?? []).filter(
+    (v) => Number(v.discount) > 0 && Number(v.price) > 0
+  );
+  if (!rows.length) return null;
+
+  const allPercent = rows.every((v) => v.discountType === 'percent');
+  if (allPercent) {
+    const pcts = rows.map((v) => Math.min(Number(v.discount), 100));
+    const min = Math.min(...pcts);
+    const max = Math.max(...pcts);
+    if (min === max) return `${max}% OFF`;
+    return `${min}%–${max}% OFF`;
+  }
+
+  const amounts = rows.map((v) => hpDiscountPesos(v));
+  const min = Math.min(...amounts);
+  const max = Math.max(...amounts);
+  if (min === max) return `₱${max.toLocaleString()} OFF`;
+  return `₱${min.toLocaleString()}–₱${max.toLocaleString()} OFF`;
+}
+
+/** Effective % off range for corner tags / percentage promo sync. */
+export function getHpDiscountPercentRange(product: Product): { min: number; max: number } | null {
+  const pcts = (product.hpVariants ?? [])
+    .map((v) => hpDiscountPercentOfPrice(v))
+    .filter((n) => n > 0);
+  if (!pcts.length) return null;
+  return { min: Math.min(...pcts), max: Math.max(...pcts) };
+}
+
+/** Peso-off range for fixed promo sync. */
+export function getHpDiscountPesoRange(product: Product): { min: number; max: number } | null {
+  const amounts = (product.hpVariants ?? [])
+    .map((v) => hpDiscountPesos(v))
+    .filter((n) => n > 0);
+  if (!amounts.length) return null;
+  return { min: Math.min(...amounts), max: Math.max(...amounts) };
+}
+
+export function isSplitTypeProduct(product: Pick<Product, 'category'>): boolean {
+  return /split/i.test(product.category?.trim() || '');
 }
 
 export interface ProductPromoEntry {

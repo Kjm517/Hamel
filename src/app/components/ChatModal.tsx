@@ -22,7 +22,6 @@ export function ChatModal({ isOpen, onClose }: ChatModalProps) {
     setMessages(prev => [...prev, { type: 'user', text: userMessage }]);
     setInputValue('');
 
-    // Simple AI responses
     setTimeout(() => {
       let response = '';
       const lower = userMessage.toLowerCase();
@@ -53,12 +52,12 @@ export function ChatModal({ isOpen, onClose }: ChatModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay */}
+      {}
       <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
+      {}
       <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col" style={{ height: '600px' }}>
-        {/* Header */}
+        {}
         <div className="flex items-center justify-between p-4 border-b" style={{ backgroundColor: '#0EA5E9' }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style={{ backgroundColor: '#1A3A6B' }}>
@@ -74,7 +73,7 @@ export function ChatModal({ isOpen, onClose }: ChatModalProps) {
           </button>
         </div>
 
-        {/* Messages */}
+        {}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((message, index) => (
             <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -97,7 +96,7 @@ export function ChatModal({ isOpen, onClose }: ChatModalProps) {
           ))}
         </div>
 
-        {/* Input */}
+        {}
         <div className="p-4 border-t">
           <div className="flex items-center gap-2 bg-gray-100 rounded-full px-4 py-2">
             <input

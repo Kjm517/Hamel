@@ -141,7 +141,7 @@ export function getBrandsPage(): BrandsPageConfig {
       if (parsed.brands?.length) return withBrandLogos(parsed);
     }
   } catch {
-    // ignore
+
   }
   return withBrandLogos(JSON.parse(JSON.stringify(defaultBrandsPage)) as BrandsPageConfig);
 }
@@ -157,7 +157,7 @@ export async function saveBrandsPage(config: BrandsPageConfig): Promise<void> {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
-    // ignore
+
   }
   window.dispatchEvent(new CustomEvent('hamel-brands-page-updated'));
 }
@@ -167,7 +167,7 @@ export async function resetBrandsPage(): Promise<void> {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
-    // ignore
+
   }
   window.dispatchEvent(new CustomEvent('hamel-brands-page-updated'));
 }

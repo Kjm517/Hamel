@@ -1,3 +1,5 @@
+import { fetchContent, getCachedContent, saveContent } from '../lib/content-api';
+
 export interface Testimonial {
   id: string;
   name: string;
@@ -7,74 +9,99 @@ export interface Testimonial {
   text: string;
   /** Product mentioned, or short label (e.g. Facebook recommend) */
   model: string;
-  source?: 'facebook';
+  source?: 'facebook' | 'site' | 'other';
+  /** When false, hidden from storefront but kept in admin. */
+  enabled?: boolean;
 }
 
-/**
- * Customer quotes from Hamel Trading’s public Facebook reviews.
- * @see https://www.facebook.com/hameltrading/reviews/?id=100064107279848&sk=reviews
- */
-export const testimonials: Testimonial[] = [
-  {
-    id: 'fb-riva-coleen',
-    name: 'Riva Coleen',
-    location: 'July 28, 2025 · Facebook',
-    rating: 5,
-    text: 'I recently purchased a 1.5HP Daikin Amihan from Hamel Trading, and I couldn’t be happier with the experience. It’s one of the most recommended units out there — fast cooling, quiet performance, and energy-efficient. And the price? Easily one of the cheapest in the market, without compromising on quality. To top it off, installation was free, and the entire process was smooth and hassle-free. The team at Hamel Trading was friendly, responsive, and professional from start to finish. One of my best buys so far. I highly recommend Hamel Trading for great deals, quality products, and excellent service.',
-    model: 'Daikin Amihan 1.5HP',
-    source: 'facebook',
-  },
-  {
-    id: 'fb-john-mykel',
-    name: 'John Mykel Olmilla',
-    location: 'May 6, 2025 · Facebook',
-    rating: 5,
-    text: 'Service is straight to the point. Professional Staff. Brand new aircon with free installation + more freebies. Fast survey and installation at home. I am very satisfied. Salamat Hamel!',
-    model: 'Free installation',
-    source: 'facebook',
-  },
-  {
-    id: 'fb-rai-borgonia',
-    name: 'Rai Borgonia',
-    location: 'October 30, 2025 · Facebook',
-    rating: 5,
-    text: 'From inquiry, survey and installation the service was great. Technicians are good people, they answered all my questions. The owner is very accommodating and answers your query on a reasonable timeframe. I just had it installed a couple of days ago, so hopefully the aftersale service is the same.',
-    model: 'Recommends Hamel',
-    source: 'facebook',
-  },
-  {
-    id: 'fb-ma-ya-ng',
-    name: 'MA YA NG',
-    location: 'October 26, 2024 · Facebook',
-    rating: 5,
-    text: 'Big thanks to HAMEL TRADING for their fantastic aircon service! They were so helpful and efficient, and now my home is a cool. Highly recommended',
-    model: 'Recommends Hamel',
-    source: 'facebook',
-  },
-  {
-    id: 'fb-mike-cinco',
-    name: 'Mike Cinco',
-    location: 'October 18, 2024 · Facebook',
-    rating: 5,
-    text: 'Thank you Sir Ivan and Team Hamel Trading for the easy and swift transaction plus installation. Super sulit ang price and the team of installer and surveyor are very professional and kind. WILL DEFINITELY RECOMMEND YOU GUYS TO MY FAMILY AND FRIENDS! ONE SATISFIED CUSTOMER HERE!! MORE POWER TO YOUR BUSINESS!!',
-    model: 'Recommends Hamel',
-    source: 'facebook',
-  },
-  {
-    id: 'fb-jayson-sarsalejo',
-    name: 'Jayson Sarsalejo',
-    location: 'April 26, 2024 · Facebook',
-    rating: 5,
-    text: '5/5 — This is our second purchase here in Hamel and service is still top notch. Very knowledgeable staff and would purchase for the 3rd time soon cause the heat is killing me. I love Hamel. #StanHamel',
-    model: 'Repeat customer',
-    source: 'facebook',
-  },
-];
+export interface TestimonialsConfig {
+  items: Testimonial[];
+  /** How many reviews to show on the homepage (default 4). */
+  homepageLimit: number;
+  facebookReviewsUrl: string;
+  facebookRecommendSummary: string;
+  sectionTitle: string;
+  sectionEyebrow: string;
+}
 
-/** Homepage shows a curated subset; full list stays available for “read more”. */
-export const homepageTestimonials = testimonials.slice(0, 4);
-
-export const FACEBOOK_REVIEWS_URL =
+export const DEFAULT_FACEBOOK_REVIEWS_URL =
   'https://www.facebook.com/hameltrading/reviews/?id=100064107279848&sk=reviews';
 
-export const FACEBOOK_RECOMMEND_SUMMARY = '100% recommend · 21 reviews on Facebook';
+/** Empty shell — reviews live in Neon via Admin → Reviews. */
+export const defaultTestimonials: TestimonialsConfig = {
+  items: [],
+  homepageLimit: 4,
+  facebookReviewsUrl: DEFAULT_FACEBOOK_REVIEWS_URL,
+  facebookRecommendSummary: '',
+  sectionTitle: 'What Cebu Families Say',
+  sectionEyebrow: 'Happy Customers',
+};
+
+function normalizeSource(raw: unknown): Testimonial['source'] {
+  if (raw === 'site' || raw === 'other' || raw === 'facebook') return raw;
+  return 'facebook';
+}
+
+function normalizeItem(raw: Partial<Testimonial>, index: number): Testimonial {
+  const rating = Math.min(5, Math.max(1, Math.round(Number(raw.rating) || 5)));
+  return {
+    id: (raw.id || `review-${index}`).trim() || `review-${index}`,
+    name: (raw.name || 'Customer').trim() || 'Customer',
+    location: (raw.location || '').trim(),
+    rating,
+    text: (raw.text || '').trim(),
+    model: (raw.model || '').trim(),
+    source: normalizeSource(raw.source),
+    enabled: raw.enabled !== false,
+  };
+}
+
+export function normalizeTestimonials(raw: Partial<TestimonialsConfig> | null): TestimonialsConfig {
+  const base = structuredClone(defaultTestimonials);
+  if (!raw) return base;
+
+  const items = Array.isArray(raw.items)
+    ? raw.items.map((item, i) => normalizeItem(item, i))
+    : [];
+
+  const limit = Number(raw.homepageLimit);
+  return {
+    items,
+    homepageLimit: Number.isFinite(limit) && limit > 0 ? Math.min(24, Math.round(limit)) : 4,
+    facebookReviewsUrl:
+      typeof raw.facebookReviewsUrl === 'string' && raw.facebookReviewsUrl.trim()
+        ? raw.facebookReviewsUrl.trim()
+        : base.facebookReviewsUrl,
+    facebookRecommendSummary:
+      typeof raw.facebookRecommendSummary === 'string'
+        ? raw.facebookRecommendSummary.trim()
+        : base.facebookRecommendSummary,
+    sectionTitle:
+      typeof raw.sectionTitle === 'string' && raw.sectionTitle.trim()
+        ? raw.sectionTitle.trim()
+        : base.sectionTitle,
+    sectionEyebrow:
+      typeof raw.sectionEyebrow === 'string' && raw.sectionEyebrow.trim()
+        ? raw.sectionEyebrow.trim()
+        : base.sectionEyebrow,
+  };
+}
+
+export function getTestimonialsCached(): TestimonialsConfig {
+  return normalizeTestimonials(getCachedContent<TestimonialsConfig>('testimonials') ?? null);
+}
+
+export async function loadTestimonials(): Promise<TestimonialsConfig> {
+  const data = await fetchContent('testimonials', defaultTestimonials);
+  return normalizeTestimonials(data);
+}
+
+export async function saveTestimonials(config: TestimonialsConfig): Promise<void> {
+  await saveContent('testimonials', normalizeTestimonials(config));
+}
+
+/** Enabled reviews for the homepage, capped by homepageLimit. */
+export function homepageTestimonialsFrom(config: TestimonialsConfig): Testimonial[] {
+  const limit = config.homepageLimit || 4;
+  return config.items.filter((t) => t.enabled !== false && t.text.trim()).slice(0, limit);
+}

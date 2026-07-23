@@ -1,5 +1,14 @@
 import type { Product, ProductPromoEntry } from '../data/products';
 import {
+  formatHpDiscountLabel,
+  getHpDiscountPercentRange,
+  getHpDiscountPesoRange,
+  getHpSalePrice,
+  getHpUnitPrice,
+  hasHpDiscounts,
+  isSplitTypeProduct,
+} from '../data/products';
+import {
   getProductTagById,
   getProductTags,
   getStyleColors,
@@ -10,6 +19,7 @@ import {
 import type { ResolvedProductPromo } from './resolveProductPromo';
 
 export const MAX_PRODUCT_PROMOS = 4;
+export const FREE_INSTALL_TAG_ID = 'tag-free-install';
 
 export function promoTypeForStyle(style: PromoBadgeStyle): ProductPromoEntry['type'] {
   switch (style) {
@@ -61,8 +71,94 @@ export function getProductPromoList(product: Product): ProductPromoEntry[] {
   return [];
 }
 
+function hasFreeInstallPromo(entries: ProductPromoEntry[]): boolean {
+  return entries.some(
+    (p) =>
+      p.tagId === FREE_INSTALL_TAG_ID ||
+      p.badgeType === 'free-install' ||
+      p.type === 'free-service'
+  );
+}
+
+/** Promos shown on storefront (auto-adds free install for Split Type). */
+export function getEffectivePromoList(
+  product: Product,
+  catalogTags?: ProductTag[]
+): ProductPromoEntry[] {
+  const catalog = catalogTags ?? getProductTags();
+  let list = [...getProductPromoList(product)];
+
+  if (isSplitTypeProduct(product) && !hasFreeInstallPromo(list)) {
+    const injected =
+      createPromoEntryFromTag(FREE_INSTALL_TAG_ID, catalog) ??
+      ({
+        tagId: FREE_INSTALL_TAG_ID,
+        type: 'free-service' as const,
+        value: 0,
+        label: 'FREE AUTHORIZED',
+        badgeType: 'free-install' as const,
+      } satisfies ProductPromoEntry);
+    if (list.length >= MAX_PRODUCT_PROMOS) {
+      list = [injected, ...list.slice(0, MAX_PRODUCT_PROMOS - 1)];
+    } else {
+      list = [...list, injected];
+    }
+  }
+
+  return list.slice(0, MAX_PRODUCT_PROMOS);
+}
+
+/** Sync percentage/fixed promo values from per-HP discounts (admin helper). */
+export function syncPromosFromHpDiscounts(product: Product): ProductPromoEntry[] {
+  const list = getProductPromoList(product);
+  if (!hasHpDiscounts(product)) return list;
+
+  const discounted = (product.hpVariants ?? []).filter(
+    (v) => Number(v.discount) > 0 && Number(v.price) > 0
+  );
+  const pesoRange = getHpDiscountPesoRange(product);
+  const pctRange = getHpDiscountPercentRange(product);
+  const appliesTo = discounted.map((v) => v.hp).join(', ');
+  const hpLabel = formatHpDiscountLabel(product);
+
+  return list.map((entry) => {
+    if (entry.type === 'fixed' && pesoRange) {
+      return {
+        ...entry,
+        value: pesoRange.max,
+        appliesTo,
+        label: hpLabel || `₱${pesoRange.max.toLocaleString()} OFF`,
+      };
+    }
+    if (entry.type === 'percentage' && pctRange) {
+      return {
+        ...entry,
+        value: pctRange.max,
+        appliesTo,
+        label:
+          pctRange.min === pctRange.max
+            ? `${pctRange.max}% OFF`
+            : `${pctRange.min}%–${pctRange.max}% OFF`,
+      };
+    }
+    return entry;
+  });
+}
+
 /** Chip/sticker text: product discount values + live tag name from catalog. */
-export function buildPromoDisplayLabel(entry: ProductPromoEntry, tag?: ProductTag): string {
+export function buildPromoDisplayLabel(
+  entry: ProductPromoEntry,
+  tag?: ProductTag,
+  product?: Product
+): string {
+  if (
+    product &&
+    hasHpDiscounts(product) &&
+    (entry.type === 'percentage' || entry.type === 'fixed')
+  ) {
+    const hpLabel = formatHpDiscountLabel(product);
+    if (hpLabel) return hpLabel;
+  }
   if (entry.type === 'percentage') {
     return `${entry.value}% OFF`;
   }
@@ -78,7 +174,10 @@ export function buildPromoDisplayLabel(entry: ProductPromoEntry, tag?: ProductTa
 
 export function normalizeProductForSave(product: Product): Product {
   const catalog = getProductTags();
-  const promos = getProductPromoList(product)
+  const synced = hasHpDiscounts(product)
+    ? { ...product, promos: syncPromosFromHpDiscounts(product) }
+    : product;
+  const promos = getProductPromoList(synced)
     .filter((p) => p.tagId || p.label.trim())
     .map((entry) => {
       const tag = entry.tagId ? getProductTagById(entry.tagId, catalog) : undefined;
@@ -87,10 +186,10 @@ export function normalizeProductForSave(product: Product): Product {
         ...entry,
         badgeType: normalizePromoBadgeStyle(tag.style),
         type: entry.type || promoTypeForStyle(tag.style),
-        label: buildPromoDisplayLabel(entry, tag),
+        label: buildPromoDisplayLabel(entry, tag, synced),
       };
     });
-  const next = { ...product, promo: undefined as Product['promo'] };
+  const next = { ...synced, promo: undefined as Product['promo'] };
   if (promos.length > 0) {
     next.promos = promos;
   } else {
@@ -104,7 +203,8 @@ export function normalizeProductForSave(product: Product): Product {
 
 export function resolvePromoEntry(
   entry: ProductPromoEntry,
-  tagCatalog?: ProductTag[]
+  tagCatalog?: ProductTag[],
+  product?: Product
 ): ResolvedProductPromo | null {
   const catalog = tagCatalog ?? getProductTags();
   const tag = entry.tagId ? getProductTagById(entry.tagId, catalog) : undefined;
@@ -114,7 +214,7 @@ export function resolvePromoEntry(
 
   const badgeType = normalizePromoBadgeStyle(tag?.style ?? entry.badgeType);
   const colors = getStyleColors(badgeType);
-  const label = buildPromoDisplayLabel(entry, tag);
+  const label = buildPromoDisplayLabel(entry, tag, product);
 
   return {
     badgeType,
@@ -139,13 +239,12 @@ export function resolveProductPromos(
   product: Product,
   tagCatalog?: ProductTag[]
 ): ResolvedProductPromo[] {
-  return getProductPromoList(product)
-    .map((entry) => resolvePromoEntry(entry, tagCatalog))
+  return getEffectivePromoList(product, tagCatalog)
+    .map((entry) => resolvePromoEntry(entry, tagCatalog, product))
     .filter((p): p is ResolvedProductPromo => p !== null);
 }
 
-/** Lowest price after applying percentage/fixed promos (best deal for customer). */
-export function getDiscountedPrice(product: Product, price: number): number {
+function applyPromoDiscounts(product: Product, price: number): number {
   let result = price;
   for (const entry of getProductPromoList(product)) {
     if (entry.type === 'percentage') {
@@ -157,24 +256,84 @@ export function getDiscountedPrice(product: Product, price: number): number {
   return result;
 }
 
+/**
+ * Sale price for a list price. When `hp` is set (or per-HP discounts exist),
+ * uses the HP discount; otherwise applies product-level percentage/fixed promos.
+ */
+export function getDiscountedPrice(product: Product, price: number, hp?: string): number {
+  if (hp) {
+    // A product with per-HP discounts must never fall back to the synced
+    // product-level promo. That promo can represent another HP's discount.
+    // No discount on this HP therefore means its normal list price.
+    if (hasHpDiscounts(product)) return getHpSalePrice(product, hp);
+    return applyPromoDiscounts(product, getHpUnitPrice(product, hp));
+  }
+
+  if (hasHpDiscounts(product)) {
+    const match = product.hpVariants?.find((v) => v.price === price);
+    if (match) {
+      const hp = match.hp;
+      return getHpSalePrice(product, hp);
+    }
+
+    if (price === product.priceStart || price === product.priceEnd) {
+      const hps = product.hp.length ? product.hp : (product.hpVariants?.map((v) => v.hp) ?? []);
+      const sales = hps.map((h) => getHpSalePrice(product, h));
+      if (sales.length) {
+        return price === product.priceStart ? Math.min(...sales) : Math.max(...sales);
+      }
+    }
+  }
+
+  return applyPromoDiscounts(product, price);
+}
+
+export function getProductDisplayPrices(product: Product): {
+  listStart: number;
+  listEnd: number;
+  saleStart: number;
+  saleEnd: number;
+  hasDiscount: boolean;
+} {
+  const hps = product.hp.length
+    ? product.hp
+    : (product.hpVariants?.map((v) => v.hp) ?? ['']);
+  const rows = hps.map((hp) => {
+    const list = getHpUnitPrice(product, hp || undefined);
+    const sale = getDiscountedPrice(product, list, hp || undefined);
+    return { list, sale };
+  });
+  const listStart = rows.length ? Math.min(...rows.map((r) => r.list)) : product.priceStart;
+  const listEnd = rows.length ? Math.max(...rows.map((r) => r.list)) : product.priceEnd;
+  const saleStart = rows.length ? Math.min(...rows.map((r) => r.sale)) : listStart;
+  const saleEnd = rows.length ? Math.max(...rows.map((r) => r.sale)) : listEnd;
+  return {
+    listStart,
+    listEnd,
+    saleStart,
+    saleEnd,
+    hasDiscount: saleStart < listStart || saleEnd < listEnd,
+  };
+}
+
 export function productHasPromos(product: Product): boolean {
-  return getProductPromoList(product).length > 0;
+  return getEffectivePromoList(product).length > 0;
 }
 
 export function productHasFlashSale(product: Product): boolean {
-  return getProductPromoList(product).some(
+  return getEffectivePromoList(product).some(
     (p) => normalizePromoBadgeStyle(p.badgeType) === 'flash-sale'
   );
 }
 
 /** Primary promo for banner copy / inquiry (first entry). */
 export function getPrimaryPromoEntry(product: Product): ProductPromoEntry | undefined {
-  return getProductPromoList(product)[0];
+  return getEffectivePromoList(product)[0];
 }
 
 /** Prefer flash-sale entry with promoEndsAt; else any promo with an end time; else parse validUntil. */
 export function getPromoCountdownEndsAt(product: Product): string | undefined {
-  const list = getProductPromoList(product);
+  const list = getEffectivePromoList(product);
   const flash = list.find(
     (p) =>
       normalizePromoBadgeStyle(p.badgeType) === 'flash-sale' && Boolean(p.promoEndsAt?.trim())
@@ -184,7 +343,6 @@ export function getPromoCountdownEndsAt(product: Product): string | undefined {
   const withEnds = list.find((p) => p.promoEndsAt?.trim());
   if (withEnds?.promoEndsAt) return withEnds.promoEndsAt;
 
-  // Fallback: parse human-readable validUntil on flash promos
   const flashWithLabel = list.find(
     (p) =>
       normalizePromoBadgeStyle(p.badgeType) === 'flash-sale' && Boolean(p.validUntil?.trim())
@@ -192,7 +350,6 @@ export function getPromoCountdownEndsAt(product: Product): string | undefined {
   if (flashWithLabel?.validUntil) {
     const parsed = Date.parse(flashWithLabel.validUntil);
     if (Number.isFinite(parsed)) {
-      // End of that calendar day in local time
       const d = new Date(parsed);
       d.setHours(23, 59, 59, 999);
       return d.toISOString();

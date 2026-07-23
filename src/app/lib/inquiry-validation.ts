@@ -11,7 +11,7 @@ function hasSpammyRepetition(s: string): boolean {
   const compact = s.toLowerCase().replace(/[^a-z0-9]/g, '');
   if (compact.length < 6) return false;
   if (/(.{3,6})\1{1,}/.test(compact)) return true;
-  // alternating smash: asdgasdg / dsgasdga
+
   if (/(asd|dsg|adsg|gasd|qwe|zxc){2,}/i.test(compact)) return true;
   return false;
 }
@@ -31,7 +31,7 @@ export function looksLikeGibberish(text: string): boolean {
 
   const letters = raw.toLowerCase().replace(/[^a-z]/g, '');
   if (letters.length >= 8 && vowelRatio(letters) < 0.18) return true;
-  // Almost no spaces and long nonsense
+
   if (!/\s/.test(raw) && letters.length >= 10 && vowelRatio(letters) < 0.25) return true;
   return false;
 }
@@ -74,7 +74,7 @@ export function validateInquiryPhone(input: string): FieldValidation {
         'Please enter a valid PH mobile number (e.g. **0917 123 4567**). Landlines won’t work for SMS follow-up.',
     };
   }
-  // Reject obvious fake patterns
+
   if (/^(\d)\1{10}$/.test(normalized) || /^09(123456789|000000000|111111111)$/.test(normalized)) {
     return {
       ok: false,
@@ -109,7 +109,6 @@ export function validateInquiryAddress(input: string): FieldValidation {
   const hasHint = ADDRESS_HINT.test(value);
   const multiPlace = words.length >= 2 && value.length >= 10;
 
-  // House/street number is optional — barangay + city (e.g. "Simborio Tayud Liloan") is enough
   if (!hasNumber && !hasHint && !multiPlace) {
     return {
       ok: false,

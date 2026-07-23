@@ -41,6 +41,13 @@ Vite proxies `/api` and `/uploads` to `http://localhost:8787`.
 
 Open http://localhost:5173 — admin at `/admin/login`.
 
+## Security scanning (free)
+
+GitHub Actions run **Gitleaks**, **Semgrep**, **Trivy**, and **CodeQL** on push/PR.
+
+- Guide: [`docs/SECURITY_SCANNING.md`](docs/SECURITY_SCANNING.md)
+- Local (Docker): `npm run security:scan`
+
 ## Deploy storefront to Vercel (partial / UI fixes)
 
 Vite + Hono API deploy together: `npm run build` builds the SPA and bundles the API into `api/_app.mjs` for the serverless function.

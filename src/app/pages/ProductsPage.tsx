@@ -13,6 +13,7 @@ import {
   deriveHpFilterOptions,
   filterStorefrontProducts,
   resolveBrandFilterValue,
+  resolveHpFilterValue,
 } from '../lib/catalog-product';
 import {
   clearCompare,
@@ -37,6 +38,8 @@ export function ProductsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const brandFromUrl = searchParams.get('brand');
+  const categoryFromUrl = searchParams.get('category');
+  const hpFromUrl = searchParams.get('hp');
   const pickForCompare = searchParams.get('pickForCompare') === '1';
   const [, bumpCompare] = useState(0);
   const [compareLimitOpen, setCompareLimitOpen] = useState(false);
@@ -48,10 +51,6 @@ export function ProductsPage() {
     return () => window.removeEventListener('hamel-product-actions-updated', refresh);
   }, []);
 
-  // Comparison selections are only kept while using the dedicated
-  // “Choose for Compare” flow. Returning to the regular product catalogue
-  // starts a normal browsing session, so product details do not remain marked
-  // as “In compare” from a previous comparison.
   useEffect(() => {
     if (!pickForCompare && getCompareIds().length > 0) {
       clearCompare();
@@ -102,6 +101,21 @@ export function ProductsPage() {
   }, [brandFromUrl, brandOptions]);
 
   useEffect(() => {
+    if (categoryFromUrl) {
+      const match = categoryOptions.find(
+        (c) => c !== 'All' && c.toLowerCase() === categoryFromUrl.toLowerCase()
+      );
+      if (match) setSelectedCategory(match);
+    }
+  }, [categoryFromUrl, categoryOptions]);
+
+  useEffect(() => {
+    if (hpFromUrl) {
+      setSelectedHP(resolveHpFilterValue(hpOptions, hpFromUrl));
+    }
+  }, [hpFromUrl, hpOptions]);
+
+  useEffect(() => {
     if (selectedCategory !== 'All' && !categoryOptions.includes(selectedCategory)) {
       setSelectedCategory('All');
     }
@@ -109,9 +123,10 @@ export function ProductsPage() {
 
   useEffect(() => {
     if (selectedHP !== 'All' && !hpOptions.includes(selectedHP)) {
-      setSelectedHP('All');
+      // Keep URL-driven HP even if options briefly empty while catalog loads
+      if (!hpFromUrl) setSelectedHP('All');
     }
-  }, [hpOptions, selectedHP]);
+  }, [hpOptions, selectedHP, hpFromUrl]);
 
   const filteredProducts = useMemo(
     () =>
@@ -128,7 +143,7 @@ export function ProductsPage() {
       pickForCompare
         ? filteredProducts.filter((product) => !isInCompare(product.id))
         : filteredProducts,
-    // bumpCompare refreshes when compare list changes
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filteredProducts, pickForCompare, bumpCompare]
   );
@@ -137,9 +152,11 @@ export function ProductsPage() {
     setSelectedBrand('All');
     setSelectedCategory('All');
     setSelectedHP('All');
-    if (brandFromUrl) {
+    if (brandFromUrl || categoryFromUrl || hpFromUrl) {
       const next = new URLSearchParams(searchParams);
       next.delete('brand');
+      next.delete('category');
+      next.delete('hp');
       setSearchParams(next, { replace: true });
     }
   };

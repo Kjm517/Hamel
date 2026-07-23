@@ -22,12 +22,13 @@ import {
   resolveProductCornerTags,
 } from '../lib/product-corner-tags';
 import {
-  getDiscountedPrice,
+  getProductDisplayPrices,
   getPromoCountdownEndsAt,
   isPromoCountdownActive,
   productHasPromos,
   resolveProductPromos,
 } from '../lib/product-promos';
+import { getPriceColor } from '../lib/product-price-color';
 
 interface ProductCardProps {
   product: Product;
@@ -38,14 +39,6 @@ interface ProductCardProps {
   pickDisabled?: boolean;
 }
 
-// Returns the price label color based on product tier
-function getPriceColor(tier: Product['tier'], hasPromo: boolean): string {
-  if (tier === 'flash-sale' && hasPromo) return '#EA580C'; // orange — flash sale
-  if (tier === 'budget') return '#D97706';                 // amber/gold — budget
-  return '#0EA5E9';                                        // blue — premium
-}
-
-// Returns the tier label text for display (optional, shown as small tag below price)
 function getTierLabel(tier: Product['tier']): { label: string; color: string; bg: string } | null {
   if (tier === 'premium') return { label: 'Premium Quality', color: '#FFF', bg: '#0EA5E9' };
   if (tier === 'budget')  return { label: 'Best Value', color: '#111', bg: '#FFC107' };
@@ -61,9 +54,8 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentOption[]>(() =>
     resolveInstallmentOptionsForPrice(product.priceStart, product.installmentOptions)
   );
-  const discountedStart = getDiscountedPrice(product, product.priceStart);
-  const discountedEnd = getDiscountedPrice(product, product.priceEnd);
-  const hasDiscount = discountedStart < product.priceStart;
+  const { listStart, listEnd, saleStart: discountedStart, saleEnd: discountedEnd, hasDiscount } =
+    getProductDisplayPrices(product);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +99,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
         }`}
         style={{ borderRadius: '8px' }}
       >
-        {/* Product Image */}
+        {}
         <div className="relative flex aspect-square shrink-0 items-center justify-center bg-gray-50 p-3 sm:p-4">
           <ImageWithFallback
             src={product.image}
@@ -117,19 +109,21 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
           />
         </div>
 
-        {/* Product Info — fixed blocks + flex spacer so CTA sits on one baseline */}
+        {}
         <div className="flex min-h-0 flex-1 flex-col p-2.5 sm:p-4">
-          {/* TAG-D: pill tags above title (−20% solid + INVERTER outline) */}
+          {}
           {cornerTags.length > 0 && (
             <div className="mb-2 flex min-h-[22px] shrink-0 flex-wrap gap-1.5">
               {cornerTags.map((tag) => {
+                const label = formatCornerTagLabel(product, tag);
+                if (!label) return null;
                 const variant = cornerTagVariant(tag);
                 const bg = cornerTagBgColor(tag);
                 return (
                   <CornerTag
                     key={tag.id}
                     variant={variant}
-                    label={formatCornerTagLabel(product, tag)}
+                    label={label}
                     color={variant === 'outline' ? bg : cornerTagTextColor(tag)}
                     bgColor={
                       variant === 'outline'
@@ -144,7 +138,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
             </div>
           )}
 
-          {/* Brand */}
+          {}
           <div className="mb-1.5 flex h-8 shrink-0 items-center">
             {(() => {
               const logo = brandLogoFor(product.brand);
@@ -165,12 +159,12 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
             })()}
           </div>
 
-          {/* Model Name */}
+          {}
           <h3 className="mb-2 line-clamp-2 min-h-[2.5rem] shrink-0 text-xs font-bold leading-snug text-gray-900 sm:mb-3 sm:min-h-[2.75rem] sm:text-sm">
             {product.model}
           </h3>
 
-          {/* HP Options — compact chips (max 4) */}
+          {}
           <div className="mb-2 flex min-h-5 shrink-0 flex-wrap items-center gap-0.5">
             {product.hp.slice(0, 4).map((hp) => (
               <span
@@ -182,13 +176,13 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
             ))}
           </div>
 
-          {/* Price — fixed two-row slot so sale & regular prices share one baseline */}
+          {}
           <div className="mb-1 flex min-h-[2.75rem] shrink-0 flex-col justify-end gap-0.5 sm:h-[3.25rem] sm:min-h-0">
             <div className="h-4 text-[10px] leading-4 text-gray-400 line-through sm:text-xs">
               {hasDiscount
-                ? product.priceStart === product.priceEnd
-                  ? `₱${product.priceStart.toLocaleString()}`
-                  : `₱${product.priceStart.toLocaleString()} – ₱${product.priceEnd.toLocaleString()}`
+                ? listStart === listEnd
+                  ? `₱${listStart.toLocaleString()}`
+                  : `₱${listStart.toLocaleString()} – ₱${listEnd.toLocaleString()}`
                 : '\u00A0'}
             </div>
             <div
@@ -199,22 +193,22 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
                   ? discountedStart === discountedEnd
                     ? `₱${discountedStart.toLocaleString()}`
                     : `₱${discountedStart.toLocaleString()} – ₱${discountedEnd.toLocaleString()}`
-                  : product.priceStart === product.priceEnd
-                    ? `₱${product.priceStart.toLocaleString()}`
-                    : `₱${product.priceStart.toLocaleString()} – ₱${product.priceEnd.toLocaleString()}`
+                  : listStart === listEnd
+                    ? `₱${listStart.toLocaleString()}`
+                    : `₱${listStart.toLocaleString()} – ₱${listEnd.toLocaleString()}`
               }
             >
               {hasDiscount
                 ? discountedStart === discountedEnd
                   ? `₱${discountedStart.toLocaleString()}`
                   : `₱${discountedStart.toLocaleString()} – ₱${discountedEnd.toLocaleString()}`
-                : product.priceStart === product.priceEnd
-                  ? `₱${product.priceStart.toLocaleString()}`
-                  : `₱${product.priceStart.toLocaleString()} – ₱${product.priceEnd.toLocaleString()}`}
+                : listStart === listEnd
+                  ? `₱${listStart.toLocaleString()}`
+                  : `₱${listStart.toLocaleString()} – ₱${listEnd.toLocaleString()}`}
             </div>
           </div>
 
-          {/* Compact promo stickers — one row, maximum four */}
+          {}
           {resolvedPromos.length > 0 && (
             <div className="-mx-0.5 mb-2 flex min-h-7 shrink-0 items-center gap-1 overflow-x-auto px-0.5 sm:h-8 sm:min-h-0 sm:overflow-hidden">
               {resolvedPromos.map((promo, i) => (
@@ -246,7 +240,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
             </div>
           )}
 
-          {/* Tier / countdown — own row so it never fights installment for width */}
+          {}
           <div className="mb-1.5 flex min-h-5 shrink-0 flex-wrap items-center gap-1">
             {tierLabel && (
               <span
@@ -261,7 +255,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
             ) : null}
           </div>
 
-          {/* Installment — full-width compact line under price (no “As low as”) */}
+          {}
           <div className="mb-3 min-h-8 shrink-0">
             {hasInstallments && lowestMonthly != null ? (
               onPick ? (
@@ -279,7 +273,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
             ) : null}
           </div>
 
-          {/* Rating */}
+          {}
           <div className="mb-2 flex h-5 shrink-0 items-center gap-1">
             <div className="flex">
               {[...Array(5)].map((_, i) => (
@@ -295,7 +289,7 @@ export function ProductCard({ product, onPick, pickLabel, pickDisabled }: Produc
 
           <div className="min-h-0 flex-1" aria-hidden />
 
-          {/* CTA */}
+          {}
           <div
             className={`w-full shrink-0 py-3 text-center text-sm font-semibold transition-opacity ${
               disabled

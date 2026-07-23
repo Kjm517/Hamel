@@ -21,6 +21,7 @@ import {
   type PromoAnimationStyle,
 } from '../../lib/promo-animations';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../lib/image-size-guides';
 import { SortableList } from '../components/SortableList';
 import { AdminToggle } from '../components/AdminToggle';
 import { useCatalog } from '../../context/CatalogContext';
@@ -32,7 +33,7 @@ const LAYOUTS: { id: PromoPopupLayout; label: string; hint: string }[] = [
   { id: 'centered', label: 'PM-A · Centered · announcement', hint: 'Centered message with image or mascot' },
   { id: 'split', label: 'PM-B · Split · product image', hint: 'Image left, campaign details right' },
   { id: 'coupon', label: 'PM-C · Coupon ticket', hint: 'Ticket-style welcome gift' },
-  { id: 'poster', label: 'PM-D · Full image ad', hint: 'Large uploaded creative with an optional CTA' },
+  { id: 'poster', label: 'PM-D · Full image ad', hint: 'Large uploaded creative with an optional button' },
 ];
 
 const PURPOSES: { id: PromoPopupPurpose; label: string; hint: string }[] = [
@@ -45,25 +46,28 @@ const PATH_PRESETS = ['/', '/cool-deals', '/products', '/brands', '/about', '/co
 
 const IMAGE_UPLOAD_GUIDES: Record<
   PromoPopupLayout,
-  { label: string; hint: string; detail: string }
+  { label: string; hint: string; detail: string; sizeGuide?: string }
 > = {
   poster: {
     label: 'Poster image or MP4 video',
     hint: 'Images: maximum 1582 × 2048 px (portrait) · images up to 25 MB · MP4 up to 300 MB.',
     detail:
       'This matches the supplied poster style. Use this maximum size or a smaller image with the same tall portrait proportion. MP4 videos play muted and loop. Keep important text away from the top-right corner for the close button.',
+    sizeGuide: IMAGE_SIZE_GUIDES.popupPoster,
   },
   split: {
     label: 'Product image',
     hint: 'Recommended: 800 × 1200 px (2:3 portrait) · up to 25 MB.',
     detail:
       'Use a clean product photo with the unit centered. This image fills the narrow left panel, so detailed text should go in the headline and body fields instead.',
+    sizeGuide: IMAGE_SIZE_GUIDES.popupSplit,
   },
   centered: {
     label: 'Image / mascot',
     hint: 'Recommended: 800 × 800 px (1:1 square) · up to 25 MB.',
     detail:
       'The image appears in a circular frame. Keep the subject centered and avoid text near the edges.',
+    sizeGuide: IMAGE_SIZE_GUIDES.popupCentered,
   },
   coupon: {
     label: 'Coupon ticket',
@@ -399,7 +403,7 @@ export function AdminPromoPopupPage() {
       )}
 
       <div className="grid items-start gap-4 lg:grid-cols-[220px_minmax(0,1fr)_340px]">
-        {/* LEFT — popup list */}
+        {}
         <div className={`${adminUi.card} flex flex-col p-3`}>
           <p className={`px-1.5 pb-2 pt-1 ${adminUi.sectionLabel}`}>
             Popups ({draft.popups.length})
@@ -455,7 +459,7 @@ export function AdminPromoPopupPage() {
           </button>
         </div>
 
-        {/* CENTER — editor */}
+        {}
         {!selected ? (
           <div className={`${adminUi.card} border-dashed p-8 text-center text-sm text-[#9aa7b5]`}>
             Add a popup to configure content and show conditions.
@@ -689,7 +693,7 @@ export function AdminPromoPopupPage() {
                 </label>
               ) : null}
               <label className={`block ${selected.purpose === 'voucher' ? '' : 'sm:col-span-2'}`}>
-                <span className={adminUi.label}>CTA label</span>
+                <span className={adminUi.label}>Button text</span>
                 <input
                   value={selected.ctaLabel}
                   onChange={(e) => patch(selected.id, { ctaLabel: e.target.value })}
@@ -799,13 +803,14 @@ export function AdminPromoPopupPage() {
                     patch(selected.id, { mediaType })
                   }
                   hint={IMAGE_UPLOAD_GUIDES[selected.layout].hint}
+                  sizeGuide={IMAGE_UPLOAD_GUIDES[selected.layout].sizeGuide}
                 />
               </>
             )}
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className={adminUi.label}>CTA link</span>
+                <span className={adminUi.label}>Button link</span>
                 <input
                   value={selected.ctaHref}
                   onChange={(e) => patch(selected.id, { ctaHref: e.target.value })}
@@ -824,7 +829,7 @@ export function AdminPromoPopupPage() {
           </div>
         )}
 
-        {/* RIGHT — sticky live preview */}
+        {}
         {selected ? (
           <aside className="rounded-2xl border border-[#bae6fd] bg-[#e0f2fe] p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
             <div className="mb-3 flex items-center justify-between gap-2">

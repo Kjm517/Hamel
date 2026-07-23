@@ -20,10 +20,20 @@ export function useCoolDealsPage(): CoolDealsPageConfig {
       setLoading(false);
     });
     const refresh = () => setConfig(getCoolDealsPage());
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void loadCoolDealsPage().then((next) => {
+        if (!cancelled) setConfig(next);
+      });
+    };
     window.addEventListener('hamel-cool-deals-updated', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
     return () => {
       cancelled = true;
       window.removeEventListener('hamel-cool-deals-updated', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
     };
   }, []);
 

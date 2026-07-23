@@ -1,9 +1,11 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { useAdminIdleLogout } from '../hooks/useAdminIdleLogout';
 
 export function AdminRequireAuth() {
   const { session, loading } = useAdminAuth();
   const location = useLocation();
+  useAdminIdleLogout(Boolean(session));
 
   if (loading) {
     return (

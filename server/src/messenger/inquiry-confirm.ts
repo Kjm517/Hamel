@@ -71,7 +71,7 @@ async function takeLatestPendingInquiryId(): Promise<string | null> {
       return rows[0].id;
     }
   } catch {
-    // fall through to memory / created_at fallback
+
   }
 
   let best: string | null = null;
@@ -169,7 +169,7 @@ export async function sendInquiryConfirmationToPsid(
 
   if (row.customer_id) {
     try {
-      // Clear any other customer row that already owns this PSID (unique index).
+
       await sql`
         update customers
         set messenger_psid = null, updated_at = now()
@@ -255,7 +255,7 @@ export async function deliverViaRecentConversation(
     const userParticipant = people.find((p) => {
       if (!p.id) return false;
       if (pageId && p.id === pageId) return false;
-      // Skip obvious page-named participants when page id unknown
+
       if (!pageId && /hamel|trading|fcm|page/i.test(p.name || '')) return false;
       return true;
     });

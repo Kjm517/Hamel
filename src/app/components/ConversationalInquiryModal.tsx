@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog';
 import {
-  computeVoucherDiscount,
+  computeVouchersDiscount,
   recordVoucherRedemption,
   type StoreVoucher,
 } from '../data/vouchers';
@@ -92,7 +92,6 @@ function looksLikeSideQuestion(text: string): boolean {
   );
 }
 
-// 9 steps: name, room, quantity, address, property+floor, schedule, installment, promoCode, contact+summary
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 const TOTAL_STEPS = 9;
 
@@ -119,13 +118,11 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
   const [messengerAutoSend, setMessengerAutoSend] = useState(false);
   const [messengerConsentOpen, setMessengerConsentOpen] = useState(false);
 
-  // Promo code UI state
   const [promoCodeInput, setPromoCodeInput] = useState('');
-  const [appliedVoucher, setAppliedVoucher] = useState<StoreVoucher | null>(null);
+  const [appliedVouchers, setAppliedVouchers] = useState<StoreVoucher[]>([]);
   const [promoStatus, setPromoStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [promoDetails, setPromoDetails] = useState<{ label: string } | null>(null);
 
-  // Installment UI state
   const [selectedInstallment, setSelectedInstallment] = useState<number | null>(null);
 
   const scrollToBottom = () => {
@@ -145,7 +142,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
         const data = (await res.json()) as { configured?: boolean };
         if (!cancelled) setMessengerAutoSend(Boolean(data.configured));
       } catch {
-        // keep prefill fallback
+
       }
     })();
     return () => {
@@ -235,13 +232,11 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
   const processStep = async (userInput: string) => {
     const lowerInput = userInput.toLowerCase();
 
-    // FAQ / human handoff shortcuts
     if (lowerInput.includes('human') || lowerInput.includes('tao') || lowerInput.includes('talk to') || lowerInput.includes('makausap')) {
       handleHumanHandoff();
       return;
     }
 
-    // Off-script product questions → real AI assist, then continue the step
     const quick = getQuickReplies().map((q) => q.toLowerCase());
     const isQuickPick = quick.some((q) => lowerInput === q || lowerInput.includes(q.slice(0, 12)));
     if (
@@ -373,7 +368,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
         break;
 
       case 7: {
-        // Installment step — handled via buttons, but also accept text
+
         let installmentMonths = '';
         let installmentMonthlyAmount = '';
 
@@ -406,7 +401,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
       }
 
       case 8: {
-        // Promo code step
+
         const code = userInput.trim().toUpperCase();
         let promoCode = '';
         let promoDiscount = '';
@@ -433,7 +428,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
       }
 
       case 9:
-        // After contact is collected, this step handles confirmation
+
         if (formData.contactNumber) {
           if (
             lowerInput.includes('yes') ||
@@ -482,7 +477,6 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
     const amount = `₱${monthly.toLocaleString()}/month`;
     setFormData((prev) => ({ ...prev, installmentMonths: label, installmentMonthlyAmount: amount }));
 
-    // Auto-advance after selection
     setTimeout(() => {
       addMessage(`${months}-month installment at ${amount}`, 'user');
       addAIMessage(`${label} at ${amount} — noted!\n\nDo you have a promo code? Type it now to get a discount, or tap "Skip" to continue.`, 1000);
@@ -539,8 +533,8 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
     setIsTyping(true);
     setShowQuickReplies(false);
 
-    const voucherLine = appliedVoucher
-      ? `Voucher: ${appliedVoucher.code} (${appliedVoucher.label})`
+    const voucherLine = appliedVouchers.length
+      ? `Vouchers: ${appliedVouchers.map((v) => `${v.code} (${v.label})`).join(', ')}`
       : data.promoCode
         ? `Promo: ${data.promoCode} (${data.promoDiscount})`
         : '';
@@ -574,19 +568,19 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
       createdId = res.id;
       setInquiryId(res.id);
       void trackEvent('chat_open', window.location.pathname, { productId: product.id });
-      if (appliedVoucher) {
-        void recordVoucherRedemption(appliedVoucher.id);
+      for (const voucher of appliedVouchers) {
+        void recordVoucherRedemption(voucher.id);
       }
     } catch {
-      // still show confirmation + messaging options
+
     }
 
     setIsTyping(false);
     setSubmitted(true);
     addMessage(
       `Thank you for your Hamel Trading inquiry! Here are your order details:\n\n**Name:** ${data.name}\n**Phone:** ${data.contactNumber}\n**Address:** ${data.address}\n**Property:** ${data.propertyType}, ${data.floor}\n**Order:** ${data.quantity} × ${product.brand} ${product.model} (${data.hp})\n**Schedule:** ${data.scheduleDate}, ${data.scheduleTime}\n**Payment:** ${data.installmentMonths || 'To confirm with team'}${
-        appliedVoucher
-          ? `\n**Voucher:** ${appliedVoucher.code} (${appliedVoucher.label})`
+        appliedVouchers.length
+          ? `\n**Vouchers:** ${appliedVouchers.map((v) => `${v.code} (${v.label})`).join(', ')}`
           : data.promoCode
             ? `\n**Promo:** ${data.promoCode} (${data.promoDiscount})`
             : ''
@@ -620,8 +614,6 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
       return;
     }
 
-    // Clipboard + text= prefill always — Page auto-send needs a Meta webhook
-    // and often fails for first-time empty chats even with a valid token.
     await copyTextToClipboard(message);
 
     if (messengerAutoSend && id) {
@@ -632,11 +624,9 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
           body: JSON.stringify({ inquiryId: id }),
         });
       } catch {
-        // still open Messenger
+
       }
 
-      // Faith Hugs–style: open with ref only so the Page (not the customer) sends.
-      // Clipboard is backup if Meta webhook is not connected yet.
       openUrlBlank(messengerUrl({ ref: `inquiry_${id}` }));
 
       const inquiryForDeliver = id;
@@ -661,7 +651,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
               console.warn('[messenger] deliver pending:', payload.reason);
             }
           } catch {
-            // retry
+
           }
         }
       })();
@@ -726,16 +716,14 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
 
   const showPostSubmitButtons = submitted;
 
-  // Installment step inline UI
   const showInstallmentPicker = currentStep === 7 && showQuickReplies && !isTyping;
 
-  // Promo code step inline UI
   const showPromoCodeUI = currentStep === 8 && showQuickReplies && !isTyping;
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-[480px] max-h-[90vh] flex flex-col shadow-2xl">
-        {/* Header */}
+        {}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-3">
             <PenguinAvatar size="md" />
@@ -755,7 +743,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
           </div>
         </div>
 
-        {/* Product Strip */}
+        {}
         <div className="px-4 py-3 flex items-center gap-3" style={{ backgroundColor: '#E0F2FE' }}>
           <img src={product.image} alt={product.model} className="w-12 h-12 object-contain bg-white rounded" />
           <div className="flex-1 min-w-0">
@@ -765,7 +753,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
               ₱{product.priceStart.toLocaleString()} – ₱{product.priceEnd.toLocaleString()}
             </div>
           </div>
-          {/* Promo badge on product strip */}
+          {}
           {product.installmentOptions && product.installmentOptions.length > 0 && (
             <div className="text-xs text-right shrink-0">
               <div className="font-semibold" style={{ color: '#0EA5E9' }}>0% Installment</div>
@@ -774,7 +762,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
           )}
         </div>
 
-        {/* Progress Bar */}
+        {}
         <div className="px-4 py-2 flex items-center justify-between" style={{ backgroundColor: '#0c2340' }}>
           <div className="flex gap-0.5 flex-1">
             {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
@@ -794,7 +782,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
         </div>
 
         <div className="flex-1 overflow-y-auto">
-        {/* Chat Area */}
+        {}
         <div className="p-4 space-y-3">
           {messages.map((message) => (
             <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -848,7 +836,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Confirm / send to Hamel Trading */}
+        {}
         {(showSendButtons || showPostSubmitButtons) && (
           <div className="px-4 pb-4 space-y-3">
             <div className="rounded-xl border border-gray-200 bg-white p-3">
@@ -860,11 +848,12 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
               </div>
               <SelectOrEnterVoucher
                 subtotal={product.priceStart}
-                applied={appliedVoucher}
-                onApply={setAppliedVoucher}
+                applied={appliedVouchers}
+                onApply={setAppliedVouchers}
                 productId={product.id}
+                category={product.category}
               />
-              {appliedVoucher ? (
+              {appliedVouchers.length > 0 ? (
                 <div className="mt-2 flex items-center justify-between border-t border-dashed border-gray-200 pt-2 text-sm">
                   <span className="font-bold text-gray-900">Est. total</span>
                   <span className="font-black text-[#2563EB]">
@@ -872,7 +861,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
                     {Math.max(
                       0,
                       product.priceStart -
-                        computeVoucherDiscount(appliedVoucher, product.priceStart).amount
+                        computeVouchersDiscount(appliedVouchers, product.priceStart).amount
                     ).toLocaleString()}
                   </span>
                 </div>
@@ -935,7 +924,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Installment Picker UI */}
+        {}
         {showInstallmentPicker && !showSendButtons && !showPostSubmitButtons && (
           <div className="px-4 pb-3">
             <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
@@ -977,7 +966,7 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
           </div>
         )}
 
-        {/* Promo Code UI */}
+        {}
         {showPromoCodeUI && !showSendButtons && !showPostSubmitButtons && (
           <div className="px-4 pb-3">
             <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
@@ -1044,7 +1033,6 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
           </div>
         )}
 
-        {/* Standard Quick Reply Chips */}
         {!showSendButtons && !showPostSubmitButtons && !showInstallmentPicker && !showPromoCodeUI && showQuickReplies && getQuickReplies().length > 0 && (
           <div className="px-4 pb-3">
             <div className="flex flex-wrap gap-2">
@@ -1072,7 +1060,6 @@ export function ConversationalInquiryModal({ product, onClose, onComplete }: Con
         )}
         </div>
 
-        {/* Input Bar */}
         {!showSendButtons && !showPostSubmitButtons && !showInstallmentPicker && !showPromoCodeUI && (
           <div className="p-4 border-t">
             <div className="flex gap-2">

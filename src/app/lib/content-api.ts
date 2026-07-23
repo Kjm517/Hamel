@@ -27,10 +27,9 @@ export async function fetchContent<T>(key: string, fallback: T): Promise<T> {
         return res.data;
       }
     } catch {
-      // fall through
+
     }
 
-    // One-time migrate from localStorage if Neon empty
     try {
       const legacyKey =
         key === 'banners'
@@ -51,13 +50,13 @@ export async function fetchContent<T>(key: string, fallback: T): Promise<T> {
             await saveContent(key, parsed);
             localStorage.removeItem(legacyKey);
           } catch {
-            // keep cache even if save fails
+
           }
           return parsed;
         }
       }
     } catch {
-      // ignore
+
     }
 
     setCachedContent(key, fallback);

@@ -38,7 +38,7 @@ export async function signOutAdmin() {
   try {
     await apiFetch('/api/auth/logout', { method: 'POST', auth: false });
   } catch {
-    // ignore
+
   }
   clearAccessToken();
 }
@@ -67,7 +67,7 @@ export async function sendPasswordResetEmail(identifier: string) {
   });
 
   if (!res.email && !res.resetToken) {
-    // Still succeed for UX, but surface a helpful message when nothing matched
+
     return { email: identifier, resetToken: res.resetToken, resetUrl: res.resetUrl };
   }
 

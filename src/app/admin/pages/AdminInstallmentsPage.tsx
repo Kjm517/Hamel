@@ -8,6 +8,7 @@ import {
   type InstallmentPlansConfig,
 } from '../../data/installment-plans';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../lib/image-size-guides';
 import { AdminToggle } from '../components/AdminToggle';
 import { mediaPathFor } from '../../lib/storage';
 import { adminUi } from '../lib/admin-ui';
@@ -208,6 +209,7 @@ export function AdminInstallmentsPage() {
                 onChange={(v) => patchPlan(plan.id, { logoUrl: v })}
                 placeholder="/hamel/banks/…"
                 remoteUpload={{ getObjectPath: mediaPathFor('bank-logos') }}
+                sizeGuide={IMAGE_SIZE_GUIDES.bankLogo}
               />
             </div>
 

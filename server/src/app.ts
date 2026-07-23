@@ -3,6 +3,8 @@ import { cors } from 'hono/cors';
 import { mkdirSync } from 'node:fs';
 import { env } from './env';
 import { authRoutes } from './routes/auth';
+import { customerAuthRoutes } from './routes/customer-auth';
+import { customerClaimRoutes } from './routes/customer-claims';
 import { contentRoutes } from './routes/content';
 import { customerRoutes } from './routes/customers';
 import { employeeRoutes } from './routes/employees';
@@ -40,7 +42,7 @@ export function createApp() {
         const allowed = env.corsOrigins();
         if (!origin) return allowed[0] ?? '*';
         if (allowed.includes(origin)) return origin;
-        // Allow Vercel preview/production URLs when API is same-project
+
         if (isVercel && /\.vercel\.app$/i.test(origin)) return origin;
         return '';
       },
@@ -54,6 +56,8 @@ export function createApp() {
   );
 
   app.route('/api/auth', authRoutes);
+  app.route('/api/account/claims', customerClaimRoutes);
+  app.route('/api/account', customerAuthRoutes);
   app.route('/api/products', productRoutes);
   app.route('/api/reviews', reviewRoutes);
   app.route('/api/chat', chatRoutes);

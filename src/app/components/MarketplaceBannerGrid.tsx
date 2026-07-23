@@ -118,7 +118,7 @@ function MainBannerCarousel({ slides }: { slides: BannerConfig[] }) {
               loading={i === 0 ? 'eager' : 'lazy'}
               className="absolute inset-0 h-full w-full object-cover object-center md:object-right"
             />
-            {/* Only apply color/smoke overlay when admin set one (empty = image only) */}
+            {}
             {s.overlayColor ? (
               <div className="absolute inset-0" style={{ background: s.overlayColor }} />
             ) : null}

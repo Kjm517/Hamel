@@ -4,6 +4,7 @@ import { Camera, Star, X } from 'lucide-react';
 import type { Product } from '../data/products';
 import { createReview, type CreateReviewInput } from '../lib/catalog-api';
 import { apiFetch } from '../lib/api';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
 
 const RATING_LABELS: Record<number, string> = {
   1: 'Poor',
@@ -49,6 +50,7 @@ export function WriteReviewModal({
   selectedHp,
   onSubmitted,
 }: WriteReviewModalProps) {
+  const { customer, isAuthenticated, loading, refresh } = useCustomerAuth();
   const [email, setEmail] = useState('');
   const [nickname, setNickname] = useState('');
   const [rating, setRating] = useState(5);
@@ -60,6 +62,12 @@ export function WriteReviewModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const signedIn = isAuthenticated && Boolean(customer);
+
+  const fillFromCustomer = (c: NonNullable<typeof customer>) => {
+    setEmail(c.email);
+    setNickname(c.name.trim() || c.email.split('@')[0] || '');
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +83,7 @@ export function WriteReviewModal({
     };
   }, [open, onClose]);
 
+  // Reset form when closed; refresh session when opened so autofill is fresh.
   useEffect(() => {
     if (!open) {
       setEmail('');
@@ -87,8 +96,24 @@ export function WriteReviewModal({
       setError(null);
       setSubmitting(false);
       setUploading(false);
+      return;
     }
-  }, [open]);
+    void refresh();
+  }, [open, refresh]);
+
+  // Autofill email + nickname whenever the signed-in customer is available.
+  useEffect(() => {
+    if (!open || loading) return;
+    if (isAuthenticated && customer) {
+      fillFromCustomer(customer);
+    }
+  }, [open, loading, isAuthenticated, customer]);
+
+  // Restoring nickname after toggling anonymous off while signed in.
+  useEffect(() => {
+    if (!open || anonymous || !customer) return;
+    if (!nickname.trim()) fillFromCustomer(customer);
+  }, [anonymous, open, customer, nickname]);
 
   const productLine = useMemo(() => {
     const bits = [product.brand, product.model];
@@ -228,9 +253,18 @@ export function WriteReviewModal({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Display email for this review"
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25"
+                  readOnly={signedIn}
+                  autoComplete="email"
+                  placeholder={signedIn ? 'Loading account…' : 'your@email.com'}
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25 read-only:bg-gray-100 read-only:text-gray-600"
                 />
+                {signedIn && customer?.loyaltyTier ? (
+                  <p className="mt-1 text-[11px] capitalize text-[#8b5a2b]">
+                    Your {customer.loyaltyTier} badge will show on this review.
+                  </p>
+                ) : signedIn ? (
+                  <p className="mt-1 text-[11px] text-gray-500">Filled from your account</p>
+                ) : null}
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-gray-800">
@@ -239,9 +273,12 @@ export function WriteReviewModal({
                 <input
                   required={!anonymous}
                   disabled={anonymous}
+                  readOnly={signedIn && !anonymous}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25 disabled:opacity-60"
+                  autoComplete="nickname"
+                  placeholder={signedIn ? 'Your name' : 'How should we show your name?'}
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-base outline-none focus:border-[#0EA5E9] focus:ring-2 focus:ring-[#0EA5E9]/25 disabled:opacity-60 read-only:bg-gray-100 read-only:text-gray-600"
                 />
               </div>
             </div>

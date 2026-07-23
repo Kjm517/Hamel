@@ -64,10 +64,28 @@ export function normalizeCatalogProduct(raw: Partial<Product> & { id: string }):
     cornerTagIds: Array.isArray(raw.cornerTagIds)
       ? raw.cornerTagIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
       : undefined,
+    stockQty: (() => {
+      const n = Number(raw.stockQty);
+      return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined;
+    })(),
+    stockCapacity: (() => {
+      const n = Number(raw.stockCapacity);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+    })(),
     hpVariants: Array.isArray(raw.hpVariants)
       ? raw.hpVariants
           .filter((v) => v?.hp && Number(v.price) > 0)
-          .map((v) => ({ hp: String(v.hp).trim(), price: Number(v.price) }))
+          .map((v) => {
+            const discount = Number(v.discount);
+            const discountType = v.discountType === 'percent' ? 'percent' as const : 'fixed' as const;
+            return {
+              hp: String(v.hp).trim(),
+              price: Number(v.price),
+              ...(Number.isFinite(discount) && discount > 0
+                ? { discount, discountType }
+                : {}),
+            };
+          })
       : undefined,
     vouchers: Array.isArray(raw.vouchers)
       ? raw.vouchers
@@ -150,7 +168,33 @@ export function productMatchesCategory(product: Product, selected: string): bool
 export function productMatchesHp(product: Product, selected: string): boolean {
   if (selected === 'All') return true;
   const key = selected.trim().toLowerCase();
-  return (product.hp ?? []).some((h) => h.trim().toLowerCase() === key);
+  if ((product.hp ?? []).some((h) => h.trim().toLowerCase() === key)) return true;
+  // Treat 2HP / 2.0HP as the same size when exact labels differ in catalog.
+  const want = normalizeHpToken(selected);
+  if (!want) return false;
+  return (product.hp ?? []).some((h) => normalizeHpToken(h) === want);
+}
+
+/** Map URL/query HP into a catalog filter option (e.g. 2HP → 2.0HP). */
+export function resolveHpFilterValue(
+  options: string[],
+  value: string | null | undefined
+): string {
+  if (!value || value === 'All') return 'All';
+  const exact = options.find((h) => h !== 'All' && h.toLowerCase() === value.toLowerCase());
+  if (exact) return exact;
+  const want = normalizeHpToken(value);
+  if (!want) return 'All';
+  const fuzzy = options.find((h) => h !== 'All' && normalizeHpToken(h) === want);
+  return fuzzy ?? 'All';
+}
+
+function normalizeHpToken(raw: string): string | null {
+  const m = raw.trim().toLowerCase().match(/([\d.]+)\s*hp/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return null;
+  return String(n);
 }
 
 export interface ProductListFilters {

@@ -16,6 +16,7 @@ import {
 } from '../types/employee';
 import { adminUi } from '../lib/admin-ui';
 import { useAdminConfirm } from '../components/AdminConfirmDialog';
+import { resolveStorageImageUrl } from '../../lib/storage';
 
 const AVATAR_COLORS = ['#0ea5e9', '#7c3aed', '#f59e0b', '#10b981', '#ec4899', '#0284c7'];
 
@@ -45,6 +46,35 @@ function initialsFor(name: string): string {
 
 function avatarColorFor(index: number): string {
   return AVATAR_COLORS[index % AVATAR_COLORS.length] ?? AVATAR_COLORS[0];
+}
+
+function MemberAvatar({
+  name,
+  avatarUrl,
+  index,
+}: {
+  name: string;
+  avatarUrl?: string | null;
+  index: number;
+}) {
+  const src = resolveStorageImageUrl(avatarUrl ?? undefined);
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className="h-9 w-9 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+  return (
+    <span
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
+      style={{ background: avatarColorFor(index) }}
+    >
+      {initialsFor(name)}
+    </span>
+  );
 }
 
 export function AdminEmployeesPage() {
@@ -321,12 +351,11 @@ export function AdminEmployeesPage() {
                   >
                     <td className="px-[18px] py-[13px]">
                       <div className="flex items-center gap-[11px]">
-                        <span
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
-                          style={{ background: avatarColorFor(index) }}
-                        >
-                          {initialsFor(row.fullName)}
-                        </span>
+                        <MemberAvatar
+                          name={row.fullName}
+                          avatarUrl={row.avatarUrl}
+                          index={index}
+                        />
                         <div className="font-bold text-[#1e2a38]">
                           {row.fullName}
                           {row.id === currentEmployee?.id && (

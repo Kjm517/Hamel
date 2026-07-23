@@ -1,0 +1,7 @@
+# Paths Semgrep should skip (generated / vendor).
+node_modules/
+dist/
+api/_app.mjs
+**/*.min.js
+**/*.map
+public/

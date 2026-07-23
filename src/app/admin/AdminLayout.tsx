@@ -22,6 +22,9 @@ import {
   FileText,
   User,
   Menu,
+  MessageCircleHeart,
+  Wrench,
+  LogIn,
 } from 'lucide-react';
 import { useAdminAuth } from './context/AdminAuthContext';
 import { signOutAdmin } from './lib/admin-auth';
@@ -33,6 +36,11 @@ import { getAdminPageMeta } from './lib/admin-page-meta';
 import { fetchInquiries } from './lib/inquiries-api';
 import { fetchMessages } from './lib/messages-api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../components/ui/sheet';
+import {
+  employeeHasPermission,
+  isFullAdminRole,
+  type EmployeeRole,
+} from './types/employee';
 
 type NavItem = {
   to: string;
@@ -40,6 +48,10 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   end?: boolean;
   managerOnly?: boolean;
+  /** Staff/Viewer need this permission. Manager/Admin always see the item. */
+  permission?: string;
+  /** Shown to every signed-in role (e.g. My profile). */
+  alwaysVisible?: boolean;
   badge?: 'inquiries' | 'messages';
   match?: (pathname: string, search: string) => boolean;
 };
@@ -52,7 +64,15 @@ type NavSection = {
 const navSections: NavSection[] = [
   {
     label: 'Main',
-    items: [{ to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true }],
+    items: [
+      {
+        to: '/admin/dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        end: true,
+        permission: 'dashboard',
+      },
+    ],
   },
   {
     label: 'Catalog',
@@ -61,6 +81,7 @@ const navSections: NavSection[] = [
         to: '/admin/products',
         label: 'Products',
         icon: Package,
+        permission: 'products',
         match: (pathname) =>
           pathname === '/admin/products' || pathname.startsWith('/admin/products/'),
       },
@@ -69,6 +90,7 @@ const navSections: NavSection[] = [
         label: 'Website pages',
         icon: Image,
         end: true,
+        permission: 'pages',
         match: (pathname, search) => {
           if (pathname !== '/admin/pages') return false;
           const tab = new URLSearchParams(search).get('tab');
@@ -79,6 +101,7 @@ const navSections: NavSection[] = [
         to: '/admin/banners',
         label: 'Banners',
         icon: PanelsTopLeft,
+        permission: 'banners',
       },
     ],
   },
@@ -90,39 +113,79 @@ const navSections: NavSection[] = [
         label: 'Orders & Inquiries',
         icon: ClipboardList,
         badge: 'inquiries',
+        permission: 'inquiries',
       },
-      { to: '/admin/customers', label: 'Customers', icon: Users },
-      { to: '/admin/messages', label: 'Messages', icon: MessageSquare, badge: 'messages' },
+      {
+        to: '/admin/services',
+        label: 'Services',
+        icon: Wrench,
+        permission: 'services',
+      },
+      { to: '/admin/customers', label: 'Customers', icon: Users, permission: 'customers' },
+      {
+        to: '/admin/messages',
+        label: 'Messages',
+        icon: MessageSquare,
+        badge: 'messages',
+        permission: 'messages',
+      },
     ],
   },
   {
     label: 'Insights',
-    items: [{ to: '/admin/analytics', label: 'Analytics', icon: BarChart3 }],
+    items: [{ to: '/admin/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics' }],
   },
   {
     label: 'Marketing',
     items: [
-      { to: '/admin/promos', label: 'Promotions', icon: Tag },
-      { to: '/admin/vouchers', label: 'Vouchers', icon: Ticket },
-      { to: '/admin/tags', label: 'Tags', icon: Bookmark },
-      { to: '/admin/promo-event', label: 'Promo events', icon: Sparkles },
-      { to: '/admin/promo-popup', label: 'Promo pop-ups', icon: Megaphone },
-      { to: '/admin/promo-pages', label: 'Promo pages', icon: FileText },
+      { to: '/admin/promos', label: 'Promotions', icon: Tag, permission: 'marketing' },
+      { to: '/admin/vouchers', label: 'Vouchers', icon: Ticket, permission: 'marketing' },
+      {
+        to: '/admin/testimonials',
+        label: 'Reviews',
+        icon: MessageCircleHeart,
+        permission: 'marketing',
+      },
+      { to: '/admin/tags', label: 'Tags', icon: Bookmark, permission: 'marketing' },
+      { to: '/admin/promo-event', label: 'Promo events', icon: Sparkles, permission: 'marketing' },
+      { to: '/admin/promo-popup', label: 'Promo pop-ups', icon: Megaphone, permission: 'marketing' },
+      { to: '/admin/auth-screen', label: 'Sign-in screen', icon: LogIn, permission: 'marketing' },
+      { to: '/admin/promo-pages', label: 'Promo pages', icon: FileText, permission: 'marketing' },
     ],
   },
   {
     label: 'Payments',
-    items: [{ to: '/admin/installments', label: 'Installments', icon: CreditCard }],
+    items: [
+      {
+        to: '/admin/installments',
+        label: 'Installments',
+        icon: CreditCard,
+        permission: 'payments',
+      },
+    ],
   },
   {
     label: 'System',
     items: [
       { to: '/admin/employees', label: 'Team members', icon: UserCog, managerOnly: true },
-      { to: '/admin/settings', label: 'Settings', icon: Settings },
-      { to: '/admin/profile', label: 'My profile', icon: User },
+      { to: '/admin/settings', label: 'Settings', icon: Settings, permission: 'settings' },
+      { to: '/admin/profile', label: 'My profile', icon: User, alwaysVisible: true },
     ],
   },
 ];
+
+function canSeeNavItem(
+  item: NavItem,
+  role: EmployeeRole | null | undefined,
+  permissions: string[] | null | undefined,
+  canManageTeam: boolean
+) {
+  if (item.managerOnly && !canManageTeam) return false;
+  if (item.alwaysVisible) return true;
+  if (isFullAdminRole(role)) return true;
+  if (!item.permission) return false;
+  return employeeHasPermission(role, permissions, item.permission);
+}
 
 function navClass(active: boolean) {
   return [
@@ -185,6 +248,7 @@ function SidebarContent({
   unreadMessages,
   displayName,
   role,
+  permissions,
   avatarUrl,
   onSignOut,
   onNavigate,
@@ -195,7 +259,8 @@ function SidebarContent({
   pendingInquiries: number;
   unreadMessages: number;
   displayName: string;
-  role?: string | null;
+  role?: EmployeeRole | null;
+  permissions?: string[] | null;
   avatarUrl?: string | null;
   onSignOut: () => void;
   onNavigate?: () => void;
@@ -222,8 +287,8 @@ function SidebarContent({
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 pt-1">
         {navSections.map((section) => {
-          const items = section.items.filter(
-            (item) => !item.managerOnly || canManageTeam
+          const items = section.items.filter((item) =>
+            canSeeNavItem(item, role, permissions, canManageTeam)
           );
           if (items.length === 0) return null;
           return (
@@ -350,6 +415,7 @@ export function AdminLayout() {
           unreadMessages={unreadMessages}
           displayName={displayName}
           role={employee?.role}
+          permissions={employee?.permissions}
           avatarUrl={employee?.avatarUrl}
           onSignOut={() => void handleSignOut()}
         />
@@ -368,6 +434,7 @@ export function AdminLayout() {
             unreadMessages={unreadMessages}
             displayName={displayName}
             role={employee?.role}
+            permissions={employee?.permissions}
             avatarUrl={employee?.avatarUrl}
             onSignOut={() => void handleSignOut()}
             onNavigate={() => setMobileNavOpen(false)}

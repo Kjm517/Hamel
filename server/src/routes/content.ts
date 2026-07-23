@@ -10,6 +10,8 @@ const ALLOWED_KEYS = new Set([
   'installment_plans',
   'site_promo_popup',
   'vouchers',
+  'testimonials',
+  'auth_screen',
 ]);
 
 export const contentRoutes = new Hono<{ Variables: AuthVariables }>();

@@ -16,6 +16,8 @@ interface ImageUrlOrUploadFieldProps {
   onChange: (url: string) => void;
   placeholder?: string;
   hint?: string;
+  /** Recommended dimensions shown as a guide label (e.g. "1200×1200 px"). */
+  sizeGuide?: string;
   /** Allow MP4 video uploads in addition to images. */
   allowVideo?: boolean;
   previewAsVideo?: boolean;
@@ -35,6 +37,7 @@ export function ImageUrlOrUploadField({
   onChange,
   placeholder = 'https://... or /hamel/...',
   hint,
+  sizeGuide,
   allowVideo = false,
   previewAsVideo = false,
   onMediaTypeChange,
@@ -113,10 +116,24 @@ export function ImageUrlOrUploadField({
 
   return (
     <div className="mb-3">
-      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-        {label}
-      </label>
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {label}
+        </label>
+        {sizeGuide ? (
+          <span className="rounded-md border border-[#BAE6FD] bg-[#F0F9FF] px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#0369A1]">
+            {sizeGuide}
+          </span>
+        ) : null}
+      </div>
       {hint && <p className="mb-2 text-xs text-gray-500">{hint}</p>}
+      {sizeGuide ? (
+        <p className="mb-2 text-xs text-gray-500">
+          Recommended size: <span className="font-medium text-gray-700">{sizeGuide}</span>
+          {' · '}JPG, PNG, or WebP · max {MAX_IMAGE_UPLOAD_MB} MB
+          {allowVideo ? ` (video up to ${MAX_VIDEO_UPLOAD_MB} MB)` : ''}
+        </p>
+      ) : null}
 
       {value ? (
         <div className="mb-2 flex items-start gap-3">

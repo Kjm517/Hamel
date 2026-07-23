@@ -94,7 +94,7 @@ export function SitePromoPopup() {
     setOpen(false);
     setActive(null);
     setCopied(false);
-    // Advance to next matching popup (P2, P3, …)
+
     showNextFromQueue();
   };
 
@@ -105,7 +105,7 @@ export function SitePromoPopup() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      // ignore
+
     }
   };
 

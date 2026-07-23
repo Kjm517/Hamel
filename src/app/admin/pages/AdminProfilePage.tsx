@@ -3,6 +3,7 @@ import { useAdminAuth } from '../context/AdminAuthContext';
 import { updateMyProfile } from '../lib/employees-api';
 import { updateAdminPassword } from '../lib/admin-auth';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../lib/image-size-guides';
 import { normalizeStoragePathForDb, resolveStorageImageUrl } from '../../lib/storage';
 import { adminUi } from '../lib/admin-ui';
 
@@ -40,7 +41,7 @@ export function AdminProfilePage() {
       const storedAvatar = (() => {
         const raw = avatarUrl.trim();
         if (!raw) return null;
-        // Prefer the public URL from upload (Cloudinary HTTPS). Only compact local /uploads URLs.
+
         return normalizeStoragePathForDb(raw) ?? raw;
       })();
       await updateMyProfile({
@@ -134,6 +135,7 @@ export function AdminProfilePage() {
                 setAvatarUrl(next);
               }}
               hint="PNG, JPG, or WebP, up to 25 MB. Upload a photo, then save."
+              sizeGuide={IMAGE_SIZE_GUIDES.profileAvatar}
               remoteUpload={{
                 getObjectPath: (file) => {
                   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';

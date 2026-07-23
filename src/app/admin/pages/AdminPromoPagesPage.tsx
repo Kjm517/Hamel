@@ -10,6 +10,7 @@ import {
   type PromoPage,
 } from '../../data/promo-pages';
 import { ImageUrlOrUploadField } from '../components/ImageUrlOrUploadField';
+import { IMAGE_SIZE_GUIDES } from '../lib/image-size-guides';
 import { mediaPathFor } from '../../lib/storage';
 import { adminUi } from '../lib/admin-ui';
 import { useAdminConfirm } from '../components/AdminConfirmDialog';
@@ -237,16 +238,17 @@ export function AdminPromoPagesPage() {
                             value={page.heroImageUrl || ''}
                             onChange={(v) => updatePage(page.id, { heroImageUrl: v })}
                             remoteUpload={{ getObjectPath: mediaPathFor('promo-pages') }}
+                            sizeGuide={IMAGE_SIZE_GUIDES.promoPageHero}
                           />
                         </div>
                       </div>
                       <Field
-                        label="Bottom CTA label"
+                        label="Bottom button text"
                         value={page.ctaLabel || ''}
                         onChange={(v) => updatePage(page.id, { ctaLabel: v })}
                       />
                       <Field
-                        label="Bottom CTA link"
+                        label="Bottom button link"
                         value={page.ctaHref || ''}
                         onChange={(v) => updatePage(page.id, { ctaHref: v })}
                         mono

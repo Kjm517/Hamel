@@ -318,7 +318,7 @@ function writeMap(key: string, storage: Storage, map: DismissMap): void {
   try {
     storage.setItem(key, JSON.stringify(map));
   } catch {
-    // ignore
+
   }
 }
 
@@ -333,16 +333,16 @@ export function wasPromoPopupDismissed(popup: SitePromoPopupItem): boolean {
     if (typeof sessionStorage === 'undefined') return false;
     return Boolean(readMap(SESSION_KEY, sessionStorage)[key]);
   }
-  // once_per_browser
+
   if (typeof localStorage === 'undefined') return false;
   const map = readMap(STORAGE_KEY_V2, localStorage);
   if (map[key]) return true;
-  // migrate legacy single-code dismiss
+
   try {
     const legacy = localStorage.getItem('hamel_promo_popup_dismissed_v1');
     if (legacy && (legacy === popup.code || legacy === popup.headline)) return true;
   } catch {
-    // ignore
+
   }
   return false;
 }
@@ -377,7 +377,7 @@ export function popupMatchesPath(popup: SitePromoPopupItem, pathname: string): b
   return popup.pagePaths.some((p) => {
     const target = normalizePopupPath(p);
     if (target === path) return true;
-    // prefix match for section roots like /products
+
     if (target !== '/' && path.startsWith(`${target}/`)) return true;
     return false;
   });

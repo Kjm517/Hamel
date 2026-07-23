@@ -61,7 +61,7 @@ async function saveUploadedMedia(
         contentType: file.type || (safeExt === 'mp4' ? 'video/mp4' : `image/${safeExt}`),
         fileName: file.name || objectPath,
       });
-      // Mirror to local disk so /uploads/<path> still works in dev.
+
       if (!process.env.VERCEL) {
         try {
           const uploadDir = env.uploadDir();
@@ -69,14 +69,14 @@ async function saveUploadedMedia(
           await mkdir(join(fullPath, '..'), { recursive: true });
           await writeFile(fullPath, buffer);
         } catch {
-          // Non-fatal — Cloudinary URL remains the source of truth.
+
         }
       }
       return { ...result, storage: 'cloudinary' };
     } catch (err) {
-      // On Vercel there is no durable disk — surface the Cloudinary error.
+
       if (process.env.VERCEL) throw err;
-      // Local/dev: keep working with local uploads if Cloudinary credentials are wrong.
+
       console.warn(
         '[uploads] Cloudinary failed, falling back to local disk:',
         err instanceof Error ? err.message : err
@@ -199,7 +199,7 @@ uploadRoutes.get('/file', async (c) => {
   if (/^https?:\/\//i.test(url)) {
     return c.redirect(url, 302);
   }
-  // Local/dev: point at the static /uploads mount on this API host.
+
   const base = env.publicBaseUrl().replace(/\/$/, '');
   return c.redirect(`${base}/uploads/${objectPath}`, 302);
 });

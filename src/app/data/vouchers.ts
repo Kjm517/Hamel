@@ -2,8 +2,15 @@ import { fetchContent, getCachedContent, saveContent } from '../lib/content-api'
 
 export type VoucherDiscountType = 'fixed' | 'percent' | 'free_install';
 
-/** Who may claim the voucher (enforced when customer accounts exist; shown on storefront). */
-export type VoucherAudience = 'everyone' | 'new_users' | 'loyal_members' | 'returning';
+/** Who may use the voucher (enforced on storefront for loyalty tiers). */
+export type VoucherAudience =
+  | 'everyone'
+  | 'new_users'
+  | 'loyal_members'
+  | 'loyal_bronze'
+  | 'loyal_silver'
+  | 'loyal_gold'
+  | 'returning';
 
 export type VoucherProductScope = 'all' | 'selected';
 
@@ -21,6 +28,11 @@ export interface StoreVoucher {
   productScope: VoucherProductScope;
   /** Used when productScope is `selected`. */
   productIds: string[];
+  /**
+   * When set, voucher only applies to products in these categories
+   * (e.g. `['Split Type']` for free installation).
+   */
+  categories?: string[];
   audience: VoucherAudience;
   /**
    * Max number of customers / claims allowed. `0` = unlimited.
@@ -38,9 +50,45 @@ export interface VouchersConfig {
 export const VOUCHER_AUDIENCE_LABELS: Record<VoucherAudience, string> = {
   everyone: 'Everyone',
   new_users: 'New customers only',
-  loyal_members: 'Loyal members only',
+  loyal_members: 'All loyal members',
+  loyal_bronze: 'Bronze Loyal Members',
+  loyal_silver: 'Silver Loyal Members',
+  loyal_gold: 'Gold Loyal Members',
   returning: 'Returning customers only',
 };
+
+const AUDIENCE_VALUES = new Set<string>(Object.keys(VOUCHER_AUDIENCE_LABELS));
+
+/** Whether a customer's loyalty tier may use this voucher audience. */
+export function customerMatchesVoucherAudience(
+  audience: VoucherAudience,
+  loyaltyTier: 'bronze' | 'silver' | 'gold' | null | undefined
+): { ok: true } | { ok: false; reason: string } {
+  if (audience === 'everyone') return { ok: true };
+
+  if (audience === 'loyal_members') {
+    if (loyaltyTier) return { ok: true };
+    return {
+      ok: false,
+      reason: 'This voucher is for loyal members only (Bronze, Silver, or Gold).',
+    };
+  }
+  if (audience === 'loyal_bronze') {
+    if (loyaltyTier === 'bronze') return { ok: true };
+    return { ok: false, reason: 'This voucher is for Bronze loyal members only.' };
+  }
+  if (audience === 'loyal_silver') {
+    if (loyaltyTier === 'silver') return { ok: true };
+    return { ok: false, reason: 'This voucher is for Silver loyal members only.' };
+  }
+  if (audience === 'loyal_gold') {
+    if (loyaltyTier === 'gold') return { ok: true };
+    return { ok: false, reason: 'This voucher is for Gold loyal members only.' };
+  }
+
+  // new_users / returning — not loyalty-gated here.
+  return { ok: true };
+}
 
 export const defaultVouchers: VouchersConfig = {
   vouchers: [
@@ -84,15 +132,18 @@ export const defaultVouchers: VouchersConfig = {
       enabled: true,
       productScope: 'all',
       productIds: [],
-      audience: 'new_users',
-      maxRedemptions: 50,
+      categories: ['Split Type'],
+      audience: 'everyone',
+      maxRedemptions: 0,
       redemptionCount: 0,
     },
   ],
 };
 
 function normalizeAudience(raw: unknown): VoucherAudience {
-  if (raw === 'new_users' || raw === 'loyal_members' || raw === 'returning') return raw;
+  if (typeof raw === 'string' && AUDIENCE_VALUES.has(raw)) {
+    return raw as VoucherAudience;
+  }
   return 'everyone';
 }
 
@@ -107,9 +158,21 @@ function normalize(raw: Partial<VouchersConfig> | null): VouchersConfig {
         v.productScope === 'selected' || (v.productScope !== 'all' && productIds.length > 0)
           ? 'selected'
           : 'all';
+      const categories = Array.isArray(v.categories)
+        ? v.categories.filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+        : undefined;
+      const code = (v.code || '').toUpperCase();
+      // Free install is for every Split Type customer (migrate older defaults).
+      const freeInstallCategories =
+        code === 'FREEINSTALL' && (!categories || categories.length === 0)
+          ? ['Split Type']
+          : categories;
+      const audience =
+        code === 'FREEINSTALL' ? 'everyone' : normalizeAudience(v.audience);
+
       return {
         id: v.id || `v-${i}`,
-        code: (v.code || '').toUpperCase(),
+        code,
         label: v.label || v.code || 'Voucher',
         discountType:
           v.discountType === 'percent' || v.discountType === 'free_install'
@@ -121,7 +184,8 @@ function normalize(raw: Partial<VouchersConfig> | null): VouchersConfig {
         enabled: v.enabled !== false,
         productScope,
         productIds: productScope === 'selected' ? productIds : [],
-        audience: normalizeAudience(v.audience),
+        categories: freeInstallCategories,
+        audience,
         maxRedemptions: Math.max(0, Number(v.maxRedemptions) || 0),
         redemptionCount: Math.max(0, Number(v.redemptionCount) || 0),
       };
@@ -161,7 +225,16 @@ export function voucherLimitLabel(voucher: StoreVoucher): string {
   return `${voucher.redemptionCount}/${voucher.maxRedemptions} used · ${left} left`;
 }
 
-export function voucherAppliesToProduct(voucher: StoreVoucher, productId?: string): boolean {
+export function voucherAppliesToProduct(
+  voucher: StoreVoucher,
+  productId?: string,
+  category?: string
+): boolean {
+  if (voucher.categories?.length) {
+    if (!category?.trim()) return false;
+    const cat = category.trim().toLowerCase();
+    if (!voucher.categories.some((c) => c.trim().toLowerCase() === cat)) return false;
+  }
   if (voucher.productScope !== 'selected') return true;
   if (!productId) return false;
   return voucher.productIds.includes(productId);
@@ -170,11 +243,11 @@ export function voucherAppliesToProduct(voucher: StoreVoucher, productId?: strin
 export function listVouchersForProduct(
   productId: string | undefined,
   config?: VouchersConfig,
-  opts?: { includeExhausted?: boolean }
+  opts?: { includeExhausted?: boolean; category?: string }
 ): StoreVoucher[] {
   const list = (config ?? getVouchersCached()).vouchers.filter((v) => v.enabled);
   return list.filter((v) => {
-    if (!voucherAppliesToProduct(v, productId)) return false;
+    if (!voucherAppliesToProduct(v, productId, opts?.category)) return false;
     if (!opts?.includeExhausted && !voucherHasRemaining(v)) return false;
     return true;
   });
@@ -200,16 +273,38 @@ export function computeVoucherDiscount(
   return { amount: Math.min(voucher.value, subtotal), label: voucher.label };
 }
 
+/** Sum discounts for multiple vouchers (each checked against the same subtotal). */
+export function computeVouchersDiscount(
+  vouchers: StoreVoucher[],
+  subtotal: number
+): {
+  amount: number;
+  label: string;
+  breakdown: Array<{ voucher: StoreVoucher; amount: number; label: string }>;
+} {
+  const breakdown = vouchers.map((voucher) => {
+    const result = computeVoucherDiscount(voucher, subtotal);
+    return { voucher, amount: result.amount, label: result.label };
+  });
+  const amount = breakdown.reduce((sum, row) => sum + row.amount, 0);
+  return {
+    amount,
+    label: breakdown.map((row) => row.label).filter(Boolean).join(' + ') || 'Vouchers',
+    breakdown,
+  };
+}
+
 export function findVoucherByCode(
   code: string,
   config?: VouchersConfig,
-  productId?: string
+  productId?: string,
+  category?: string
 ): StoreVoucher | undefined {
   const list = (config ?? getVouchersCached()).vouchers.filter((v) => v.enabled);
   const needle = code.trim().toUpperCase();
   const found = list.find((v) => v.code.toUpperCase() === needle);
   if (!found) return undefined;
-  if (!voucherAppliesToProduct(found, productId)) return undefined;
+  if (!voucherAppliesToProduct(found, productId, category)) return undefined;
   return found;
 }
 

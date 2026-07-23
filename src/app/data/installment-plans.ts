@@ -112,7 +112,7 @@ export function resolveInstallmentOptionsForPrice(
     for (const term of plan.terms) {
       const rate = term.interestPercentPerMonth / 100;
       const existing = byMonths.get(term.months);
-      // Prefer lower monthly rate when banks overlap
+
       if (!existing || rate < existing.interestRate) {
         byMonths.set(term.months, {
           months: term.months,
@@ -124,8 +124,8 @@ export function resolveInstallmentOptionsForPrice(
   }
   const bankOptions = [...byMonths.values()].sort((a, b) => a.months - b.months);
 
-  // Admin-managed bank plans are the storefront source of truth. Legacy
-  // per-product terms remain only as a fallback when no active plans exist.
+
+
   return bankOptions.length || plans.length ? bankOptions : productOverride ?? [];
 }
 

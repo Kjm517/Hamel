@@ -13,6 +13,20 @@
 
 :root {
   --font-size: 16px;
+  --font-sans: 'Poppins', system-ui, sans-serif;
+  /* Hamel brand palette */
+  --hamel-primary: #0554C2;
+  --hamel-secondary: #1B379A;
+  --hamel-bright: #4D71D2;
+  --hamel-light: #A3C3EC;
+  --hamel-very-light: #DDE6F0;
+  --hamel-orange: #E3790B;
+  --hamel-success: #4C982F;
+  --hamel-navy: #0E1C3A;
+  --hamel-dark-gray: #535763;
+  --hamel-medium-gray: #889296;
+  --hamel-light-gray: #C5C1BD;
+  --hamel-bg: #FBFBFD;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
@@ -137,6 +151,7 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
   }
 
   /**
@@ -384,7 +399,7 @@
     pointer-events: none;
   }
 
-  /* Legacy class names still referenced in older builds */
+
   .hamel-anim-pulse { animation: hamel-fade-in 0.35s ease-out both, hamel-pulse-soft 1.8s ease-in-out 0.35s 2; }
   .hamel-anim-shimmer {
     animation: hamel-fade-in 0.4s ease-out both;
@@ -397,7 +412,7 @@
   }
   .hamel-anim-confetti { animation: hamel-confetti-pop 0.75s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-  /* LOAD-B · Walking penguin loading screen */
+
   @keyframes hamel-load-waddle {
     0%, 100% { transform: rotate(-7deg); }
     50% { transform: rotate(7deg); }
@@ -449,13 +464,13 @@
     animation: hamel-load-b-shadow 0.7s ease-in-out infinite;
   }
 
-  /*
-   * Dance strip: 9600×1600 → 6 × 1600 frames, transparent PNG.
-   * Centered in place (no travel).
-   */
+
+
+
+
   @keyframes hamel-penguin-dance {
     from { background-position: 0 0; }
-    to { background-position: -840px 0; } /* 140 × 6 */
+    to { background-position: -840px 0; }
   }
   .hamel-load-dance-sprite {
     width: 140px;
@@ -468,7 +483,21 @@
     image-rendering: auto;
   }
 
-  /* Promo event ambient overlays — vertical travel across the section. */
+  @keyframes hamel-construction-hammer {
+    from { background-position: 0 0; }
+    to { background-position: -3072px 0; }
+  }
+  .hamel-construction-sprite {
+    width: 512px;
+    height: 512px;
+    background-image: var(--hamel-construction-sheet);
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    animation: hamel-construction-hammer 0.9s steps(6) infinite;
+    image-rendering: auto;
+  }
+
+
   @keyframes hamel-fx-travel-up {
     0% { transform: translate3d(0, 0, 0) rotate(-6deg); opacity: 0; }
     8% { opacity: 1; }
@@ -492,7 +521,7 @@
     8% { opacity: 0.9; }
     100% { transform: translate3d(110vw, -24px, 0) rotate(32deg); opacity: 0; }
   }
-  /* Use large px distances — % is relative to the particle itself (too tiny to see). */
+
   @keyframes hamel-fx-fall {
     0% { transform: translate3d(0, -40px, 0) rotate(0deg); opacity: 0; }
     8% { opacity: 1; }
@@ -537,7 +566,7 @@
     animation-fill-mode: both;
   }
 
-  /* Particle wrappers must stay invisible — no border/bg/shadow (avoids moving “boxes”). */
+
   .hamel-fx-leaf,
   .hamel-fx-mist-icon,
   .hamel-fx-flake,
@@ -611,7 +640,7 @@
   .hamel-fx-cool-mist .hamel-fx-veil,
   .hamel-fx-frost .hamel-fx-veil,
   .hamel-fx-snow .hamel-fx-veil {
-    /* Oversized so soft edges stay clipped — never animate translate on a full inset layer (shows a moving box). */
+
     inset: -25%;
     width: 150%;
     height: 150%;
@@ -651,7 +680,7 @@
     animation: hamel-fx-veil-breathe 5.5s ease-in-out infinite;
   }
 
-  /* Particle classes only — do not reuse effect container names (hamel-fx-frost / snow). */
+
   .hamel-fx-confetti,
   .hamel-fx-flake,
   .hamel-fx-crystal {
@@ -694,7 +723,7 @@
     opacity: 0;
   }
 
-  /* Direction: force all particles to travel full height bottom↔top. */
+
   .hamel-fx-dir-up .hamel-fx-balloon,
   .hamel-fx-dir-up .hamel-fx-bubble,
   .hamel-fx-dir-up .hamel-fx-leaf,
@@ -740,7 +769,7 @@
   }
 }
 
-/* 5 × 5 Hamel-wave spritesheet (25 frames). */
+
 .hamel-wave {
   width: 256px;
   height: 256px;

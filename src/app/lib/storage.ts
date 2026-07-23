@@ -25,7 +25,7 @@ export function resolveStorageImageUrl(value: string | undefined): string | unde
   if (!value?.trim()) return undefined;
   const v = value.trim();
 
-  // Stale absolute URLs from local dev — remap to current API uploads base.
+
   const localUpload = v.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/uploads\/(.+)$/i);
   if (localUpload?.[1]) {
     return getPublicStorageUrl(localUpload[1]);
@@ -34,7 +34,7 @@ export function resolveStorageImageUrl(value: string | undefined): string | unde
   if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:')) {
     return v;
   }
-  // Site-relative paths like /hamel/... stay as-is; /uploads/... go through API base when needed.
+
   if (v.startsWith('/uploads/')) {
     return getPublicStorageUrl(v.replace(/^\/uploads\//, ''));
   }
@@ -48,7 +48,7 @@ export function normalizeStoragePathForDb(value: string | undefined): string | n
   if (!value?.trim()) return null;
   const v = value.trim();
 
-  // Keep remote CDN URLs (Cloudinary, etc.) as absolute — never strip them to a local path.
+
   if (/^https?:\/\//i.test(v)) {
     const isLocalUpload =
       /\/uploads\//i.test(v) &&
